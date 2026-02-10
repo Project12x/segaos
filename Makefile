@@ -47,7 +47,8 @@ SUB_MAP   = $(BUILD_DIR)/sub_cpu.map
 MAIN_ELF  = $(BUILD_DIR)/main_cpu.elf
 MAIN_BIN  = $(BUILD_DIR)/main_cpu.bin
 MAIN_MAP  = $(BUILD_DIR)/main_cpu.map
-ISO_OUT   = $(BUILD_DIR)/segaos.iso
+DISC_BIN  = $(BUILD_DIR)/segaos.bin
+DISC_CUE  = $(BUILD_DIR)/segaos.cue
 
 # ============================================================
 # Sub CPU Sources
@@ -86,11 +87,11 @@ main: dirs $(MAIN_BIN)
 	@echo "Main CPU build complete: $(MAIN_BIN)"
 	@$(SIZE) $(MAIN_ELF) || true
 
-# Build boot disc ISO (requires both sub and main)
+# Build boot disc BIN/CUE (requires both sub and main)
 iso: sub main
-	@echo "Building ISO..."
-	$(PYTHON) tools/build_iso.py $(MAIN_BIN) $(SUB_BIN) $(ISO_OUT)
-	@echo "ISO build complete: $(ISO_OUT)"
+	@echo "Building BIN/CUE disc image..."
+	$(PYTHON) tools/build_iso.py $(MAIN_BIN) $(SUB_BIN) $(BUILD_DIR)/segaos
+	@echo "Disc image complete: $(DISC_CUE)"
 
 dirs:
 	@$(MKDIR) -p $(BUILD_DIR) 2>/dev/null || mkdir $(BUILD_DIR) 2>NUL || true
