@@ -1,7 +1,8 @@
 # Master Makefile for Sega CD OS (SegaOS)
 #
 # Uses SGDK's m68k-elf-gcc toolchain for both CPUs.
-# Sub CPU program is compiled, then embedded into the Main CPU ROM.
+# IP (Main CPU) and SP (Sub CPU) are built separately,
+# then packed into a boot sector ISO by build_iso.py.
 
 # ============================================================
 # Toolchain (SGDK ships non-prefixed m68k-elf binaries)
@@ -16,6 +17,7 @@ OBJCOPY   = $(SGDK_BIN)/objcopy.exe
 SIZE      = $(SGDK_BIN)/size.exe
 MAKE_CMD  = $(SGDK_BIN)/make.exe
 MKDIR     = $(SGDK_BIN)/mkdir.exe
+PYTHON    = python
 
 # ============================================================
 # Flags
@@ -44,6 +46,8 @@ SUB_BIN   = $(BUILD_DIR)/sub_cpu.bin
 SUB_MAP   = $(BUILD_DIR)/sub_cpu.map
 MAIN_ELF  = $(BUILD_DIR)/main_cpu.elf
 MAIN_BIN  = $(BUILD_DIR)/main_cpu.bin
+MAIN_MAP  = $(BUILD_DIR)/main_cpu.map
+ISO_OUT   = $(BUILD_DIR)/segaos.iso
 
 # ============================================================
 # Sub CPU Sources
@@ -65,25 +69,28 @@ MAIN_ASM_OBJS = $(MAIN_ASM_SRCS:$(MAIN_DIR)/%.s=$(BUILD_DIR)/main_%.o)
 MAIN_C_OBJS   = $(MAIN_C_SRCS:$(MAIN_DIR)/%.c=$(BUILD_DIR)/main_%.o)
 MAIN_OBJS     = $(MAIN_ASM_OBJS) $(MAIN_C_OBJS)
 
-# Embedded Sub CPU binary as object file
-SUB_BIN_OBJ = $(BUILD_DIR)/sub_cpu_bin.o
-MAIN_MAP    = $(BUILD_DIR)/main_cpu.map
-
 # ============================================================
 # Targets
 # ============================================================
-.PHONY: all clean sub main dirs info
+.PHONY: all clean sub main iso dirs info
 
-all: dirs sub
+all: iso
 
-# Build Sub CPU only (Main CPU needs SGDK integration)
+# Build Sub CPU
 sub: dirs $(SUB_BIN)
 	@echo "Sub CPU build complete: $(SUB_BIN)"
 	@$(SIZE) $(SUB_ELF) || true
 
-# Build Main CPU (requires SGDK - placeholder for now)
-main: dirs sub $(MAIN_BIN)
+# Build Main CPU (IP - no Sub CPU embedding, BIOS loads SP separately)
+main: dirs $(MAIN_BIN)
 	@echo "Main CPU build complete: $(MAIN_BIN)"
+	@$(SIZE) $(MAIN_ELF) || true
+
+# Build boot disc ISO (requires both sub and main)
+iso: sub main
+	@echo "Building ISO..."
+	$(PYTHON) tools/build_iso.py $(MAIN_BIN) $(SUB_BIN) $(ISO_OUT)
+	@echo "ISO build complete: $(ISO_OUT)"
 
 dirs:
 	@$(MKDIR) -p $(BUILD_DIR) 2>/dev/null || mkdir $(BUILD_DIR) 2>NUL || true
@@ -94,6 +101,8 @@ info:
 	@echo "Sub sources: $(SUB_C_SRCS)"
 	@echo "Sub ASM:     $(SUB_ASM_SRCS)"
 	@echo "Sub objects:  $(SUB_OBJS)"
+	@echo "Main sources: $(MAIN_C_SRCS)"
+	@echo "Main objects: $(MAIN_OBJS)"
 
 # ============================================================
 # Sub CPU Build Rules
@@ -119,14 +128,8 @@ $(SUB_BIN): $(SUB_ELF)
 	@$(SIZE) $< || true
 
 # ============================================================
-# Main CPU Build Rules
+# Main CPU Build Rules (IP only, no Sub CPU embedding)
 # ============================================================
-
-# Convert Sub CPU binary into a linkable object file
-$(SUB_BIN_OBJ): $(SUB_BIN)
-	$(OBJCOPY) -I binary -O elf32-m68k -B m68k \
-		--rename-section .data=.rodata,alloc,load,readonly,data,contents \
-		$< $@
 
 # Assemble Main CPU startup
 $(BUILD_DIR)/main_%.o: $(MAIN_DIR)/%.s
@@ -136,11 +139,10 @@ $(BUILD_DIR)/main_%.o: $(MAIN_DIR)/%.s
 $(BUILD_DIR)/main_%.o: $(MAIN_DIR)/%.c
 	$(CC) $(CFLAGS_MAIN) -c $< -o $@
 
-# Link Main CPU ELF
-# crt0.o must come first (entry point)
-$(MAIN_ELF): $(MAIN_OBJS) $(SUB_BIN_OBJ) $(MAIN_DIR)/main.ld
+# Link Main CPU ELF (no sub_cpu_bin.o — BIOS loads SP from boot sector)
+$(MAIN_ELF): $(MAIN_OBJS) $(MAIN_DIR)/main.ld
 	$(LD) -T $(MAIN_DIR)/main.ld -Map=$(MAIN_MAP) --gc-sections \
-		-o $@ $(MAIN_OBJS) $(SUB_BIN_OBJ) -L$(SGDK_LIB) -lgcc
+		-o $@ $(MAIN_OBJS) -L$(SGDK_LIB) -lgcc
 
 $(MAIN_BIN): $(MAIN_ELF)
 	$(OBJCOPY) -O binary $< $@

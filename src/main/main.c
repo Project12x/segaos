@@ -17,22 +17,20 @@
 #include "mouse.h"
 #include "vdp.h"
 
-/* Embedded Sub CPU program (linked from sub_cpu.bin via objcopy)
- * Symbol names include the path: build/sub_cpu.bin ->
- * _binary_build_sub_cpu_bin_* */
-extern const uint8_t _binary_build_sub_cpu_bin_start[];
-extern const uint8_t _binary_build_sub_cpu_bin_end[];
-#define SUB_CPU_BIN_START _binary_build_sub_cpu_bin_start
-#define SUB_CPU_BIN_END _binary_build_sub_cpu_bin_end
-
-/* PRG-RAM window as seen by Main CPU ($420000, 128KB bank 0) */
-#define PRG_RAM_WINDOW ((volatile uint8_t *)0x420000)
-#define PRG_RAM_SP_OFFSET 0x6000 /* SP loads at $006000 in Sub CPU space */
+/*
+ * NOTE: The BIOS has already:
+ *   - Loaded the SP (Sub CPU program) to PRG-RAM $006000
+ *   - Started the Sub CPU (sp_init -> sub_init -> sp_main -> sub_main)
+ *   - Loaded this IP to Work RAM $FF0000
+ *   - Jumped to _entry (crt0.s)
+ *
+ * We do NOT need to manually reset the GA, halt the Sub CPU,
+ * or copy the SP binary. The BIOS handles all of that.
+ */
 
 /* Forward declarations */
 static void boot_sequence(void);
 static void main_loop(void);
-static void load_sub_program(void);
 
 int main(void) {
   boot_sequence();
@@ -41,49 +39,26 @@ int main(void) {
 }
 
 /*
- * Boot Sequence
+ * Boot Sequence (BIOS has already loaded SP and started Sub CPU)
  *
- * Reference: Megadev ip_sp.md, plutiedev, Sega CD Hardware Manual
- *
- * 1. Assert Sub CPU reset
- * 2. Request Sub CPU bus (SBRQ)
- * 3. Wait for bus grant
- * 4. Load Sub CPU program to PRG-RAM
- * 5. Set memory mode to 1M
- * 6. Release Sub CPU from reset
- * 7. Wait for Sub CPU to signal ready
+ * 1. Set Word RAM to 1M mode for double-buffering
+ * 2. Wait for Sub CPU to signal ready
+ * 3. Initialize peripherals (mouse, VDP, framebuffer)
  */
 static void boot_sequence(void) {
-  /* Step 1: Assert Sub CPU reset */
-  GA_MAIN_REG16(GA_RESET) = 0x0000;
-
-  /* Step 2: Request Sub CPU bus (halt Sub CPU) */
-  GA_MAIN_REG16(GA_RESET) = RESET_SBRQ;
-
-  /* Step 3: Wait for bus grant */
-  while (!(GA_MAIN_REG16(GA_RESET) & RESET_SBRQ)) {
-    /* Spin until Sub CPU bus is granted */
-  }
-
-  /* Step 4: Load Sub CPU program to PRG-RAM */
-  load_sub_program();
-
-  /* Step 5: Set Word RAM to 1M mode for double-buffering */
+  /* Step 1: Set Word RAM to 1M mode for double-buffering */
   {
     uint16_t mem = GA_MAIN_REG16(GA_MEM_MODE);
     mem |= MEM_MODE_1M;
     GA_MAIN_REG16(GA_MEM_MODE) = mem;
   }
 
-  /* Step 6: Release Sub CPU from reset (clear SBRQ, set SRES) */
-  GA_MAIN_REG16(GA_RESET) = RESET_SRES;
-
-  /* Step 7: Wait for Sub CPU to boot and signal ready */
+  /* Step 2: Wait for Sub CPU to boot and signal ready */
   while (GA_MAIN_READ_SUB_FLAG() != STATUS_IDLE) {
     /* Sub CPU is booting... */
   }
 
-  /* Step 8: Verify Sub CPU state */
+  /* Step 3: Verify Sub CPU state */
   {
     uint16_t sub_state = main_read_result(0);
     if (sub_state != SUB_STATE_READY) {
@@ -93,35 +68,14 @@ static void boot_sequence(void) {
     }
   }
 
-  /* Step 9: Initialize Mega Mouse on controller port 1 */
+  /* Step 4: Initialize Mega Mouse on controller port 1 */
   Mouse_Init(1);
 
-  /* Step 10: Initialize VDP (standalone, no SGDK dependency) */
+  /* Step 5: Initialize VDP (standalone, no SGDK dependency) */
   VDP_Init();
 
-  /* Step 11: Set up framebuffer tilemap + palette */
+  /* Step 6: Set up framebuffer tilemap + palette */
   FB_Init();
-}
-
-/*
- * Load the Sub CPU program binary into PRG-RAM.
- *
- * The Main CPU accesses PRG-RAM via a 128KB window at $420000.
- * PRG-RAM bank 0 maps Sub CPU addresses $000000-$01FFFF.
- * The SP header goes at offset $6000 within this bank.
- *
- * NOTE: The GA_MEM_MODE register bits 8-15 (WP) control which
- * PRG-RAM bank is mapped. Bank 0 is the default.
- */
-static void load_sub_program(void) {
-  const uint8_t *src = SUB_CPU_BIN_START;
-  const uint8_t *end = SUB_CPU_BIN_END;
-  volatile uint8_t *dst = PRG_RAM_WINDOW + PRG_RAM_SP_OFFSET;
-
-  /* Copy Sub CPU program to PRG-RAM at SP offset */
-  while (src < end) {
-    *dst++ = *src++;
-  }
 }
 
 static void main_loop(void) {
