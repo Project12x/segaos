@@ -1,0 +1,428 @@
+/*
+ * sysfont.c - System Font Glyph Data for Genesis System 1
+ *
+ * Fixed-width 6x10 bitmap font, ASCII 32-126 (95 glyphs).
+ * Each glyph: 6px wide, 10px tall, 1 byte/row (MSB-first).
+ * Only bits 7-2 of each byte are used (6 pixels).
+ *
+ * Font metrics:
+ *   Width:    6 px
+ *   Height:  10 px
+ *   Advance:  6 px (fixed-width)
+ *   Ascent:   8 px (baseline is 2px from bottom)
+ *   Baseline: 8 (from top of glyph to baseline)
+ *
+ * Total ROM: 95 glyphs * 10 bytes = 950 bytes glyph data
+ *            + 95 * sizeof(Glyph) = 475 bytes glyph structs
+ *            = ~1.4KB total
+ */
+
+#include "sysfont.h"
+
+/* ============================================================
+ * Glyph Bitmap Data
+ *
+ * Each glyph is 10 bytes (one byte per row).
+ * Bits 7-2 represent pixels (MSB = leftmost).
+ * ============================================================ */
+
+/* Space (32) */
+static const uint8_t g_space[] = {0x00, 0x00, 0x00, 0x00, 0x00,
+                                  0x00, 0x00, 0x00, 0x00, 0x00};
+/* ! (33) */
+static const uint8_t g_exclam[] = {0x00, 0x20, 0x20, 0x20, 0x20,
+                                   0x20, 0x00, 0x20, 0x00, 0x00};
+/* " (34) */
+static const uint8_t g_dquote[] = {0x00, 0x50, 0x50, 0x50, 0x00,
+                                   0x00, 0x00, 0x00, 0x00, 0x00};
+/* # (35) */
+static const uint8_t g_hash[] = {0x00, 0x50, 0x50, 0xF8, 0x50,
+                                 0xF8, 0x50, 0x50, 0x00, 0x00};
+/* $ (36) */
+static const uint8_t g_dollar[] = {0x00, 0x20, 0x78, 0xA0, 0x70,
+                                   0x28, 0xF0, 0x20, 0x00, 0x00};
+/* % (37) */
+static const uint8_t g_percent[] = {0x00, 0xC8, 0xC8, 0x10, 0x20,
+                                    0x40, 0x98, 0x98, 0x00, 0x00};
+/* & (38) */
+static const uint8_t g_ampersand[] = {0x00, 0x40, 0xA0, 0xA0, 0x40,
+                                      0xA8, 0x90, 0x68, 0x00, 0x00};
+/* ' (39) */
+static const uint8_t g_squote[] = {0x00, 0x20, 0x20, 0x20, 0x00,
+                                   0x00, 0x00, 0x00, 0x00, 0x00};
+/* ( (40) */
+static const uint8_t g_lparen[] = {0x00, 0x10, 0x20, 0x40, 0x40,
+                                   0x40, 0x20, 0x10, 0x00, 0x00};
+/* ) (41) */
+static const uint8_t g_rparen[] = {0x00, 0x40, 0x20, 0x10, 0x10,
+                                   0x10, 0x20, 0x40, 0x00, 0x00};
+/* * (42) */
+static const uint8_t g_asterisk[] = {0x00, 0x00, 0x20, 0xA8, 0x70,
+                                     0xA8, 0x20, 0x00, 0x00, 0x00};
+/* + (43) */
+static const uint8_t g_plus[] = {0x00, 0x00, 0x20, 0x20, 0xF8,
+                                 0x20, 0x20, 0x00, 0x00, 0x00};
+/* , (44) */
+static const uint8_t g_comma[] = {0x00, 0x00, 0x00, 0x00, 0x00,
+                                  0x00, 0x20, 0x20, 0x40, 0x00};
+/* - (45) */
+static const uint8_t g_minus[] = {0x00, 0x00, 0x00, 0x00, 0xF8,
+                                  0x00, 0x00, 0x00, 0x00, 0x00};
+/* . (46) */
+static const uint8_t g_period[] = {0x00, 0x00, 0x00, 0x00, 0x00,
+                                   0x00, 0x00, 0x20, 0x00, 0x00};
+/* / (47) */
+static const uint8_t g_slash[] = {0x00, 0x08, 0x08, 0x10, 0x20,
+                                  0x40, 0x80, 0x80, 0x00, 0x00};
+/* 0 (48) */
+static const uint8_t g_0[] = {0x00, 0x70, 0x88, 0x98, 0xA8,
+                              0xC8, 0x88, 0x70, 0x00, 0x00};
+/* 1 (49) */
+static const uint8_t g_1[] = {0x00, 0x20, 0x60, 0x20, 0x20,
+                              0x20, 0x20, 0x70, 0x00, 0x00};
+/* 2 (50) */
+static const uint8_t g_2[] = {0x00, 0x70, 0x88, 0x08, 0x10,
+                              0x20, 0x40, 0xF8, 0x00, 0x00};
+/* 3 (51) */
+static const uint8_t g_3[] = {0x00, 0x70, 0x88, 0x08, 0x30,
+                              0x08, 0x88, 0x70, 0x00, 0x00};
+/* 4 (52) */
+static const uint8_t g_4[] = {0x00, 0x10, 0x30, 0x50, 0x90,
+                              0xF8, 0x10, 0x10, 0x00, 0x00};
+/* 5 (53) */
+static const uint8_t g_5[] = {0x00, 0xF8, 0x80, 0xF0, 0x08,
+                              0x08, 0x88, 0x70, 0x00, 0x00};
+/* 6 (54) */
+static const uint8_t g_6[] = {0x00, 0x30, 0x40, 0x80, 0xF0,
+                              0x88, 0x88, 0x70, 0x00, 0x00};
+/* 7 (55) */
+static const uint8_t g_7[] = {0x00, 0xF8, 0x08, 0x10, 0x20,
+                              0x40, 0x40, 0x40, 0x00, 0x00};
+/* 8 (56) */
+static const uint8_t g_8[] = {0x00, 0x70, 0x88, 0x88, 0x70,
+                              0x88, 0x88, 0x70, 0x00, 0x00};
+/* 9 (57) */
+static const uint8_t g_9[] = {0x00, 0x70, 0x88, 0x88, 0x78,
+                              0x08, 0x10, 0x60, 0x00, 0x00};
+/* : (58) */
+static const uint8_t g_colon[] = {0x00, 0x00, 0x00, 0x20, 0x00,
+                                  0x00, 0x20, 0x00, 0x00, 0x00};
+/* ; (59) */
+static const uint8_t g_semicolon[] = {0x00, 0x00, 0x00, 0x20, 0x00,
+                                      0x00, 0x20, 0x20, 0x40, 0x00};
+/* < (60) */
+static const uint8_t g_less[] = {0x00, 0x08, 0x10, 0x20, 0x40,
+                                 0x20, 0x10, 0x08, 0x00, 0x00};
+/* = (61) */
+static const uint8_t g_equal[] = {0x00, 0x00, 0x00, 0xF8, 0x00,
+                                  0xF8, 0x00, 0x00, 0x00, 0x00};
+/* > (62) */
+static const uint8_t g_greater[] = {0x00, 0x80, 0x40, 0x20, 0x10,
+                                    0x20, 0x40, 0x80, 0x00, 0x00};
+/* ? (63) */
+static const uint8_t g_question[] = {0x00, 0x70, 0x88, 0x08, 0x10,
+                                     0x20, 0x00, 0x20, 0x00, 0x00};
+/* @ (64) */
+static const uint8_t g_at[] = {0x00, 0x70, 0x88, 0xB8, 0xA8,
+                               0xB8, 0x80, 0x70, 0x00, 0x00};
+/* A (65) */
+static const uint8_t g_A[] = {0x00, 0x70, 0x88, 0x88, 0xF8,
+                              0x88, 0x88, 0x88, 0x00, 0x00};
+/* B (66) */
+static const uint8_t g_B[] = {0x00, 0xF0, 0x88, 0x88, 0xF0,
+                              0x88, 0x88, 0xF0, 0x00, 0x00};
+/* C (67) */
+static const uint8_t g_C[] = {0x00, 0x70, 0x88, 0x80, 0x80,
+                              0x80, 0x88, 0x70, 0x00, 0x00};
+/* D (68) */
+static const uint8_t g_D[] = {0x00, 0xF0, 0x88, 0x88, 0x88,
+                              0x88, 0x88, 0xF0, 0x00, 0x00};
+/* E (69) */
+static const uint8_t g_E[] = {0x00, 0xF8, 0x80, 0x80, 0xF0,
+                              0x80, 0x80, 0xF8, 0x00, 0x00};
+/* F (70) */
+static const uint8_t g_F[] = {0x00, 0xF8, 0x80, 0x80, 0xF0,
+                              0x80, 0x80, 0x80, 0x00, 0x00};
+/* G (71) */
+static const uint8_t g_G[] = {0x00, 0x70, 0x88, 0x80, 0xB8,
+                              0x88, 0x88, 0x70, 0x00, 0x00};
+/* H (72) */
+static const uint8_t g_H[] = {0x00, 0x88, 0x88, 0x88, 0xF8,
+                              0x88, 0x88, 0x88, 0x00, 0x00};
+/* I (73) */
+static const uint8_t g_I[] = {0x00, 0x70, 0x20, 0x20, 0x20,
+                              0x20, 0x20, 0x70, 0x00, 0x00};
+/* J (74) */
+static const uint8_t g_J[] = {0x00, 0x38, 0x10, 0x10, 0x10,
+                              0x10, 0x90, 0x60, 0x00, 0x00};
+/* K (75) */
+static const uint8_t g_K[] = {0x00, 0x88, 0x90, 0xA0, 0xC0,
+                              0xA0, 0x90, 0x88, 0x00, 0x00};
+/* L (76) */
+static const uint8_t g_L[] = {0x00, 0x80, 0x80, 0x80, 0x80,
+                              0x80, 0x80, 0xF8, 0x00, 0x00};
+/* M (77) */
+static const uint8_t g_M[] = {0x00, 0x88, 0xD8, 0xA8, 0xA8,
+                              0x88, 0x88, 0x88, 0x00, 0x00};
+/* N (78) */
+static const uint8_t g_N[] = {0x00, 0x88, 0xC8, 0xA8, 0x98,
+                              0x88, 0x88, 0x88, 0x00, 0x00};
+/* O (79) */
+static const uint8_t g_O[] = {0x00, 0x70, 0x88, 0x88, 0x88,
+                              0x88, 0x88, 0x70, 0x00, 0x00};
+/* P (80) */
+static const uint8_t g_P[] = {0x00, 0xF0, 0x88, 0x88, 0xF0,
+                              0x80, 0x80, 0x80, 0x00, 0x00};
+/* Q (81) */
+static const uint8_t g_Q[] = {0x00, 0x70, 0x88, 0x88, 0x88,
+                              0xA8, 0x90, 0x68, 0x00, 0x00};
+/* R (82) */
+static const uint8_t g_R[] = {0x00, 0xF0, 0x88, 0x88, 0xF0,
+                              0xA0, 0x90, 0x88, 0x00, 0x00};
+/* S (83) */
+static const uint8_t g_S[] = {0x00, 0x70, 0x88, 0x80, 0x70,
+                              0x08, 0x88, 0x70, 0x00, 0x00};
+/* T (84) */
+static const uint8_t g_T[] = {0x00, 0xF8, 0x20, 0x20, 0x20,
+                              0x20, 0x20, 0x20, 0x00, 0x00};
+/* U (85) */
+static const uint8_t g_U[] = {0x00, 0x88, 0x88, 0x88, 0x88,
+                              0x88, 0x88, 0x70, 0x00, 0x00};
+/* V (86) */
+static const uint8_t g_V[] = {0x00, 0x88, 0x88, 0x88, 0x88,
+                              0x50, 0x50, 0x20, 0x00, 0x00};
+/* W (87) */
+static const uint8_t g_W[] = {0x00, 0x88, 0x88, 0x88, 0xA8,
+                              0xA8, 0xD8, 0x88, 0x00, 0x00};
+/* X (88) */
+static const uint8_t g_X[] = {0x00, 0x88, 0x88, 0x50, 0x20,
+                              0x50, 0x88, 0x88, 0x00, 0x00};
+/* Y (89) */
+static const uint8_t g_Y[] = {0x00, 0x88, 0x88, 0x50, 0x20,
+                              0x20, 0x20, 0x20, 0x00, 0x00};
+/* Z (90) */
+static const uint8_t g_Z[] = {0x00, 0xF8, 0x08, 0x10, 0x20,
+                              0x40, 0x80, 0xF8, 0x00, 0x00};
+/* [ (91) */
+static const uint8_t g_lbracket[] = {0x00, 0x70, 0x40, 0x40, 0x40,
+                                     0x40, 0x40, 0x70, 0x00, 0x00};
+/* \ (92) */
+static const uint8_t g_backslash[] = {0x00, 0x80, 0x80, 0x40, 0x20,
+                                      0x10, 0x08, 0x08, 0x00, 0x00};
+/* ] (93) */
+static const uint8_t g_rbracket[] = {0x00, 0x70, 0x10, 0x10, 0x10,
+                                     0x10, 0x10, 0x70, 0x00, 0x00};
+/* ^ (94) */
+static const uint8_t g_caret[] = {0x00, 0x20, 0x50, 0x88, 0x00,
+                                  0x00, 0x00, 0x00, 0x00, 0x00};
+/* _ (95) */
+static const uint8_t g_underscore[] = {0x00, 0x00, 0x00, 0x00, 0x00,
+                                       0x00, 0x00, 0xF8, 0x00, 0x00};
+/* ` (96) */
+static const uint8_t g_backtick[] = {0x00, 0x40, 0x20, 0x10, 0x00,
+                                     0x00, 0x00, 0x00, 0x00, 0x00};
+/* a (97) */
+static const uint8_t g_a[] = {0x00, 0x00, 0x00, 0x70, 0x08,
+                              0x78, 0x88, 0x78, 0x00, 0x00};
+/* b (98) */
+static const uint8_t g_b[] = {0x00, 0x80, 0x80, 0xF0, 0x88,
+                              0x88, 0x88, 0xF0, 0x00, 0x00};
+/* c (99) */
+static const uint8_t g_c[] = {0x00, 0x00, 0x00, 0x70, 0x88,
+                              0x80, 0x88, 0x70, 0x00, 0x00};
+/* d (100) */
+static const uint8_t g_d[] = {0x00, 0x08, 0x08, 0x78, 0x88,
+                              0x88, 0x88, 0x78, 0x00, 0x00};
+/* e (101) */
+static const uint8_t g_e[] = {0x00, 0x00, 0x00, 0x70, 0x88,
+                              0xF8, 0x80, 0x70, 0x00, 0x00};
+/* f (102) */
+static const uint8_t g_f[] = {0x00, 0x30, 0x48, 0x40, 0xF0,
+                              0x40, 0x40, 0x40, 0x00, 0x00};
+/* g (103) */
+static const uint8_t g_g[] = {0x00, 0x00, 0x00, 0x78, 0x88,
+                              0x88, 0x78, 0x08, 0x70, 0x00};
+/* h (104) */
+static const uint8_t g_h[] = {0x00, 0x80, 0x80, 0xF0, 0x88,
+                              0x88, 0x88, 0x88, 0x00, 0x00};
+/* i (105) */
+static const uint8_t g_i[] = {0x00, 0x20, 0x00, 0x60, 0x20,
+                              0x20, 0x20, 0x70, 0x00, 0x00};
+/* j (106) */
+static const uint8_t g_j[] = {0x00, 0x10, 0x00, 0x30, 0x10,
+                              0x10, 0x10, 0x90, 0x60, 0x00};
+/* k (107) */
+static const uint8_t g_k[] = {0x00, 0x80, 0x80, 0x90, 0xA0,
+                              0xC0, 0xA0, 0x90, 0x00, 0x00};
+/* l (108) */
+static const uint8_t g_l[] = {0x00, 0x60, 0x20, 0x20, 0x20,
+                              0x20, 0x20, 0x70, 0x00, 0x00};
+/* m (109) */
+static const uint8_t g_m[] = {0x00, 0x00, 0x00, 0xD0, 0xA8,
+                              0xA8, 0xA8, 0x88, 0x00, 0x00};
+/* n (110) */
+static const uint8_t g_n[] = {0x00, 0x00, 0x00, 0xB0, 0xC8,
+                              0x88, 0x88, 0x88, 0x00, 0x00};
+/* o (111) */
+static const uint8_t g_o[] = {0x00, 0x00, 0x00, 0x70, 0x88,
+                              0x88, 0x88, 0x70, 0x00, 0x00};
+/* p (112) */
+static const uint8_t g_p[] = {0x00, 0x00, 0x00, 0xF0, 0x88,
+                              0x88, 0xF0, 0x80, 0x80, 0x00};
+/* q (113) */
+static const uint8_t g_q[] = {0x00, 0x00, 0x00, 0x78, 0x88,
+                              0x88, 0x78, 0x08, 0x08, 0x00};
+/* r (114) */
+static const uint8_t g_r[] = {0x00, 0x00, 0x00, 0xB0, 0xC8,
+                              0x80, 0x80, 0x80, 0x00, 0x00};
+/* s (115) */
+static const uint8_t g_s[] = {0x00, 0x00, 0x00, 0x78, 0x80,
+                              0x70, 0x08, 0xF0, 0x00, 0x00};
+/* t (116) */
+static const uint8_t g_t[] = {0x00, 0x40, 0x40, 0xF0, 0x40,
+                              0x40, 0x48, 0x30, 0x00, 0x00};
+/* u (117) */
+static const uint8_t g_u[] = {0x00, 0x00, 0x00, 0x88, 0x88,
+                              0x88, 0x98, 0x68, 0x00, 0x00};
+/* v (118) */
+static const uint8_t g_v[] = {0x00, 0x00, 0x00, 0x88, 0x88,
+                              0x50, 0x50, 0x20, 0x00, 0x00};
+/* w (119) */
+static const uint8_t g_w[] = {0x00, 0x00, 0x00, 0x88, 0xA8,
+                              0xA8, 0xD8, 0x88, 0x00, 0x00};
+/* x (120) */
+static const uint8_t g_x[] = {0x00, 0x00, 0x00, 0x88, 0x50,
+                              0x20, 0x50, 0x88, 0x00, 0x00};
+/* y (121) */
+static const uint8_t g_y[] = {0x00, 0x00, 0x00, 0x88, 0x88,
+                              0x78, 0x08, 0x88, 0x70, 0x00};
+/* z (122) */
+static const uint8_t g_z[] = {0x00, 0x00, 0x00, 0xF8, 0x10,
+                              0x20, 0x40, 0xF8, 0x00, 0x00};
+/* { (123) */
+static const uint8_t g_lbrace[] = {0x00, 0x18, 0x20, 0x20, 0xC0,
+                                   0x20, 0x20, 0x18, 0x00, 0x00};
+/* | (124) */
+static const uint8_t g_pipe[] = {0x00, 0x20, 0x20, 0x20, 0x20,
+                                 0x20, 0x20, 0x20, 0x00, 0x00};
+/* } (125) */
+static const uint8_t g_rbrace[] = {0x00, 0xC0, 0x20, 0x20, 0x18,
+                                   0x20, 0x20, 0xC0, 0x00, 0x00};
+/* ~ (126) */
+static const uint8_t g_tilde[] = {0x00, 0x00, 0x00, 0x48, 0xB0,
+                                  0x00, 0x00, 0x00, 0x00, 0x00};
+
+/* ============================================================
+ * Glyph Table
+ *
+ * Each entry: { width, height, advance, baseline, data }
+ * Fixed-width: all glyphs are 6px wide, 6px advance.
+ * ============================================================ */
+static const Glyph sysGlyphs[95] = {
+    {6, 10, 6, 8, g_space},      /*   32 */
+    {6, 10, 6, 8, g_exclam},     /* ! 33 */
+    {6, 10, 6, 8, g_dquote},     /* " 34 */
+    {6, 10, 6, 8, g_hash},       /* # 35 */
+    {6, 10, 6, 8, g_dollar},     /* $ 36 */
+    {6, 10, 6, 8, g_percent},    /* % 37 */
+    {6, 10, 6, 8, g_ampersand},  /* & 38 */
+    {6, 10, 6, 8, g_squote},     /* ' 39 */
+    {6, 10, 6, 8, g_lparen},     /* ( 40 */
+    {6, 10, 6, 8, g_rparen},     /* ) 41 */
+    {6, 10, 6, 8, g_asterisk},   /* * 42 */
+    {6, 10, 6, 8, g_plus},       /* + 43 */
+    {6, 10, 6, 8, g_comma},      /* , 44 */
+    {6, 10, 6, 8, g_minus},      /* - 45 */
+    {6, 10, 6, 8, g_period},     /* . 46 */
+    {6, 10, 6, 8, g_slash},      /* / 47 */
+    {6, 10, 6, 8, g_0},          /* 0 48 */
+    {6, 10, 6, 8, g_1},          /* 1 49 */
+    {6, 10, 6, 8, g_2},          /* 2 50 */
+    {6, 10, 6, 8, g_3},          /* 3 51 */
+    {6, 10, 6, 8, g_4},          /* 4 52 */
+    {6, 10, 6, 8, g_5},          /* 5 53 */
+    {6, 10, 6, 8, g_6},          /* 6 54 */
+    {6, 10, 6, 8, g_7},          /* 7 55 */
+    {6, 10, 6, 8, g_8},          /* 8 56 */
+    {6, 10, 6, 8, g_9},          /* 9 57 */
+    {6, 10, 6, 8, g_colon},      /* : 58 */
+    {6, 10, 6, 8, g_semicolon},  /* ; 59 */
+    {6, 10, 6, 8, g_less},       /* < 60 */
+    {6, 10, 6, 8, g_equal},      /* = 61 */
+    {6, 10, 6, 8, g_greater},    /* > 62 */
+    {6, 10, 6, 8, g_question},   /* ? 63 */
+    {6, 10, 6, 8, g_at},         /* @ 64 */
+    {6, 10, 6, 8, g_A},          /* A 65 */
+    {6, 10, 6, 8, g_B},          /* B 66 */
+    {6, 10, 6, 8, g_C},          /* C 67 */
+    {6, 10, 6, 8, g_D},          /* D 68 */
+    {6, 10, 6, 8, g_E},          /* E 69 */
+    {6, 10, 6, 8, g_F},          /* F 70 */
+    {6, 10, 6, 8, g_G},          /* G 71 */
+    {6, 10, 6, 8, g_H},          /* H 72 */
+    {6, 10, 6, 8, g_I},          /* I 73 */
+    {6, 10, 6, 8, g_J},          /* J 74 */
+    {6, 10, 6, 8, g_K},          /* K 75 */
+    {6, 10, 6, 8, g_L},          /* L 76 */
+    {6, 10, 6, 8, g_M},          /* M 77 */
+    {6, 10, 6, 8, g_N},          /* N 78 */
+    {6, 10, 6, 8, g_O},          /* O 79 */
+    {6, 10, 6, 8, g_P},          /* P 80 */
+    {6, 10, 6, 8, g_Q},          /* Q 81 */
+    {6, 10, 6, 8, g_R},          /* R 82 */
+    {6, 10, 6, 8, g_S},          /* S 83 */
+    {6, 10, 6, 8, g_T},          /* T 84 */
+    {6, 10, 6, 8, g_U},          /* U 85 */
+    {6, 10, 6, 8, g_V},          /* V 86 */
+    {6, 10, 6, 8, g_W},          /* W 87 */
+    {6, 10, 6, 8, g_X},          /* X 88 */
+    {6, 10, 6, 8, g_Y},          /* Y 89 */
+    {6, 10, 6, 8, g_Z},          /* Z 90 */
+    {6, 10, 6, 8, g_lbracket},   /* [ 91 */
+    {6, 10, 6, 8, g_backslash},  /* \ 92 */
+    {6, 10, 6, 8, g_rbracket},   /* ] 93 */
+    {6, 10, 6, 8, g_caret},      /* ^ 94 */
+    {6, 10, 6, 8, g_underscore}, /* _ 95 */
+    {6, 10, 6, 8, g_backtick},   /* ` 96 */
+    {6, 10, 6, 8, g_a},          /* a 97 */
+    {6, 10, 6, 8, g_b},          /* b 98 */
+    {6, 10, 6, 8, g_c},          /* c 99 */
+    {6, 10, 6, 8, g_d},          /* d 100 */
+    {6, 10, 6, 8, g_e},          /* e 101 */
+    {6, 10, 6, 8, g_f},          /* f 102 */
+    {6, 10, 6, 8, g_g},          /* g 103 */
+    {6, 10, 6, 8, g_h},          /* h 104 */
+    {6, 10, 6, 8, g_i},          /* i 105 */
+    {6, 10, 6, 8, g_j},          /* j 106 */
+    {6, 10, 6, 8, g_k},          /* k 107 */
+    {6, 10, 6, 8, g_l},          /* l 108 */
+    {6, 10, 6, 8, g_m},          /* m 109 */
+    {6, 10, 6, 8, g_n},          /* n 110 */
+    {6, 10, 6, 8, g_o},          /* o 111 */
+    {6, 10, 6, 8, g_p},          /* p 112 */
+    {6, 10, 6, 8, g_q},          /* q 113 */
+    {6, 10, 6, 8, g_r},          /* r 114 */
+    {6, 10, 6, 8, g_s},          /* s 115 */
+    {6, 10, 6, 8, g_t},          /* t 116 */
+    {6, 10, 6, 8, g_u},          /* u 117 */
+    {6, 10, 6, 8, g_v},          /* v 118 */
+    {6, 10, 6, 8, g_w},          /* w 119 */
+    {6, 10, 6, 8, g_x},          /* x 120 */
+    {6, 10, 6, 8, g_y},          /* y 121 */
+    {6, 10, 6, 8, g_z},          /* z 122 */
+    {6, 10, 6, 8, g_lbrace},     /* { 123 */
+    {6, 10, 6, 8, g_pipe},       /* | 124 */
+    {6, 10, 6, 8, g_rbrace},     /* } 125 */
+    {6, 10, 6, 8, g_tilde},      /* ~ 126 */
+};
+
+/* ============================================================
+ * The System Font Instance
+ * ============================================================ */
+const Font systemFont = {
+    32,       /* firstChar: space     */
+    126,      /* lastChar: tilde      */
+    10,       /* height: 10px         */
+    8,        /* ascent: 8px          */
+    sysGlyphs /* glyphs array         */
+};

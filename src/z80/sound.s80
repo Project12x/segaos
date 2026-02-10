@@ -1,0 +1,9 @@
+; Z80 Sound Driver Stub for Genesis System 1
+; Standard Z80 Assembly
+
+    org 0
+
+start:
+    nop
+    nop
+    jp start
