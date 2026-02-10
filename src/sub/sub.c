@@ -201,6 +201,10 @@ static void process_command(uint8_t cmd) {
 
     WM_EndUpdate();
 
+    /* Swap Word RAM banks: give finished frame to Main CPU.
+     * Sub CPU gets the other bank to render the next frame into. */
+    sub_return_wram();
+
     sub_write_result(0, SUB_STATE_READY);
     sub_done();
     break;
@@ -395,6 +399,12 @@ static void process_command(uint8_t cmd) {
     sub_done();
     break;
   }
+
+  case CMD_WRAM_SWAP:
+    /* Explicit bank swap request from Main CPU */
+    sub_return_wram();
+    sub_done();
+    break;
 
   default:
     /* Unknown command */

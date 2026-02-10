@@ -127,6 +127,24 @@ static inline void main_send_param(uint8_t index, uint16_t value) {
   GA_MAIN_REG16(GA_COMM_CMD0 + (index * 2)) = value;
 }
 
+/* ---- Word RAM Bank Swap (Main CPU side) ---- */
+
+/* Check if Main CPU currently has Word RAM bank access.
+ * In 1M mode, DMNA=0 means Main has its bank. */
+static inline uint8_t main_has_wram(void) {
+  return !(GA_MAIN_REG16(GA_MEM_MODE) & MEM_MODE_DMNA);
+}
+
+/* Request Word RAM bank swap from Main CPU side.
+ * Sets DMNA=1, waits for Sub CPU to give its bank via RET. */
+static inline void main_request_swap(void) {
+  uint16_t mem = GA_MAIN_REG16(GA_MEM_MODE);
+  GA_MAIN_REG16(GA_MEM_MODE) = mem | MEM_MODE_DMNA;
+  /* Wait until swap completes (DMNA clears after swap) */
+  while (GA_MAIN_REG16(GA_MEM_MODE) & MEM_MODE_DMNA) {
+  }
+}
+
 #endif /* MAIN_CPU */
 
 /* --- Sub CPU Side --- */
@@ -175,6 +193,25 @@ static inline void sub_error(void) {
   }
 
   GA_SUB_SET_FLAG(STATUS_IDLE);
+}
+
+/* ---- Word RAM Bank Swap (Sub CPU side) ---- */
+
+/* Return the Sub CPU's Word RAM bank to the Main CPU.
+ * Sets RET=1 in GA_MEM_MODE. The hardware swaps banks and
+ * clears RET automatically. Sub CPU gets the other bank. */
+static inline void sub_return_wram(void) {
+  uint16_t mem = GA_SUB_REG16(GA_MEM_MODE);
+  GA_SUB_REG16(GA_MEM_MODE) = mem | MEM_MODE_RET;
+  /* Wait for swap to complete (RET clears after swap) */
+  while (GA_SUB_REG16(GA_MEM_MODE) & MEM_MODE_RET) {
+  }
+}
+
+/* Check if Sub CPU currently has Word RAM bank access.
+ * In 1M mode, RET=0 means Sub has its bank. */
+static inline uint8_t sub_has_wram(void) {
+  return !(GA_SUB_REG16(GA_MEM_MODE) & MEM_MODE_RET);
 }
 
 #endif /* SUB_CPU */

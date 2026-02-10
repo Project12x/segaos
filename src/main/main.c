@@ -17,7 +17,6 @@
 #include "mouse.h"
 #include "vdp.h"
 
-
 /* Embedded Sub CPU program (linked from sub_cpu.bin via objcopy)
  * Symbol names include the path: build/sub_cpu.bin ->
  * _binary_build_sub_cpu_bin_* */
@@ -130,19 +129,24 @@ static void main_loop(void) {
     /* Wait for VBlank */
     VDP_WaitVSync();
 
-    /* Poll Mega Mouse */
+    /* Poll Mega Mouse and forward input to Sub CPU */
     if (Mouse_Poll()) {
-      /* Mouse connected: send input event to Sub CPU */
       Input_SendMouseEvent();
     }
 
-    /* TODO: Request frame render from Sub CPU */
-    /* main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224); */
+    /* Request Sub CPU to render the current frame.
+     * The Sub CPU will:
+     *   1. Process dirty rects, draw windows, cursor
+     *   2. Call sub_return_wram() to swap banks
+     *   3. Signal DONE
+     * After this returns, our Word RAM bank contains
+     * the finished framebuffer. */
+    main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+    main_wait_done();
 
-    /* TODO: Wait for render completion + bank swap */
-
-    /* Convert framebuffer and DMA to VDP */
-    /* Main CPU's Word RAM bank is at $200000 in 1M mode */
+    /* Convert the finished framebuffer from linear 4bpp
+     * to VDP tile format and DMA to VRAM.
+     * Main CPU sees its Word RAM bank at $200000 in 1M mode. */
     FB_UpdateFrame(WRAM_BANK0_MAIN);
   }
 }
