@@ -38,9 +38,6 @@ static uint8_t strip_buf[STRIP_BUF_SIZE];
 void FB_Init(void) {
   uint16_t tile_idx;
 
-  /* Clear VRAM (tiles + name tables) */
-  VDP_ClearVRAM();
-
   /*
    * Fill Plane A name table at VRAM $C000.
    * Name table is 64 tiles wide (H40 scroll size) * 32 tall.

@@ -34,7 +34,6 @@ static void boot_sequence(void);
 static uint8_t wait_for_sub_ready(void);
 void main_enable_interrupts(void);
 void probe_bios_clear_comm(void);
-static void install_bios_vblank(void);
 #ifndef BOOT_PROBE
 static void main_loop(void);
 #endif
@@ -157,10 +156,11 @@ static void boot_sequence(void) {
 #endif
 
   GA_MAIN_SET_FLAG(CMD_NONE);
-  install_bios_vblank();
 
   /* Step 1: Wait for Sub CPU BIOS usercall startup before touching shared
-   * display/Word RAM state. */
+   * display/Word RAM state. Keep BIOS VBlank/interrupt setup deferred until
+   * after this gate; installing it here can disturb GA communication before
+   * SegaOS owns the Sub command protocol. */
   if (!wait_for_sub_ready()) {
     /* Sub CPU failed to boot - halt */
     while (1) {
@@ -173,6 +173,10 @@ static void boot_sequence(void) {
     mem |= MEM_MODE_1M;
     GA_MAIN_REG16(GA_MEM_MODE) = mem;
   }
+
+  /* Sub initializes and renders into bank 0 at $0C0000. After switching to 1M
+   * mode, hand that bank to Sub before CMD_INIT_OS touches the framebuffer. */
+  main_return_wram_to_sub();
 
   /* Step 3: Initialize Mega Mouse on controller port 1 */
   Mouse_Init(1);
@@ -196,17 +200,6 @@ static void boot_sequence(void) {
    * display path are ready. */
   main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
   main_wait_done();
-}
-
-static void install_bios_vblank(void) {
-  volatile uint16_t *vblank_flags =
-      (volatile uint16_t *)PROBE_MAIN_BIOS_VBLANK_FLAGS;
-  volatile uint32_t *level6_vector =
-      (volatile uint32_t *)PROBE_MAIN_EXVEC_LEVEL6;
-
-  *vblank_flags = 0;
-  *level6_vector = PROBE_MAIN_BIOS_VBLANK_HANDLER;
-  main_enable_interrupts();
 }
 
 static uint8_t wait_for_sub_ready(void) {

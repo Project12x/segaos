@@ -160,7 +160,8 @@ static inline void main_request_swap(void) {
 static inline void main_return_wram_to_sub(void) {
   uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    GA_MAIN_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem | MEM_MODE_RET);
+    GA_MAIN_REG8(GA_MEM_MODE + 1) =
+        (uint8_t)((mem | MEM_MODE_RET) & ~MEM_MODE_DMNA);
     while (main_has_wram()) {
     }
   } else {
@@ -229,7 +230,8 @@ static inline void sub_error(void) {
 static inline void sub_return_wram(void) {
   uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    GA_SUB_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem & ~MEM_MODE_RET);
+    GA_SUB_REG8(GA_MEM_MODE + 1) =
+        (uint8_t)(mem & ~(MEM_MODE_RET | MEM_MODE_DMNA));
     while (GA_SUB_REG8(GA_MEM_MODE + 1) & MEM_MODE_RET) {
     }
   } else {

@@ -124,17 +124,30 @@ void sub_main(void) {
 
 #ifndef BOOT_PROBE
 static void os_init(void) {
+  sub_write_result(7, 0x7301);
   /* Initialize blitter with Word RAM Bank 0 base address */
   /* In 1M mode, Sub CPU sees Bank 0 at $0C0000 (128KB) */
   /* Bank 1 is at $0E0000 (used for ASIC pixel-mapped access) */
   BLT_Init((uint8_t *)0x0C0000);
+  sub_write_result(7, 0x7302);
   BLT_SetMode(BLT_MODE_4BIT); /* Match Main CPU framebuffer pipeline */
+  sub_write_result(7, 0x7303);
 
   /* Initialize Window Manager */
   WM_Init();
+  sub_write_result(7, 0x7304);
 
   /* Draw initial desktop (gray pattern + menu bar) */
   WM_DrawDesktop();
+  {
+    Rect desktop;
+    desktop.left = 0;
+    desktop.top = 0;
+    desktop.right = 320;
+    desktop.bottom = 224;
+    WM_InvalidateRect(&desktop);
+  }
+  sub_write_result(7, 0x7305);
 
 #ifndef BOOT_SAFE_DESKTOP
   /* Initialize Menu Bar with default menus */
@@ -173,6 +186,7 @@ static void os_init(void) {
     extern uint8_t _heap_end;
     MEM_Init(&_heap_start, &_heap_end);
   }
+  sub_write_result(7, 0x73fe);
 
   /* TODO: Initialize file system (ISO 9660 reader, BRAM wrappers) */
 }

@@ -52,9 +52,16 @@ sp_init:
     move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
     rts
     .else
+    /*
+     * Keep BIOS initialization callback minimal. The Boot ROM calls sp_init
+     * while it still owns parts of Sub CPU setup; the proven BOOT_PROBE path
+     * only publishes readiness here and returns. Normal C runtime setup is
+     * deferred to sp_main below.
+     */
     move.w  #0x0002, 0xFF8020   /* status0: SUB_STATE_READY */
     move.w  #0x5101, 0xFF802E   /* status7: entered sp_init */
     move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
+    rts
     .endif
 
     /* Set stack pointer */
@@ -197,6 +204,29 @@ sp_main:
 
     /* Set stack pointer (in case BIOS clobbered it) */
     lea     _stack, %sp
+
+    /* Clear BSS: zero all uninitialized data */
+    lea     _bss, %a0           /* Start of BSS */
+    lea     _ebss, %a1          /* End of BSS */
+    bra.s   .main_bss_check
+.main_bss_loop:
+    clr.l   (%a0)+              /* Clear 4 bytes at a time */
+.main_bss_check:
+    cmp.l   %a1, %a0
+    blt.s   .main_bss_loop
+
+    /* Call C initialization after BIOS has entered the main callback. */
+    jsr     sub_init
+
+    /*
+     * The Boot ROM can leave a nonzero Main command flag while handing off to
+     * the IP. Do not let the C command loop consume that stale BIOS value as a
+     * SegaOS command; wait until Main clears CFM and owns the protocol.
+     */
+.wait_main_protocol_idle:
+    move.b  0xFF800E, %d0
+    bne.s   .wait_main_protocol_idle
+    move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
 
     /* Enter C main loop (does not return) */
     jsr     sub_main

@@ -4,7 +4,9 @@ param(
   [string]$OutputDir = "C:\tmp\segaos_screens_internal",
   [string]$Template = "segaos_internal_%Y%m%d_%H%M%S.png",
   [int]$SecondsBeforeStart = 4,
-  [int]$SecondsAfterStart = 4
+  [int]$SecondsAfterStart = 4,
+  [int]$StartPresses = 2,
+  [int]$MillisecondsBetweenStartPresses = 1200
 )
 
 $ErrorActionPreference = "Stop"
@@ -72,7 +74,12 @@ public static class NativeInput {
     Start-Sleep -Milliseconds 250
   }
 
-  Send-Key 0x0D 0x1C
+  for ($i = 0; $i -lt $StartPresses; $i++) {
+    Send-Key 0x0D 0x1C
+    if ($i -lt ($StartPresses - 1)) {
+      Start-Sleep -Milliseconds $MillisecondsBetweenStartPresses
+    }
+  }
   Start-Sleep -Seconds $SecondsAfterStart
   if ($proc.MainWindowHandle -ne 0) {
     [NativeInput]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null

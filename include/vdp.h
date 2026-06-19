@@ -170,7 +170,7 @@ static inline void VDP_Init(void) {
   /* Set registers to known defaults */
   VDP_SET_REG(0x00, 0x04); /* Mode 1: HInt disabled, HV counter latch off */
   VDP_SET_REG(0x01,
-              0x74); /* Mode 2: Display ON, VInt ON, DMA ON, V28 (224 lines) */
+              0x14); /* Mode 2: Display/VInt off during bulk VRAM setup */
   VDP_SET_REG(0x02, VRAM_PLANE_A >> 10); /* Plane A at $C000 */
   VDP_SET_REG(0x03, 0x00);               /* Window name table unused */
   VDP_SET_REG(0x04, VRAM_PLANE_B >> 13); /* Plane B at $E000 */
@@ -190,10 +190,8 @@ static inline void VDP_Init(void) {
   VDP_SET_REG(0x11, 0x00);               /* Window X: disabled */
   VDP_SET_REG(0x12, 0x00);               /* Window Y: disabled */
 
-  /* Clear VRAM, CRAM, VSRAM */
-  VDP_ClearVRAM();
-
-  /* Clear CRAM (all colors to black) */
+  /* Clear CRAM (all colors to black). VRAM is initialized by the active
+   * framebuffer/tilemap setup instead of doing a slow whole-VRAM boot fill. */
   VDP_CRAM_WRITE(0);
   for (uint8_t i = 0; i < 64; i++) {
     VDP_DATA_PORT = 0;
@@ -204,6 +202,9 @@ static inline void VDP_Init(void) {
   for (uint8_t i = 0; i < 40; i++) {
     VDP_DATA_PORT = 0;
   }
+
+  VDP_SET_REG(0x01,
+              0x74); /* Mode 2: Display ON, VInt ON, DMA ON, V28 (224 lines) */
 }
 
 #endif /* VDP_H */

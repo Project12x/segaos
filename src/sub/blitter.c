@@ -113,8 +113,6 @@ void BLT_SetMode(BlitMode mode) {
     bpr = BLT_BYTES_PER_ROW_4;
     fbSize = BLT_FRAMEBUF_SIZE_4;
   }
-  if (fb)
-    BLT_Clear(BLT_GetWhite());
 }
 
 BlitMode BLT_GetMode(void) { return curMode; }
@@ -130,7 +128,6 @@ void BLT_Init(uint8_t *framebuffer) {
   bpr = BLT_BYTES_PER_ROW_2;
   fbSize = BLT_FRAMEBUF_SIZE_2;
   BLT_ResetClip();
-  BLT_Clear(BLT_GetWhite());
 }
 
 uint8_t *BLT_GetFramebuffer(void) { return fb; }
