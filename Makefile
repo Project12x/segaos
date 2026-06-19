@@ -9,6 +9,11 @@
 # ============================================================
 SGDK_BIN  ?= C:/SDKS/SGDK/bin
 SGDK_LIB  ?= C:/SDKS/SGDK/lib
+CD_REGION ?= US
+BOOT_PROBE ?= 0
+BOOT_PROBE_FRAMEBUFFER ?= 0
+BOOT_SAFE_DESKTOP ?= 1
+SUB_RUNTIME_SMOKE ?= 0
 
 CC        = $(SGDK_BIN)/gcc.exe
 AS        = $(SGDK_BIN)/as.exe
@@ -17,7 +22,9 @@ OBJCOPY   = $(SGDK_BIN)/objcopy.exe
 SIZE      = $(SGDK_BIN)/size.exe
 MAKE_CMD  = $(SGDK_BIN)/make.exe
 MKDIR     = $(SGDK_BIN)/mkdir.exe
-PYTHON    = python
+PYTHON_CANDIDATES := $(wildcard C:/Users/estee/AppData/Local/Programs/Python/Python312/python.exe) \
+                     $(wildcard C:/Users/estee/AppData/Local/Programs/Python/Python314/python.exe)
+PYTHON    ?= $(firstword $(PYTHON_CANDIDATES) python)
 
 # ============================================================
 # Flags
@@ -28,8 +35,24 @@ CFLAGS_COMMON = -m68000 -Wall -Wextra -O2 -fomit-frame-pointer \
                 -B $(SGDK_BIN)/
 
 CFLAGS_SUB  = $(CFLAGS_COMMON) -DSUB_CPU
-CFLAGS_MAIN = $(CFLAGS_COMMON) -DMAIN_CPU
+CFLAGS_MAIN = $(CFLAGS_COMMON) -DMAIN_CPU -DJP=1 -DUS=2 -DEU=3 -DREGION=$(CD_REGION)
+ifeq ($(BOOT_PROBE),1)
+CFLAGS_SUB  += -DBOOT_PROBE
+CFLAGS_MAIN += -DBOOT_PROBE
+endif
+ifeq ($(BOOT_SAFE_DESKTOP),1)
+CFLAGS_SUB  += -DBOOT_SAFE_DESKTOP
+endif
+ifeq ($(SUB_RUNTIME_SMOKE),1)
+CFLAGS_SUB  += -DSUB_RUNTIME_SMOKE
+endif
+ifeq ($(BOOT_PROBE_FRAMEBUFFER),1)
+CFLAGS_MAIN += -DBOOT_PROBE_FRAMEBUFFER
+endif
 ASFLAGS     = -m68000 --register-prefix-optional
+ifeq ($(BOOT_PROBE),1)
+ASFLAGS     += --defsym BOOT_PROBE=1
+endif
 
 # ============================================================
 # Directories
@@ -47,14 +70,27 @@ SUB_MAP   = $(BUILD_DIR)/sub_cpu.map
 MAIN_ELF  = $(BUILD_DIR)/main_cpu.elf
 MAIN_BIN  = $(BUILD_DIR)/main_cpu.bin
 MAIN_MAP  = $(BUILD_DIR)/main_cpu.map
-DISC_BIN  = $(BUILD_DIR)/segaos.bin
+DISC_ISO  = $(BUILD_DIR)/segaos.iso
 DISC_CUE  = $(BUILD_DIR)/segaos.cue
 
 # ============================================================
 # Sub CPU Sources
 # ============================================================
 SUB_ASM_SRCS = $(SUB_DIR)/crt0.s
+ifeq ($(SUB_RUNTIME_SMOKE),1)
+SUB_C_SRCS   = $(SUB_DIR)/runtime_smoke.c
+else
+ifeq ($(BOOT_SAFE_DESKTOP),1)
+SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
+               $(SUB_DIR)/libc.c \
+               $(SUB_DIR)/mem.c \
+               $(SUB_DIR)/sub.c \
+               $(SUB_DIR)/sysfont.c \
+               $(SUB_DIR)/wm.c
+else
 SUB_C_SRCS   = $(wildcard $(SUB_DIR)/*.c)
+endif
+endif
 
 SUB_ASM_OBJS = $(SUB_ASM_SRCS:$(SUB_DIR)/%.s=$(BUILD_DIR)/sub_%.o)
 SUB_C_OBJS   = $(SUB_C_SRCS:$(SUB_DIR)/%.c=$(BUILD_DIR)/sub_%.o)
@@ -87,11 +123,12 @@ main: dirs $(MAIN_BIN)
 	@echo "Main CPU build complete: $(MAIN_BIN)"
 	@$(SIZE) $(MAIN_ELF) || true
 
-# Build boot disc BIN/CUE (requires both sub and main)
+# Build boot disc ISO/CUE (requires both sub and main)
 iso: sub main
-	@echo "Building BIN/CUE disc image..."
-	$(PYTHON) tools/build_iso.py $(MAIN_BIN) $(SUB_BIN) $(BUILD_DIR)/segaos
-	@echo "Disc image complete: $(DISC_CUE)"
+	@echo "Building ISO disc image..."
+	$(PYTHON) tools/build_iso.py $(MAIN_BIN) $(SUB_BIN) $(BUILD_DIR)/segaos $(CD_REGION)
+	$(PYTHON) tools/verify_disc.py $(DISC_ISO) --cue $(DISC_CUE) --ip $(MAIN_BIN) --sp $(SUB_BIN) --region $(CD_REGION)
+	@echo "Disc image complete: $(DISC_ISO)"
 
 dirs:
 	@$(MKDIR) -p $(BUILD_DIR) 2>/dev/null || mkdir $(BUILD_DIR) 2>NUL || true
@@ -99,6 +136,12 @@ dirs:
 info:
 	@echo "SGDK_BIN: $(SGDK_BIN)"
 	@echo "CC:       $(CC)"
+	@echo "PYTHON:   $(PYTHON)"
+	@echo "CD_REGION: $(CD_REGION)"
+	@echo "BOOT_PROBE: $(BOOT_PROBE)"
+	@echo "BOOT_PROBE_FRAMEBUFFER: $(BOOT_PROBE_FRAMEBUFFER)"
+	@echo "BOOT_SAFE_DESKTOP: $(BOOT_SAFE_DESKTOP)"
+	@echo "SUB_RUNTIME_SMOKE: $(SUB_RUNTIME_SMOKE)"
 	@echo "Sub sources: $(SUB_C_SRCS)"
 	@echo "Sub ASM:     $(SUB_ASM_SRCS)"
 	@echo "Sub objects:  $(SUB_OBJS)"

@@ -24,7 +24,9 @@
  * Memory Sizes (Verified from Sega Mega-CD Hardware Manual)
  * ============================================================ */
 #define PRG_RAM_SIZE 0x80000       /* 512KB (4 Mbit) total        */
+#ifndef WORD_RAM_SIZE
 #define WORD_RAM_SIZE 0x40000      /* 256KB (2 Mbit) total        */
+#endif
 #define WORD_RAM_2M_BANK 0x40000   /* 256KB - 2M mode (one CPU)   */
 #define WORD_RAM_1M_BANK 0x20000   /* 128KB - 1M mode (per bank)  */
 #define MAIN_WORK_RAM_SIZE 0x10000 /* 64KB Genesis Work RAM       */
@@ -38,6 +40,7 @@
 #define CMD_NONE 0x00         /* Idle / No command               */
 #define CMD_BOOT 0x01         /* Sub CPU has booted, awaiting OS */
 #define CMD_INIT_OS 0x02      /* Initialize OS subsystems        */
+#define CMD_BOOT_PROBE 0x03   /* Minimal dual-CPU boot probe     */
 #define CMD_RENDER_FRAME 0x10 /* Render the current dirty rects  */
 #define CMD_WRAM_SWAP 0x11    /* Request Word RAM bank swap      */
 #define CMD_OPEN_WINDOW 0x20  /* Open a new window               */
@@ -129,10 +132,14 @@ static inline void main_send_param(uint8_t index, uint16_t value) {
 
 /* ---- Word RAM Bank Swap (Main CPU side) ---- */
 
-/* Check if Main CPU currently has Word RAM bank access.
- * In 1M mode, DMNA=0 means Main has its bank. */
+/* Check if Main CPU currently has the bank exposed at WRAM_BANK0_MAIN.
+ * In 1M mode, RET=0 means bank 0 is attached to Main CPU. */
 static inline uint8_t main_has_wram(void) {
-  return !(GA_MAIN_REG16(GA_MEM_MODE) & MEM_MODE_DMNA);
+  uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
+  if (mem & MEM_MODE_1M) {
+    return !(mem & MEM_MODE_RET);
+  }
+  return (mem & MEM_MODE_RET) != 0;
 }
 
 /* Request Word RAM bank swap from Main CPU side.
@@ -142,6 +149,24 @@ static inline void main_request_swap(void) {
   GA_MAIN_REG16(GA_MEM_MODE) = mem | MEM_MODE_DMNA;
   /* Wait until swap completes (DMNA clears after swap) */
   while (GA_MAIN_REG16(GA_MEM_MODE) & MEM_MODE_DMNA) {
+  }
+}
+
+/* Return Main's currently displayed Word RAM bank to the Sub CPU.
+ * In the observed 1M boot/runtime state, RET=0 exposes Sub bank 0 at Main
+ * $200000; setting RET gives that bank back to Sub at $0C0000. This is a
+ * conservative single-bank ping-pong, not the final alternating buffer policy.
+ */
+static inline void main_return_wram_to_sub(void) {
+  uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
+  if (mem & MEM_MODE_1M) {
+    GA_MAIN_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem | MEM_MODE_RET);
+    while (main_has_wram()) {
+    }
+  } else {
+    GA_MAIN_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem & ~MEM_MODE_RET);
+    while (main_has_wram()) {
+    }
   }
 }
 
@@ -197,21 +222,35 @@ static inline void sub_error(void) {
 
 /* ---- Word RAM Bank Swap (Sub CPU side) ---- */
 
-/* Return the Sub CPU's Word RAM bank to the Main CPU.
- * Sets RET=1 in GA_MEM_MODE. The hardware swaps banks and
- * clears RET automatically. Sub CPU gets the other bank. */
+/* Return the Sub CPU's bank-0 Word RAM work area to the Main CPU.
+ * In 1M mode, RET=1 means bank 0 is attached to Sub CPU; clearing RET exposes
+ * that bank at Main $200000. In 2M mode, setting RET grants Main the 2M block.
+ */
 static inline void sub_return_wram(void) {
-  uint16_t mem = GA_SUB_REG16(GA_MEM_MODE);
-  GA_SUB_REG16(GA_MEM_MODE) = mem | MEM_MODE_RET;
-  /* Wait for swap to complete (RET clears after swap) */
-  while (GA_SUB_REG16(GA_MEM_MODE) & MEM_MODE_RET) {
+  uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
+  if (mem & MEM_MODE_1M) {
+    GA_SUB_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem & ~MEM_MODE_RET);
+    while (GA_SUB_REG8(GA_MEM_MODE + 1) & MEM_MODE_RET) {
+    }
+  } else {
+    GA_SUB_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem | MEM_MODE_RET);
+    while (!(GA_SUB_REG8(GA_MEM_MODE + 1) & MEM_MODE_RET)) {
+    }
   }
 }
 
-/* Check if Sub CPU currently has Word RAM bank access.
- * In 1M mode, RET=0 means Sub has its bank. */
+/* Check if Sub CPU currently owns the bank exposed at $0C0000. */
 static inline uint8_t sub_has_wram(void) {
-  return !(GA_SUB_REG16(GA_MEM_MODE) & MEM_MODE_RET);
+  uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
+  if (mem & MEM_MODE_1M) {
+    return (mem & MEM_MODE_RET) != 0;
+  }
+  return !(mem & MEM_MODE_DMNA);
+}
+
+static inline void sub_wait_wram(void) {
+  while (!sub_has_wram()) {
+  }
 }
 
 #endif /* SUB_CPU */

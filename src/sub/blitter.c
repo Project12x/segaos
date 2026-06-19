@@ -193,7 +193,6 @@ uint8_t BLT_GetPixel(int16_t x, int16_t y) {
 
 void BLT_DrawHLine(int16_t x, int16_t y, int16_t w, uint8_t color) {
   int16_t x1, px;
-  uint8_t fb_val;
 
   if (!fb || w <= 0)
     return;

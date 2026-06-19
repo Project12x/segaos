@@ -32,7 +32,6 @@ static const char row2_upper[] = "ASDFGHJKL";
 static const char row3_upper[] = "ZXCVBNM";
 
 /* Row key counts */
-static const uint8_t rowLengths[VKBD_ROWS] = {10, 10, 9, 7, 1};
 
 /* Special key codes - use low control codes that fit in signed char */
 #define VKBD_KEY_SHIFT 0x01
@@ -133,8 +132,6 @@ void VKBD_Draw(Window *win) {
 
   for (r = 0; r < VKBD_ROWS; r++) {
     uint8_t keyCount = get_row_key_count(r);
-    /* Center each row horizontally */
-    int16_t rowWidth = keyCount * (VKBD_KEY_W + VKBD_KEY_PAD) - VKBD_KEY_PAD;
     int16_t startX = cx;
 
     /* Row 2,3 are indented slightly like a real keyboard */
@@ -177,10 +174,10 @@ void VKBD_Draw(Window *win) {
       BLT_FillRect(&keyRect, inverted ? 1 : 0);
 
       /* Border */
-      BLT_DrawHLine(kx, kx + kw - 1, ky, 1);
-      BLT_DrawHLine(kx, kx + kw - 1, ky + VKBD_KEY_H - 1, 1);
-      BLT_DrawVLine(kx, ky, ky + VKBD_KEY_H - 1, 1);
-      BLT_DrawVLine(kx + kw - 1, ky, ky + VKBD_KEY_H - 1, 1);
+      BLT_DrawHLine(kx, ky, kw, 1);
+      BLT_DrawHLine(kx, ky + VKBD_KEY_H - 1, kw, 1);
+      BLT_DrawVLine(kx, ky, VKBD_KEY_H, 1);
+      BLT_DrawVLine(kx + kw - 1, ky, VKBD_KEY_H, 1);
 
       /* Label */
       const char *label = get_key_label(r, c, labelBuf);

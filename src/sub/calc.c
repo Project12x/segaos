@@ -232,10 +232,10 @@ void Calc_Draw(Window *win) {
       BLT_FillRect(&btnRect, 0); /* White fill */
 
       /* Border */
-      BLT_DrawHLine(bx, bx + bw - 1, by, 1);
-      BLT_DrawHLine(bx, bx + bw - 1, by + CALC_BTN_H - 1, 1);
-      BLT_DrawVLine(bx, by, by + CALC_BTN_H - 1, 1);
-      BLT_DrawVLine(bx + bw - 1, by, by + CALC_BTN_H - 1, 1);
+      BLT_DrawHLine(bx, by, bw, 1);
+      BLT_DrawHLine(bx, by + CALC_BTN_H - 1, bw, 1);
+      BLT_DrawVLine(bx, by, CALC_BTN_H, 1);
+      BLT_DrawVLine(bx + bw - 1, by, CALC_BTN_H, 1);
 
       /* Center label text */
       if (label && label[0]) {

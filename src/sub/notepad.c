@@ -64,7 +64,7 @@ void Notepad_Draw(Window *win) {
         lineY + NOTEPAD_LINE_H <= maxY) {
       /* Draw a thin vertical line for cursor */
       int16_t curX = cx + col * glyphW;
-      BLT_DrawVLine(curX, lineY, lineY + NOTEPAD_LINE_H - 2, 1);
+      BLT_DrawVLine(curX, lineY, NOTEPAD_LINE_H - 1, 1);
     }
 
     if (i >= noteState.length)

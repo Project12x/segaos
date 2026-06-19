@@ -149,7 +149,7 @@ void MenuBar_Draw(void) {
   BLT_FillRect(&barRect, 0); /* White background */
 
   /* Bottom border */
-  BLT_DrawHLine(0, 319, MENUBAR_HEIGHT - 1, 1);
+  BLT_DrawHLine(0, MENUBAR_HEIGHT - 1, 320, 1);
 
   /* Draw menu titles */
   for (uint8_t i = 0; i < menuBar.menuCount; i++) {
@@ -200,10 +200,10 @@ void MenuBar_DrawDropdown(void) {
   BLT_FillRect(&dropRect, 0); /* White fill */
 
   /* Border */
-  BLT_DrawHLine(dropX, dropX + dropW - 1, dropY, 1);
-  BLT_DrawHLine(dropX, dropX + dropW - 1, dropY + dropH - 1, 1);
-  BLT_DrawVLine(dropX, dropY, dropY + dropH - 1, 1);
-  BLT_DrawVLine(dropX + dropW - 1, dropY, dropY + dropH - 1, 1);
+  BLT_DrawHLine(dropX, dropY, dropW, 1);
+  BLT_DrawHLine(dropX, dropY + dropH - 1, dropW, 1);
+  BLT_DrawVLine(dropX, dropY, dropH, 1);
+  BLT_DrawVLine(dropX + dropW - 1, dropY, dropH, 1);
 
   /* Draw items */
   int16_t itemY = dropY + MENU_PADDING_Y;
@@ -213,7 +213,7 @@ void MenuBar_DrawDropdown(void) {
     if (item->flags & MIF_SEPARATOR) {
       /* Dashed separator line */
       int16_t sepY = itemY + MENU_SEPARATOR_H / 2;
-      BLT_DrawHLine(dropX + 2, dropX + dropW - 3, sepY, 1);
+      BLT_DrawHLine(dropX + 2, sepY, dropW - 4, 1);
       itemY += MENU_SEPARATOR_H;
       continue;
     }

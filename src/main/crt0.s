@@ -15,14 +15,14 @@
  *   3. Jump to C main()
  */
 
-    .text
+    .section .text.entry, "ax"
     .globl  _start
     .globl  _entry
 
 _start:
 _entry:
-    /* Set stack pointer to top of Work RAM */
-    lea     0x01000000, %sp
+    /* Keep the stack below the Sega CD BIOS/system-use region at $FFF700+. */
+    lea     __stack, %sp
 
     /* Clear BSS section */
     lea     _sbss, %a0
@@ -42,3 +42,20 @@ _entry:
 .halt:
     stop    #0x2700
     bra.s   .halt
+
+    .globl  probe_bios_clear_comm
+probe_bios_clear_comm:
+    jsr     0x000340
+    rts
+
+    .globl  main_enable_interrupts
+main_enable_interrupts:
+    andi    #0xF8FF, %sr
+    rts
+
+    .ifdef BOOT_PROBE
+    .globl  probe_enable_main_interrupts
+probe_enable_main_interrupts:
+    jsr     main_enable_interrupts
+    rts
+    .endif

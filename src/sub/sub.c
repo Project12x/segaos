@@ -12,20 +12,29 @@
  *   - Internal Backup RAM (8KB)
  */
 
-#define SUB_CPU
-#include "blitter.h"
-#include "calc.h"
+#include "boot_probe.h"
 #include "common.h"
+#ifndef BOOT_PROBE
+#include "blitter.h"
+#ifndef BOOT_SAFE_DESKTOP
+#include "calc.h"
+#endif
 #include "input.h"
 #include "mem.h"
+#ifndef BOOT_SAFE_DESKTOP
 #include "menubar.h"
 #include "notepad.h"
 #include "paint.h"
+#endif
 #include "sega_os.h"
 #include "sysfont.h"
+#ifndef BOOT_SAFE_DESKTOP
 #include "vkbd.h"
+#endif
 #include "wm.h"
+#endif
 
+#ifndef BOOT_PROBE
 /* Cursor state (tracks mouse position for drawing) */
 static int16_t cursorX = 160;
 static int16_t cursorY = 112;
@@ -37,8 +46,10 @@ static Window *dragWindow = (Window *)0;
 static int16_t dragOffsetX = 0;
 static int16_t dragOffsetY = 0;
 
+#ifndef BOOT_SAFE_DESKTOP
 /* Counter for auto-naming windows */
 static uint8_t windowCounter = 0;
+#endif
 
 /* 1-bit cursor bitmap (11x16 pixels, classic Mac arrow) */
 static const uint8_t cursorBitmap[] = {
@@ -59,10 +70,25 @@ static const uint8_t cursorBitmap[] = {
     0x00, 0x80, /* .......  1....... */
     0x00, 0x00, /* ........ ........ */
 };
+#endif
 
 /* Forward declarations */
+#ifndef BOOT_PROBE
 static void os_init(void);
+#endif
 static void process_command(uint8_t cmd);
+
+#ifdef BOOT_PROBE
+volatile uint16_t segaos_probe_sub_magic;
+volatile uint16_t segaos_probe_sub_phase;
+volatile uint16_t segaos_probe_sub_cmd;
+volatile uint16_t segaos_probe_sub_param0;
+volatile uint16_t segaos_probe_sub_param1;
+volatile uint16_t segaos_probe_sub_wram_word0;
+volatile uint16_t segaos_probe_sub_wram_word1;
+volatile uint16_t segaos_probe_sub_had_wram_before;
+volatile uint16_t segaos_probe_sub_had_wram_after;
+#endif
 
 /*
  * sub_init - Called by crt0.s sp_init during BIOS initialization
@@ -70,16 +96,18 @@ static void process_command(uint8_t cmd);
  * Performs one-time OS setup. BSS is already cleared by crt0.
  */
 void sub_init(void) {
-  /* Signal we are alive */
-  sub_write_result(0, SUB_STATE_BOOTING);
-  GA_SUB_SET_FLAG(STATUS_BUSY);
-
-  /* Initialize OS subsystems */
-  os_init();
-
-  /* Signal ready */
+#ifdef BOOT_PROBE
+  segaos_probe_sub_magic = PROBE_SUB_MAGIC;
+  segaos_probe_sub_phase = PROBE_PHASE_SUB_READY;
+  sub_write_result(0, SUB_STATE_READY);
+  sub_write_result(1, PROBE_READY_MAGIC);
+  GA_SUB_SET_FLAG(STATUS_IDLE);
+#else
+  /* Signal readiness only. Main must establish 1M Word RAM and the VDP path
+   * before it sends CMD_INIT_OS to initialize rendering. */
   sub_write_result(0, SUB_STATE_READY);
   GA_SUB_SET_FLAG(STATUS_IDLE);
+#endif
 }
 
 /*
@@ -94,12 +122,13 @@ void sub_main(void) {
   }
 }
 
+#ifndef BOOT_PROBE
 static void os_init(void) {
   /* Initialize blitter with Word RAM Bank 0 base address */
   /* In 1M mode, Sub CPU sees Bank 0 at $0C0000 (128KB) */
   /* Bank 1 is at $0E0000 (used for ASIC pixel-mapped access) */
   BLT_Init((uint8_t *)0x0C0000);
-  BLT_SetMode(BLT_MODE_2BIT); /* Default: 4 grayscale shades */
+  BLT_SetMode(BLT_MODE_4BIT); /* Match Main CPU framebuffer pipeline */
 
   /* Initialize Window Manager */
   WM_Init();
@@ -107,6 +136,7 @@ static void os_init(void) {
   /* Draw initial desktop (gray pattern + menu bar) */
   WM_DrawDesktop();
 
+#ifndef BOOT_SAFE_DESKTOP
   /* Initialize Menu Bar with default menus */
   MenuBar_Init();
   {
@@ -133,6 +163,7 @@ static void os_init(void) {
       MenuBar_AddItem(appsMenu, "Paint", 0x0303, MIF_NONE);
     }
   }
+#endif
 
   /* Initialize memory manager.
    * Heap region is defined by linker script symbols.
@@ -145,13 +176,45 @@ static void os_init(void) {
 
   /* TODO: Initialize file system (ISO 9660 reader, BRAM wrappers) */
 }
+#endif
 
 static void process_command(uint8_t cmd) {
   sub_ack();
 
   switch (cmd) {
+#ifdef BOOT_PROBE
+  case CMD_BOOT_PROBE: {
+    volatile uint16_t *wram = (volatile uint16_t *)0x0C0000;
+
+    segaos_probe_sub_cmd = cmd;
+    segaos_probe_sub_param0 = sub_read_param(0);
+    segaos_probe_sub_param1 = sub_read_param(1);
+    segaos_probe_sub_had_wram_before = sub_has_wram();
+
+    wram[0] = segaos_probe_sub_param0;
+    wram[1] = segaos_probe_sub_param1;
+    segaos_probe_sub_wram_word0 = wram[0];
+    segaos_probe_sub_wram_word1 = wram[1];
+
+    sub_return_wram();
+    segaos_probe_sub_had_wram_after = sub_has_wram();
+
+    sub_write_result(0, PROBE_DONE_MAGIC);
+    sub_write_result(1, segaos_probe_sub_wram_word0);
+    sub_write_result(2, segaos_probe_sub_wram_word1);
+    sub_write_result(3, segaos_probe_sub_had_wram_before);
+    segaos_probe_sub_phase = PROBE_PHASE_DONE;
+    sub_done();
+    break;
+  }
+
+  default:
+    sub_error();
+    break;
+#else
   case CMD_INIT_OS:
     os_init();
+    sub_write_result(0, SUB_STATE_READY);
     sub_done();
     break;
 
@@ -160,6 +223,7 @@ static void process_command(uint8_t cmd) {
     uint8_t i;
 
     sub_write_result(0, SUB_STATE_RENDERING);
+    sub_wait_wram();
 
     /* Process dirty rects via Window Manager */
     uint8_t count = WM_BeginUpdate();
@@ -191,10 +255,12 @@ static void process_command(uint8_t cmd) {
 
     /* 4. Draw menu bar (always on top of windows) */
     BLT_ResetClip();
+#ifndef BOOT_SAFE_DESKTOP
     MenuBar_Draw();
     if (MenuBar_IsTracking()) {
       MenuBar_DrawDropdown();
     }
+#endif
 
     /* 5. Draw mouse cursor last (on top of everything) */
     BLT_BlitBitmap1(cursorX, cursorY, cursorBitmap, 11, 16, BLT_BLACK);
@@ -312,20 +378,28 @@ static void process_command(uint8_t cmd) {
       case WM_HIT_GROW:
         /* TODO: resize interaction */
         break;
+#ifndef BOOT_SAFE_DESKTOP
       case WM_HIT_MENUBAR:
         MenuBar_HandleMouseDown(evt.x, evt.y);
         break;
+#endif
       default:
         break;
       }
     } else if (evt.type == INPUT_EVT_MOUSE_MOVE) {
+#ifndef BOOT_SAFE_DESKTOP
       if (MenuBar_IsTracking()) {
         MenuBar_HandleMouseMove(evt.x, evt.y);
       }
+#endif
     } else if (evt.type == INPUT_EVT_MOUSE_DRAG) {
+#ifndef BOOT_SAFE_DESKTOP
       if (MenuBar_IsTracking()) {
         MenuBar_HandleMouseMove(evt.x, evt.y);
       } else if (dragWindow) {
+#else
+      if (dragWindow) {
+#endif
         /* Move window to new position, maintaining grab offset */
         int16_t newX = evt.x - dragOffsetX;
         int16_t newY = evt.y - dragOffsetY;
@@ -344,6 +418,7 @@ static void process_command(uint8_t cmd) {
         }
       }
     } else if (evt.type == INPUT_EVT_MOUSE_UP) {
+#ifndef BOOT_SAFE_DESKTOP
       if (MenuBar_IsTracking()) {
         MenuSelection sel = MenuBar_HandleMouseUp(evt.x, evt.y);
         if (sel.commandID != 0) {
@@ -392,6 +467,7 @@ static void process_command(uint8_t cmd) {
           }
         }
       }
+#endif
       /* Release drag */
       dragWindow = (Window *)0;
     }
@@ -410,5 +486,6 @@ static void process_command(uint8_t cmd) {
     /* Unknown command */
     sub_error();
     break;
+#endif
   }
 }

@@ -1,5 +1,9 @@
 # Dependencies
 SGDK/
+!third_party/
+!third_party/megadev/
+!third_party/megadev/LICENSE
+!third_party/megadev/README.md
 
 # Build output
 build/

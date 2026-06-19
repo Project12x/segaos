@@ -18,36 +18,44 @@ MEMORY
 
 SECTIONS
 {
-    /* SP Header: BIOS jump table (must be first at $006000) */
-    .boot :
+    /* SP module header and relative jump table (must be first at $006000) */
+    .text : SUBALIGN(2)
     {
-        KEEP(*(.boot))
-    } > prg_ram
-
-    .text :
-    {
+        _TEXT_ORIGIN = .;
+        KEEP(*(.header*))
         *(.text .text.*)
         *(.rodata .rodata.*)
-        . = ALIGN(4);
+        /*
+         * The boot SP is a resident PRG-RAM image, not a ROM image with a
+         * separate data-copy startup. Keep initialized data inside the resident
+         * module size so the SP header length matches the bytes the BIOS loads.
+         */
+        *(.data .data.*)
+        . = ALIGN(2);
+        _TEXT_LENGTH = ABSOLUTE(. - _TEXT_ORIGIN);
         _etext = .;
     } > prg_ram
 
-    .data :
+    .data : SUBALIGN(2)
     {
+        _RAM_ORIGIN = .;
         _data = .;
-        *(.data .data.*)
         . = ALIGN(4);
         _edata = .;
+        _RAM_DATA_LENGTH = ABSOLUTE(. - _data);
     } > prg_ram
 
-    .bss :
+    .bss : SUBALIGN(2)
     {
         _bss = .;
         *(.bss .bss.*)
         *(COMMON)
         . = ALIGN(4);
         _ebss = .;
+        _BSS_LENGTH = ABSOLUTE(_ebss - _bss);
     } > prg_ram
+
+    _RAM_LENGTH = _RAM_DATA_LENGTH + _BSS_LENGTH;
 
     /* Heap: between BSS and stack guard */
     _heap_start = _ebss;

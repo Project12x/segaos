@@ -2,401 +2,301 @@
 """
 build_iso.py - Sega CD Boot Disc Image Builder
 
-Constructs a BIN/CUE disc image with proper Mode 1/2352 raw sectors.
-No external tools required (no mkisofs/chdman).
+Builds a cooked ISO9660 data track with a 32KB Sega CD system area.
+This matches the Megadev 1.2.0 `mkisofs -G boot.bin` model while avoiding
+external Python packages.
 
-Boot sector layout (32KB = 16 sectors of 2048 bytes):
-  $0000-$00FF  Disc header (type, volume, system info)
-  $0100-$01FF  Game header (hardware, copyright, title, region)
-  $0800-$0FFF  IP binary (Initial Program, Main CPU, max 2KB US/EU)
-  $1000-$7FFF  SP binary (Sub CPU Program, max 28KB)
-
-Output: .bin (raw 2352-byte sectors) + .cue (track sheet)
+Reference baseline:
+  repo: https://github.com/drojaazu/megadev
+  commit: 7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef
+  license: MIT
+  reuse mode: pattern-only
 
 Usage: python build_iso.py <ip.bin> <sp.bin> <output_base>
-  Produces: <output_base>.bin and <output_base>.cue
+Produces: <output_base>.iso and <output_base>.cue
 """
+
+from __future__ import annotations
 
 import struct
 import sys
-import os
+from pathlib import Path
 
-# Sector sizes
-COOKED_SECTOR = 2048   # User data per sector (ISO9660 Mode 1)
-RAW_SECTOR = 2352      # Full raw sector (sync + header + data + EDC + ECC)
 
-# Boot sector
+SECTOR_SIZE = 2048
 BOOT_SECTORS = 16
-BOOT_SIZE = BOOT_SECTORS * COOKED_SECTOR  # 0x8000
+BOOT_SIZE = BOOT_SECTORS * SECTOR_SIZE
 
-# IP/SP offsets within boot sector
-IP_OFFSET = 0x0800
-IP_MAX_SIZE = 0x0800  # 2KB for US/EU
-SP_OFFSET = 0x1000
-SP_MAX_SIZE = 0x7000  # 28KB
+PVD_SECTOR = 16
+VDST_SECTOR = 17
+ROOT_DIR_SECTOR = 18
+PATH_TABLE_L_SECTOR = 19
+PATH_TABLE_M_SECTOR = 20
+MIN_SECTORS = 150
 
-# Mode 1 sync pattern (12 bytes at start of each raw sector)
-SYNC_PATTERN = bytes([0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-                      0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x00])
+# Megadev-compatible header fields and physical placement.
+IP_HEADER_OFFSET = 0x0800
+IP_HEADER_SIZE = 0x0800
+IP_PHYSICAL_OFFSET = 0x0200
+SP_PHYSICAL_OFFSET = 0x1000
+IP_MAX_SIZE = SP_PHYSICAL_OFFSET - IP_PHYSICAL_OFFSET
+SP_MAX_SIZE = BOOT_SIZE - SP_PHYSICAL_OFFSET
 
-# Minimum disc size: 300 sectors (~2 seconds, avoids emulator edge cases)
-MIN_SECTORS = 300
-
-
-def to_bcd(val: int) -> int:
-    """Convert integer to BCD (e.g., 42 -> 0x42)."""
-    return ((val // 10) << 4) | (val % 10)
-
-
-def lba_to_msf(lba: int) -> tuple:
-    """Convert LBA sector number to MSF (minute, second, frame).
-    Sega CD data starts at 00:02:00 (LBA 150 = 2-second pregap)."""
-    lba += 150  # Add 2-second pregap offset
-    m = lba // (60 * 75)
-    s = (lba // 75) % 60
-    f = lba % 75
-    return m, s, f
+HARDWARE_ID_BY_REGION = {
+    "JP": b"SEGA MEGA DRIVE",
+    "US": b"SEGA GENESIS",
+    "EU": b"SEGA MEGA DRIVE",
+}
 
 
-def compute_edc(data: bytes) -> int:
-    """Compute EDC (Error Detection Code) CRC-32 for Mode 1 sectors.
-    Polynomial: x^32 + x^31 + x^16 + 1 (reversed: 0xD8018001)."""
-    # Use lookup table for speed
-    edc = 0
-    for byte in data:
-        edc = ((edc >> 8) ^ _EDC_TABLE[(edc ^ byte) & 0xFF]) & 0xFFFFFFFF
-    return edc
+def write_padded(buf: bytearray, offset: int, size: int, value: bytes) -> None:
+    if len(value) > size:
+        raise ValueError(f"{value!r} is longer than {size} bytes")
+    buf[offset : offset + size] = value + bytes(size - len(value))
 
 
-# Pre-compute EDC lookup table
-def _build_edc_table():
-    table = []
-    for i in range(256):
-        edc = i
-        for _ in range(8):
-            if edc & 1:
-                edc = (edc >> 1) ^ 0xD8018001
-            else:
-                edc >>= 1
-        table.append(edc & 0xFFFFFFFF)
-    return table
+def write_space_padded(buf: bytearray, offset: int, size: int, value: bytes) -> None:
+    if len(value) > size:
+        raise ValueError(f"{value!r} is longer than {size} bytes")
+    buf[offset : offset + size] = value + (b" " * (size - len(value)))
 
 
-_EDC_TABLE = _build_edc_table()
+def pack_both_u16(value: int) -> bytes:
+    return struct.pack("<H", value) + struct.pack(">H", value)
 
 
-def make_raw_sector(lba: int, user_data: bytes) -> bytes:
-    """Build a complete Mode 1 raw sector (2352 bytes).
-
-    Layout:
-      [0..11]    Sync pattern (12 bytes)
-      [12..14]   MSF address in BCD (3 bytes)
-      [15]       Mode byte (0x01 for Mode 1)
-      [16..2063] User data (2048 bytes)
-      [2064..2067] EDC (4 bytes, CRC-32 of bytes 0..2063)
-      [2068..2075] Zero (8 bytes, reserved)
-      [2076..2351] ECC P and Q parity (276 bytes)
-    """
-    assert len(user_data) == COOKED_SECTOR
-
-    sector = bytearray(RAW_SECTOR)
-
-    # Sync
-    sector[0:12] = SYNC_PATTERN
-
-    # MSF address
-    m, s, f = lba_to_msf(lba)
-    sector[12] = to_bcd(m)
-    sector[13] = to_bcd(s)
-    sector[14] = to_bcd(f)
-
-    # Mode 1
-    sector[15] = 0x01
-
-    # User data
-    sector[16:16 + COOKED_SECTOR] = user_data
-
-    # EDC over bytes 0..2063
-    edc = compute_edc(bytes(sector[0:2064]))
-    struct.pack_into("<I", sector, 2064, edc)
-
-    # Bytes 2068..2075: reserved zeros (already 0)
-
-    # ECC P and Q parity: set to zero for now.
-    # Most emulators don't verify ECC. Real hardware uses it for
-    # error correction but homebrews commonly skip it.
-
-    return bytes(sector)
+def pack_both_u32(value: int) -> bytes:
+    return struct.pack("<I", value) + struct.pack(">I", value)
 
 
-def build_disc_header(ip_size: int, sp_size: int) -> bytearray:
-    """Build the disc header (first $200 bytes)."""
-    header = bytearray(0x200)
-
-    # $0000: Disc type identifier (must match exactly, 16 bytes)
-    header[0x00:0x10] = b"SEGADISCSYSTEM  "
-
-    # $0010: Volume name
-    vol = b"SEGAOS\x00"
-    header[0x10:0x10 + len(vol)] = vol
-
-    # $001C: System ID / Type
-    struct.pack_into(">HH", header, 0x1C, 0x100, 0x01)
-
-    # $0020: System name (11 bytes + null)
-    header[0x20:0x2C] = b"SEGASYSTEM  "
-
-    # $002C: System version / type
-    struct.pack_into(">HH", header, 0x2C, 0, 0)
-
-    # $0030: IP offset, size, entry, work RAM
-    struct.pack_into(">IIII", header, 0x30,
-                     IP_OFFSET, ip_size, 0, 0)
-
-    # $0040: SP offset, size, entry, work RAM
-    struct.pack_into(">IIII", header, 0x40,
-                     SP_OFFSET, sp_size, 0, 0)
-
-    # --- Game header at $0100 ---
-
-    # Hardware type (16 bytes)
-    header[0x100:0x110] = b"SEGA MEGA DRIVE "
-
-    # Copyright / date (16 bytes)
-    header[0x110:0x120] = b"(C)PROJ12 2026  "
-
-    # Domestic name (48 bytes, space-padded)
-    dom = b"SegaOS - Windowed Operating System               "
-    header[0x120:0x150] = dom[:48]
-
-    # Overseas name (48 bytes, space-padded)
-    header[0x150:0x180] = dom[:48]
-
-    # Game type + serial (14 bytes)
-    header[0x180:0x18E] = b"GM 00000000-00"
-
-    # Checksum placeholder
-    struct.pack_into(">H", header, 0x18E, 0x0000)
-
-    # I/O support (16 bytes: J=joypad, M=mouse)
-    header[0x190:0x1A0] = b"JM              "
-
-    # ROM start/end
-    struct.pack_into(">II", header, 0x1A0, 0x00000000, 0x003FFFFF)
-
-    # RAM start/end
-    struct.pack_into(">II", header, 0x1A8, 0x00FF0000, 0x00FFFFFF)
-
-    # SRAM (12 bytes, spaces = none)
-    header[0x1B0:0x1BC] = b"            "
-
-    # Modem (12 bytes)
-    header[0x1BC:0x1C8] = b"            "
-
-    # Memo (40 bytes)
-    header[0x1C8:0x1F0] = b"                                        "
-
-    # Region code (16 bytes)
-    header[0x1F0:0x200] = b"JUE             "
-
-    return header
-
-
-def build_boot_sector(ip_data: bytes, sp_data: bytes) -> bytearray:
-    """Build the 32KB boot sector (16 cooked sectors)."""
-    ip_size = len(ip_data)
-    sp_size = len(sp_data)
-
+def check_payload_sizes(ip_size: int, sp_size: int) -> None:
     if ip_size > IP_MAX_SIZE:
-        print(f"WARNING: IP ({ip_size} bytes) > {IP_MAX_SIZE} limit!")
+        raise SystemExit(
+            f"ERROR: IP is {ip_size} bytes, max is {IP_MAX_SIZE} bytes "
+            f"(physical range ${IP_PHYSICAL_OFFSET:04X}-${SP_PHYSICAL_OFFSET - 1:04X})"
+        )
     if sp_size > SP_MAX_SIZE:
-        print(f"WARNING: SP ({sp_size} bytes) > {SP_MAX_SIZE} limit!")
+        raise SystemExit(
+            f"ERROR: SP is {sp_size} bytes, max is {SP_MAX_SIZE} bytes "
+            f"(physical range ${SP_PHYSICAL_OFFSET:04X}-${BOOT_SIZE - 1:04X})"
+        )
+
+
+def build_boot_sector(ip_data: bytes, sp_data: bytes, region: str) -> bytearray:
+    check_payload_sizes(len(ip_data), len(sp_data))
+    hardware_id = HARDWARE_ID_BY_REGION[region]
 
     boot = bytearray(BOOT_SIZE)
-    boot[0x00:0x200] = build_disc_header(ip_size, sp_size)
-    boot[IP_OFFSET:IP_OFFSET + ip_size] = ip_data
-    boot[SP_OFFSET:SP_OFFSET + sp_size] = sp_data
+
+    # System header ($0000-$00FF)
+    boot[0x0000:0x0010] = b"SEGADISCSYSTEM  "
+    write_space_padded(boot, 0x0010, 0x000C, b"SEGAOS")
+    struct.pack_into(">HH", boot, 0x001C, 0x0100, 0x0001)
+    write_space_padded(boot, 0x0020, 0x000C, b"SEGAOS")
+    struct.pack_into(">HH", boot, 0x002C, 0x0100, 0x0000)
+
+    struct.pack_into(
+        ">IIII",
+        boot,
+        0x0030,
+        IP_HEADER_OFFSET,
+        IP_HEADER_SIZE,
+        0x00000000,
+        0x00000000,
+    )
+    struct.pack_into(
+        ">IIII",
+        boot,
+        0x0040,
+        SP_PHYSICAL_OFFSET,
+        len(sp_data),
+        0x00000000,
+        0x00000000,
+    )
+
+    for offset in range(0x0050, 0x0100, 0x0010):
+        boot[offset : offset + 0x0010] = b" " * 0x0010
+
+    # Mega Drive-style disc header ($0100-$01FF)
+    write_space_padded(boot, 0x0100, 0x0010, hardware_id)
+    boot[0x0110:0x0120] = b"(C)PROJ12 2026  "
+    title = b"SEGAOS"
+    write_padded(boot, 0x0120, 48, title)
+    write_padded(boot, 0x0150, 48, title)
+    boot[0x0180:0x018E] = b"GM 00000000-00"
+    struct.pack_into(">H", boot, 0x018E, 0x0000)
+    boot[0x0190:0x01A0] = b"JM              "
+    struct.pack_into(">II", boot, 0x01A0, 0x00000000, 0x003FFFFF)
+    struct.pack_into(">II", boot, 0x01A8, 0x00FF0000, 0x00FFFFFF)
+    boot[0x01B0:0x01BC] = b"            "
+    boot[0x01BC:0x01C8] = b"            "
+    boot[0x01C8:0x01F0] = b"                                        "
+    boot[0x01F0:0x0200] = b"JUE             "
+
+    boot[IP_PHYSICAL_OFFSET : IP_PHYSICAL_OFFSET + len(ip_data)] = ip_data
+    boot[SP_PHYSICAL_OFFSET : SP_PHYSICAL_OFFSET + len(sp_data)] = sp_data
+
     return boot
 
 
-def build_pvd(total_sectors: int) -> bytearray:
-    """Build ISO9660 Primary Volume Descriptor."""
-    pvd = bytearray(COOKED_SECTOR)
-    pvd[0] = 0x01         # Type: PVD
-    pvd[1:6] = b"CD001"   # Standard ID
-    pvd[6] = 0x01         # Version
+def iso_date() -> bytes:
+    # 2026-02-10 15:00:00 GMT, matching the project initial release date.
+    return bytes([126, 2, 10, 15, 0, 0, 0])
 
-    # System Identifier (32 bytes)
+
+def directory_record(extent: int, data_len: int, file_id: bytes, flags: int) -> bytes:
+    record_len = 33 + len(file_id)
+    if record_len % 2:
+        record_len += 1
+
+    record = bytearray(record_len)
+    record[0] = record_len
+    record[1] = 0
+    record[2:10] = pack_both_u32(extent)
+    record[10:18] = pack_both_u32(data_len)
+    record[18:25] = iso_date()
+    record[25] = flags
+    record[26] = 0
+    record[27] = 0
+    record[28:32] = pack_both_u16(1)
+    record[32] = len(file_id)
+    record[33 : 33 + len(file_id)] = file_id
+    return bytes(record)
+
+
+def build_root_dir() -> bytes:
+    root = bytearray(SECTOR_SIZE)
+    dot = directory_record(ROOT_DIR_SECTOR, SECTOR_SIZE, b"\x00", 0x02)
+    dotdot = directory_record(ROOT_DIR_SECTOR, SECTOR_SIZE, b"\x01", 0x02)
+    root[0 : len(dot)] = dot
+    root[len(dot) : len(dot) + len(dotdot)] = dotdot
+    return bytes(root)
+
+
+def build_path_table(little_endian: bool) -> bytes:
+    table = bytearray(SECTOR_SIZE)
+    table[0] = 1
+    table[1] = 0
+    if little_endian:
+        struct.pack_into("<I", table, 2, ROOT_DIR_SECTOR)
+        struct.pack_into("<H", table, 6, 1)
+    else:
+        struct.pack_into(">I", table, 2, ROOT_DIR_SECTOR)
+        struct.pack_into(">H", table, 6, 1)
+    table[8] = 0
+    table[9] = 0
+    return bytes(table)
+
+
+def build_pvd(total_sectors: int) -> bytes:
+    pvd = bytearray(SECTOR_SIZE)
+    pvd[0] = 0x01
+    pvd[1:6] = b"CD001"
+    pvd[6] = 0x01
     pvd[8:40] = b"MEGA_CD                         "
-
-    # Volume Identifier (32 bytes)
     pvd[40:72] = b"SEGAOS                          "
-
-    # Volume Space Size (both-endian)
-    struct.pack_into("<I", pvd, 80, total_sectors)
-    struct.pack_into(">I", pvd, 84, total_sectors)
-
-    # Volume Set Size
-    struct.pack_into("<H", pvd, 120, 1)
-    struct.pack_into(">H", pvd, 122, 1)
-
-    # Volume Sequence Number
-    struct.pack_into("<H", pvd, 124, 1)
-    struct.pack_into(">H", pvd, 126, 1)
-
-    # Logical Block Size
-    struct.pack_into("<H", pvd, 128, COOKED_SECTOR)
-    struct.pack_into(">H", pvd, 130, COOKED_SECTOR)
-
-    # Root directory record at offset 156
-    root = bytearray(34)
-    root[0] = 34      # Record length
-    # Extent location (sector 18 = after PVD + terminator)
-    struct.pack_into("<I", root, 2, 18)
-    struct.pack_into(">I", root, 6, 18)
-    # Data length
-    struct.pack_into("<I", root, 10, COOKED_SECTOR)
-    struct.pack_into(">I", root, 14, COOKED_SECTOR)
-    # Date: 2026-02-10
-    root[18:25] = bytes([126, 2, 10, 15, 0, 0, 0])
-    root[25] = 0x02   # Directory flag
-    struct.pack_into("<H", root, 28, 1)
-    struct.pack_into(">H", root, 30, 1)
-    root[32] = 1      # ID length
-    root[33] = 0x00   # Root ID
-    pvd[156:190] = root
-
-    # File Structure Version
+    pvd[80:88] = pack_both_u32(total_sectors)
+    pvd[120:124] = pack_both_u16(1)
+    pvd[124:128] = pack_both_u16(1)
+    pvd[128:132] = pack_both_u16(SECTOR_SIZE)
+    pvd[132:140] = pack_both_u32(10)
+    struct.pack_into("<I", pvd, 140, PATH_TABLE_L_SECTOR)
+    struct.pack_into("<I", pvd, 144, 0)
+    struct.pack_into(">I", pvd, 148, PATH_TABLE_M_SECTOR)
+    struct.pack_into(">I", pvd, 152, 0)
+    root_record = directory_record(ROOT_DIR_SECTOR, SECTOR_SIZE, b"\x00", 0x02)
+    pvd[156 : 156 + len(root_record)] = root_record
     pvd[881] = 0x01
+    return bytes(pvd)
 
-    return pvd
 
-
-def build_vdst() -> bytearray:
-    """Build Volume Descriptor Set Terminator."""
-    vdst = bytearray(COOKED_SECTOR)
+def build_vdst() -> bytes:
+    vdst = bytearray(SECTOR_SIZE)
     vdst[0] = 0xFF
     vdst[1:6] = b"CD001"
     vdst[6] = 0x01
-    return vdst
+    return bytes(vdst)
 
 
-def build_root_dir() -> bytearray:
-    """Build empty root directory (self + parent entries)."""
-    root = bytearray(COOKED_SECTOR)
+def write_iso(iso_path: Path, boot_sector: bytes) -> int:
+    sectors = [bytes(boot_sector[i : i + SECTOR_SIZE]) for i in range(0, BOOT_SIZE, SECTOR_SIZE)]
+    sectors.append(build_pvd(MIN_SECTORS))
+    sectors.append(build_vdst())
+    sectors.append(build_root_dir())
+    sectors.append(build_path_table(little_endian=True))
+    sectors.append(build_path_table(little_endian=False))
 
-    # "." entry (self)
-    dot = bytearray(34)
-    dot[0] = 34
-    struct.pack_into("<I", dot, 2, 18)
-    struct.pack_into(">I", dot, 6, 18)
-    struct.pack_into("<I", dot, 10, COOKED_SECTOR)
-    struct.pack_into(">I", dot, 14, COOKED_SECTOR)
-    dot[18:25] = bytes([126, 2, 10, 15, 0, 0, 0])
-    dot[25] = 0x02
-    struct.pack_into("<H", dot, 28, 1)
-    struct.pack_into(">H", dot, 30, 1)
-    dot[32] = 1
-    dot[33] = 0x00
-    root[0:34] = dot
+    while len(sectors) < MIN_SECTORS:
+        sectors.append(bytes(SECTOR_SIZE))
 
-    # ".." entry (parent = self for root)
-    dotdot = bytearray(dot)
-    dotdot[33] = 0x01
-    root[34:68] = dotdot
+    iso_path.parent.mkdir(parents=True, exist_ok=True)
+    with iso_path.open("wb") as f:
+        for sector in sectors:
+            if len(sector) != SECTOR_SIZE:
+                raise AssertionError(f"internal sector length error: {len(sector)}")
+            f.write(sector)
 
-    return root
+    return len(sectors)
 
 
-def write_cue(cue_path: str, bin_filename: str):
-    """Write a CUE sheet for a single Mode 1 data track."""
-    cue = (
-        f'FILE "{bin_filename}" BINARY\n'
-        f'  TRACK 01 MODE1/2352\n'
-        f'    INDEX 01 00:00:00\n'
+def write_cue(cue_path: Path, iso_path: Path) -> None:
+    cue_path.write_text(
+        f'FILE "{iso_path.name}" BINARY\n'
+        "  TRACK 01 MODE1/2048\n"
+        "    INDEX 01 00:00:00\n",
+        encoding="ascii",
     )
-    with open(cue_path, "w") as f:
-        f.write(cue)
 
 
-def main():
-    if len(sys.argv) != 4:
-        print(f"Usage: {sys.argv[0]} <ip.bin> <sp.bin> <output_base>")
-        print("  Produces: <output_base>.bin and <output_base>.cue")
-        sys.exit(1)
+def strip_known_extension(out_base: str) -> str:
+    for ext in (".iso", ".bin", ".cue"):
+        if out_base.lower().endswith(ext):
+            return out_base[: -len(ext)]
+    return out_base
 
-    ip_path = sys.argv[1]
-    sp_path = sys.argv[2]
-    out_base = sys.argv[3]
 
-    # Strip extension if user passed one
-    if out_base.endswith((".iso", ".bin", ".cue")):
-        out_base = out_base.rsplit(".", 1)[0]
+def read_payload(path: Path, name: str) -> bytes:
+    if not path.exists():
+        raise SystemExit(f"ERROR: {name} binary not found: {path}")
+    return path.read_bytes()
 
-    bin_path = out_base + ".bin"
-    cue_path = out_base + ".cue"
 
-    # Read binaries
-    for path, name in [(ip_path, "IP"), (sp_path, "SP")]:
-        if not os.path.exists(path):
-            print(f"ERROR: {name} binary not found: {path}")
-            sys.exit(1)
+def main(argv: list[str]) -> int:
+    if len(argv) not in (4, 5):
+        print(f"Usage: {argv[0]} <ip.bin> <sp.bin> <output_base> [region]")
+        return 1
 
-    with open(ip_path, "rb") as f:
-        ip_data = f.read()
-    with open(sp_path, "rb") as f:
-        sp_data = f.read()
+    ip_path = Path(argv[1])
+    sp_path = Path(argv[2])
+    out_base = Path(strip_known_extension(argv[3]))
+    region = argv[4].upper() if len(argv) == 5 else "US"
+    if region not in HARDWARE_ID_BY_REGION:
+        print(f"ERROR: unsupported region {region!r}; expected one of JP, US, EU")
+        return 1
+    iso_path = out_base.with_suffix(".iso")
+    cue_path = out_base.with_suffix(".cue")
+
+    ip_data = read_payload(ip_path, "IP")
+    sp_data = read_payload(sp_path, "SP")
 
     print(f"IP (Main CPU): {len(ip_data)} bytes ({len(ip_data):#06x})")
     print(f"SP (Sub CPU):  {len(sp_data)} bytes ({len(sp_data):#06x})")
+    print("NOTE: this builder only packs the supplied IP bytes.")
+    print("      `make iso` runs tools/verify_disc.py to validate the selected security block.")
 
-    if len(ip_data) > IP_MAX_SIZE:
-        print(f"WARNING: IP exceeds {IP_MAX_SIZE} byte limit!")
-    if len(sp_data) > SP_MAX_SIZE:
-        print(f"WARNING: SP exceeds {SP_MAX_SIZE} byte limit!")
+    boot_sector = build_boot_sector(ip_data, sp_data, region)
+    total_sectors = write_iso(iso_path, boot_sector)
+    write_cue(cue_path, iso_path)
 
-    # Build cooked sectors
-    boot_data = build_boot_sector(ip_data, sp_data)
-    pvd_data = build_pvd(MIN_SECTORS)
-    vdst_data = build_vdst()
-    root_data = build_root_dir()
-
-    # Assemble all cooked sectors
-    cooked_sectors = []
-
-    # Sectors 0-15: boot sector (16 sectors)
-    for i in range(BOOT_SECTORS):
-        offset = i * COOKED_SECTOR
-        cooked_sectors.append(bytes(boot_data[offset:offset + COOKED_SECTOR]))
-
-    # Sector 16: PVD
-    cooked_sectors.append(bytes(pvd_data))
-
-    # Sector 17: VDST
-    cooked_sectors.append(bytes(vdst_data))
-
-    # Sector 18: Root directory
-    cooked_sectors.append(bytes(root_data))
-
-    # Pad to minimum sector count with empty sectors
-    while len(cooked_sectors) < MIN_SECTORS:
-        cooked_sectors.append(bytes(COOKED_SECTOR))
-
-    # Convert to raw Mode 1 sectors and write BIN
-    with open(bin_path, "wb") as f:
-        for lba, cooked in enumerate(cooked_sectors):
-            raw = make_raw_sector(lba, cooked)
-            f.write(raw)
-
-    # Write CUE sheet
-    bin_filename = os.path.basename(bin_path)
-    write_cue(cue_path, bin_filename)
-
-    total_raw = len(cooked_sectors) * RAW_SECTOR
-    print(f"BIN written: {bin_path} ({total_raw} bytes, {len(cooked_sectors)} sectors)")
+    total_size = iso_path.stat().st_size
+    print(f"ISO written: {iso_path} ({total_size} bytes, {total_sectors} sectors)")
     print(f"CUE written: {cue_path}")
-    print(f"Load {cue_path} in your emulator.")
+    print(f"Boot sector: {BOOT_SIZE} bytes injected at sectors 0-15")
+    print(f"  IP header offset field: ${IP_HEADER_OFFSET:04X}")
+    print(f"  IP physical bytes:      ${IP_PHYSICAL_OFFSET:04X}-${IP_PHYSICAL_OFFSET + len(ip_data) - 1:04X}")
+    print(f"  SP physical bytes:      ${SP_PHYSICAL_OFFSET:04X}-${SP_PHYSICAL_OFFSET + len(sp_data) - 1:04X}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main(sys.argv))

@@ -14,7 +14,7 @@
  *   $420000-$43FFFF : PRG-RAM window (128KB bank, controlled by GA)
  *   $A12000-$A1202F : Gate Array registers
  *   $C00000-$C00013 : VDP ports
- *   $FF0000-$FFFFFF : Work RAM (68000 internal, 64KB)
+ *   $FF0000-$FFF6FF : IP Work RAM (BIOS/system use begins at $FFF700)
  */
 
 OUTPUT_FORMAT("elf32-m68k")
@@ -24,19 +24,19 @@ ENTRY(_entry)
 
 MEMORY
 {
-    wram (rwx) : ORIGIN = 0xFF0000, LENGTH = 0x10000
+    wram (rwx) : ORIGIN = 0xFF0000, LENGTH = 0x0F700
 }
 
-/* Stack grows down from top of Work RAM */
-PROVIDE(__stack = 0x01000000);
+/* Stack grows down from the top of the non-BIOS Work RAM region. */
+PROVIDE(__stack = ORIGIN(wram) + LENGTH(wram));
 
 SECTIONS
 {
     .text :
     {
         _stext = .;
-        *(.text.entry)      /* Entry point first */
-        KEEP(*(.text.entry))
+        KEEP(*(.security*))  /* Sega CD regional security block must be first */
+        KEEP(*(.text.entry)) /* Entry code follows the security block */
         *(.text .text.*)
         *(.rodata .rodata.*)
         . = ALIGN(4);

@@ -76,7 +76,9 @@ typedef struct {
 
 /* Word RAM (256KB total) - Shared/Swappable */
 #define WORD_RAM_BASE 0x200000
+#ifndef WORD_RAM_SIZE
 #define WORD_RAM_SIZE 0x040000 /* 256KB (2 Mbit) */
+#endif
 
 /* Backup RAM Cart (Storage) */
 #define BRAM_CART_BASE 0x600000
