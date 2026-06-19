@@ -103,7 +103,7 @@ void sub_init(void) {
   sub_write_result(1, PROBE_READY_MAGIC);
   GA_SUB_SET_FLAG(STATUS_IDLE);
 #else
-  /* Signal readiness only. Main must establish 1M Word RAM and the VDP path
+  /* Signal readiness only. Main must establish Word RAM and the VDP path
    * before it sends CMD_INIT_OS to initialize rendering. */
   sub_write_result(0, SUB_STATE_READY);
   GA_SUB_SET_FLAG(STATUS_IDLE);
@@ -125,14 +125,15 @@ void sub_main(void) {
 #ifndef BOOT_PROBE
 static void os_init(void) {
   sub_write_result(7, 0x7301);
-  /* Initialize blitter with Word RAM Bank 0 base address */
-  /* In 1M mode, Sub CPU sees Bank 0 at $0C0000 (128KB) */
-  /* Bank 1 is at $0E0000 (used for ASIC pixel-mapped access) */
+  /* Initialize blitter with the verified 1M bank-0 Word RAM base address. */
   BLT_Init((uint8_t *)0x0C0000);
   sub_write_result(7, 0x7302);
   BLT_SetMode(BLT_MODE_4BIT); /* Match Main CPU framebuffer pipeline */
   sub_write_result(7, 0x7303);
 
+#ifdef BOOT_SAFE_DESKTOP
+  sub_write_result(7, 0x73fe);
+#else
   /* Initialize Window Manager */
   WM_Init();
   sub_write_result(7, 0x7304);
@@ -189,6 +190,7 @@ static void os_init(void) {
   sub_write_result(7, 0x73fe);
 
   /* TODO: Initialize file system (ISO 9660 reader, BRAM wrappers) */
+#endif
 }
 #endif
 
@@ -233,6 +235,24 @@ static void process_command(uint8_t cmd) {
     break;
 
   case CMD_RENDER_FRAME: {
+#ifdef BOOT_SAFE_DESKTOP
+    Rect menuDivider;
+
+    sub_write_result(0, SUB_STATE_RENDERING);
+
+    BLT_Clear(BLT_4_WHITE);
+    menuDivider.left = 0;
+    menuDivider.top = 19;
+    menuDivider.right = 320;
+    menuDivider.bottom = 20;
+    BLT_FillRect(&menuDivider, BLT_BLACK);
+    BLT_BlitBitmap1(cursorX, cursorY, cursorBitmap, 11, 16, BLT_BLACK);
+
+    sub_return_wram();
+    sub_write_result(0, SUB_STATE_READY);
+    sub_done();
+    break;
+#else
     Window *win;
     uint8_t i;
 
@@ -281,13 +301,13 @@ static void process_command(uint8_t cmd) {
 
     WM_EndUpdate();
 
-    /* Swap Word RAM banks: give finished frame to Main CPU.
-     * Sub CPU gets the other bank to render the next frame into. */
+    /* Give the finished Word RAM framebuffer to Main CPU. */
     sub_return_wram();
 
     sub_write_result(0, SUB_STATE_READY);
     sub_done();
     break;
+#endif
   }
 
   case CMD_OPEN_WINDOW: {

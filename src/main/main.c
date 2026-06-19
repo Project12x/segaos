@@ -140,7 +140,7 @@ int main(void) {
 /*
  * Boot Sequence (BIOS has already loaded SP and started Sub CPU)
  *
- * 1. Set Word RAM to 1M mode for double-buffering
+ * 1. Set Word RAM to 1M mode for the verified boot framebuffer bank
  * 2. Wait for Sub CPU to signal ready
  * 3. Initialize peripherals (mouse, VDP, framebuffer)
  */
@@ -167,15 +167,14 @@ static void boot_sequence(void) {
     }
   }
 
-  /* Step 2: Set Word RAM to 1M mode for double-buffering */
+  /* Step 2: Set Word RAM to 1M mode for the verified boot framebuffer bank */
   {
     uint16_t mem = GA_MAIN_REG16(GA_MEM_MODE);
     mem |= MEM_MODE_1M;
     GA_MAIN_REG16(GA_MEM_MODE) = mem;
   }
 
-  /* Sub initializes and renders into bank 0 at $0C0000. After switching to 1M
-   * mode, hand that bank to Sub before CMD_INIT_OS touches the framebuffer. */
+  /* Give bank 0 to Sub at $0C0000; Sub returns it to Main after rendering. */
   main_return_wram_to_sub();
 
   /* Step 3: Initialize Mega Mouse on controller port 1 */
@@ -197,7 +196,7 @@ static void boot_sequence(void) {
   FB_Init();
   FB_ShowBootPattern();
 
-  /* Step 6: Initialize Sub-side OS/rendering now that 1M Word RAM and the Main
+  /* Step 6: Initialize Sub-side OS/rendering now that Word RAM and the Main
    * display path are ready. */
   main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
   main_wait_done();
@@ -461,7 +460,7 @@ static void main_loop(void) {
 
     /* Convert the finished framebuffer from linear 4bpp
      * to VDP tile format and DMA to VRAM.
-     * Main CPU sees its Word RAM bank at $200000 in 1M mode. */
+     * Main CPU sees returned bank 0 at $200000 in 1M mode. */
     FB_UpdateFrame(WRAM_BANK0_MAIN);
 
     /* Give bank 0 back to Sub before the next render command. This is the
