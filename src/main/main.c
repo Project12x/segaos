@@ -195,6 +195,7 @@ static void boot_sequence(void) {
 
   /* Step 5: Set up framebuffer tilemap + palette */
   FB_Init();
+  FB_ShowBootPattern();
 
   /* Step 6: Initialize Sub-side OS/rendering now that 1M Word RAM and the Main
    * display path are ready. */

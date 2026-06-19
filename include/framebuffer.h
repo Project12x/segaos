@@ -92,6 +92,11 @@ static const uint16_t FB_PALETTE_GRAY4[4] = {
  * ============================================================ */
 void FB_Init(void);
 
+/* Fill the active framebuffer tile range with a deterministic checker pattern.
+ * This gives the Main CPU a known boot surface before the Sub CPU has produced
+ * its first rendered frame. */
+void FB_ShowBootPattern(void);
+
 /* ============================================================
  * Frame Update
  *

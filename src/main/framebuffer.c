@@ -70,6 +70,10 @@ void FB_Init(void) {
   VDP_SET_REG(VDP_REG_BGCOLOR, 0x00);
 }
 
+void FB_ShowBootPattern(void) {
+  VDP_FillVRAM(0x0000, 0x7777, FB_TILE_COUNT * (FB_BYTES_PER_TILE / 2));
+}
+
 /* ============================================================
  * convert_strip - Convert one strip of tile-rows from linear to tiles
  *

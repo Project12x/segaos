@@ -25,6 +25,25 @@ function Send-Key([byte]$VirtualKey, [byte]$ScanCode) {
   [NativeInput]::keybd_event($VirtualKey, $ScanCode, 2, [UIntPtr]::Zero)
 }
 
+function Send-EnterKey() {
+  Send-Key 0x0D 0x1C
+  try {
+    $shell = New-Object -ComObject WScript.Shell
+    $shell.SendKeys("~")
+  } catch {
+    # keybd_event above is the primary path; SendKeys is a best-effort fallback.
+  }
+}
+
+function Send-ScreenshotKey() {
+  Send-Key 0x50 0x19
+  try {
+    $shell = New-Object -ComObject WScript.Shell
+    $shell.SendKeys("p")
+  } catch {
+  }
+}
+
 $blastemExe = Resolve-ExistingPath (Join-Path $BlastEmDir "blastem.exe") "BlastEm executable"
 $cuePath = Resolve-ExistingPath $Cue "CUE"
 $defaultConfigPath = Resolve-ExistingPath (Join-Path $BlastEmDir "default.cfg") "BlastEm default config"
@@ -75,7 +94,7 @@ public static class NativeInput {
   }
 
   for ($i = 0; $i -lt $StartPresses; $i++) {
-    Send-Key 0x0D 0x1C
+    Send-EnterKey
     if ($i -lt ($StartPresses - 1)) {
       Start-Sleep -Milliseconds $MillisecondsBetweenStartPresses
     }
@@ -85,7 +104,7 @@ public static class NativeInput {
     [NativeInput]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
     Start-Sleep -Milliseconds 250
   }
-  Send-Key 0x50 0x19
+  Send-ScreenshotKey
   Start-Sleep -Seconds 1
 
   $beforeNames = @{}
