@@ -15,6 +15,40 @@ SegaOS runs on two 68000 CPUs with distinct roles:
  +-----------------+                    +------------------+
 ```
 
+## Reference Baseline
+
+Low-level Sega CD boot and disc assumptions should be checked against
+Megadev 1.2.0:
+
+- repo: https://github.com/drojaazu/megadev
+- commit: `7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+- license: MIT
+- reuse mode: pattern-only for boot-layout/build architecture; direct-copy for
+  `src/main/security.c` from Megadev `lib/security.c`; close-port/pattern-only
+  for the SP header/linker contract; control-build/pattern-only for Megadev
+  `hello_world` IP/SP behavior
+
+SegaOS does not adopt Megadev's module-driven game architecture wholesale. It
+uses Megadev as the maintained reference for boot-sector layout, IP/SP
+constraints, Sub CPU CD-ROM ownership, Word RAM caveats, and cooked ISO
+generation.
+
+The current pre-alpha boot posture is deliberately flexible. A permanent
+Megadev-derived dual-CPU control image built through SegaOS's ISO builder
+reports from Sub-side code, and the SegaOS `BOOT_PROBE=1` assembly path now
+proves Sub `sp_init`, Sub `sp_main`, and Gate Array command/status exchange.
+The one-way Word RAM handoff is also proven: in the observed 1M boot state, Sub
+clears RET to expose its `$0C0000` bank at Main `$200000`. The first
+framebuffer proof is now passing too: a deterministic 4bpp pattern written by
+Sub is converted by Main, read back from VDP VRAM, and confirmed on the visible
+display through BlastEm's internal screenshot path. A conservative single-bank
+return path now gives bank 0 back to Sub after Main uploads a frame. The
+remaining runtime issue is normal C desktop startup: the boot-safe C SP is
+under 10KB but still does not publish Sub-ready in BlastEm. Keep the assembly
+probe as the truth source and reintroduce C behind proven invariants. The
+product goal is still a 68k Mac-like desktop on Sega CD; the bootstrap can
+change to make that goal reliable.
+
 ## Memory Map
 
 ### Main CPU View
@@ -39,11 +73,21 @@ SegaOS runs on two 68000 CPUs with distinct roles:
 ### Blitter (`src/sub/blitter.c`)
 Software renderer targeting a linear framebuffer in Word RAM. Supports 2bpp (4 grayscale, 80 B/row) and 4bpp (16-color, 160 B/row) modes. Provides pixel, line, rect, fill, blit, and text rendering with clip rects.
 
+For current bring-up, 4bpp is the canonical runtime target because the Main CPU
+framebuffer pipeline assumes 4bpp nibble packing. 2bpp remains a blitter
+capability, but it should not be used for the displayed desktop until either a
+2bpp-to-VDP converter exists or the Main CPU display path is explicitly changed.
+
 ### Window Manager (`src/sub/wm.c`)
 Mac OS-style window management with z-ordered window list, title bars, drag, resize, close buttons. Dispatches mouse events to the topmost window. Each window has a content rect drawn by its owning application.
 
 ### Framebuffer Pipeline (`src/main/framebuffer.c`)
 Converts the Sub CPU's linear 4bpp framebuffer to VDP 8x8 tile format using strip-based processing (5 KB buffer per strip, 7 strips per frame). Both formats use identical 4bpp nibble packing, so conversion is purely a memory rearrangement.
+
+The full-frame path is a bring-up path first. Before the desktop loop is treated
+as stable, the project needs a measured VDP transfer policy: VBlank-only dirty
+tiles, accepted active-display transfer artifacts, or display-off/full redraws
+for transitions.
 
 ### VDP Interface (`include/vdp.h`)
 Standalone hardware interface for the Genesis VDP. Direct register writes, DMA transfers, palette loading, VSync wait. No SGDK dependency.
@@ -60,3 +104,37 @@ Gate Array comm flag + 4 command registers for Main->Sub commands. Protocol: Mai
 2. **Render**: Sub CPU blitter draws to Word RAM (linear 4bpp scanlines)
 3. **Display**: Main CPU converts linear->tiles (strip-based) -> DMA to VDP VRAM
 4. **Sync**: Word RAM bank swap coordinates read/write access between CPUs
+
+Bring-up should validate those steps one at a time: boot image, Main/Sub CPU
+heartbeat, Word RAM bank handoff, deterministic 4bpp test pattern, then the
+full window-manager render loop.
+
+## Boot Disc Model
+
+The intended disc image is a cooked ISO9660 data track (`MODE1/2048`) with a
+32KB Sega CD system area, equivalent to Megadev's `mkisofs -G boot.bin` build
+path.
+
+Important boot-sector constraints:
+
+- IP is loaded to `$FF0000`.
+- SP is loaded to `$006000`.
+- Header IP offset field should follow the Megadev `$0800` compatibility quirk.
+- IP bytes are physically placed at boot-sector offset `$0200`.
+- SP bytes are physically placed at boot-sector offset `$1000`.
+- IP includes the selected Megadev regional security block first. `CD_REGION`
+  defaults to `US`; `JP` and `EU` are supported by the same source file.
+- The SP linker uses Megadev-style `SUBALIGN(2)` section layout; the current
+  visible framebuffer `BOOT_PROBE=1` SP is 930 text bytes with `sp_init` at
+  `$602A` and `sp_main` at `$607E`.
+- Initialized Sub data is kept inside the resident SP image rather than in a
+  separate boot-time data segment.
+- `tools/verify_disc.py` validates the selected security prefix and license
+  marker before emulator testing.
+
+Current probe boundary: Main boot, Sub `sp_init`, Sub `sp_main`, Gate Array
+command/status, one-way Word RAM bank-0 return, and deterministic 4bpp
+framebuffer-to-VDP tile readback are proven by `-Probe DualCpu` and
+`-Probe Framebuffer`; the visible probe is also confirmed by BlastEm internal
+screenshotting. Do not advance the full desktop/app loop until boot-safe C
+runtime startup and repeated-frame bank policy are explicit.

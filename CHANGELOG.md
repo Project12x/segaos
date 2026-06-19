@@ -3,6 +3,95 @@
 All notable changes to this project will be documented in this file.
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Added
+- Added Megadev's MIT regional Sega CD security block as
+  `src/main/security.c`, linked first in the Main CPU IP.
+- Added `CD_REGION` build selection for JP/US/EU security-code variants.
+- Added `tools/probe_blastem_boot.ps1` to run the BlastEm/GDB IP breakpoint
+  probe as a repeatable check.
+- Added `BOOT_PROBE=1`, `include/boot_probe.h`, and a minimal dual-CPU
+  BlastEm/GDB probe path that exposes Main/Sub boot state through symbols.
+- Added `tools/controls/megadev_dualcpu` and
+  `tools/build_megadev_dualcpu_control.ps1` as a Megadev-derived dual-CPU
+  control fixture with pinned MIT reference-code notes.
+- Added `DualCpuStatus`, `DualCpuWramSurvey`, `DualCpuWramRetClear`,
+  `DualCpuWramSweep`, `Framebuffer`, and `MegadevControl` modes to
+  `tools/probe_blastem_boot.ps1` for staged BlastEm/GDB validation.
+
+### Changed
+- Replaced the `pycdlib` ISO path with a Python standard-library cooked
+  ISO9660/CUE builder that follows the Megadev-compatible Sega CD boot layout.
+- Wired `tools/verify_disc.py` into `make iso` so disc-layout errors fail the
+  build, including selected regional security-prefix checks.
+- Advanced the roadmap from Milestone A to Milestone B after a BlastEm/GDB boot
+  probe reached `$00FF0000` with US security bytes present.
+- Changed the Sub CPU blitter startup default to 4bpp so it matches the Main CPU
+  framebuffer conversion path.
+- Tightened the ISO builder/verifier to match Megadev boot-header defaults:
+  space-padded system strings, `$0100/$0000` system version/type, and
+  region-specific hardware IDs (`SEGA GENESIS` for US).
+- Changed the Sub CPU startup header/linker layout to use the Megadev SP module
+  header and relative usercall jump table format.
+- Tightened the Sub CPU linker to use Megadev-style 2-byte section subalignment
+  for the SP module, placing the probe `sp_init` at `$602A`.
+- Pivoted `BOOT_PROBE=1` to an assembly-only Sub CPU probe path for startup,
+  command/status, and Word RAM handoff isolation; the current visible
+  framebuffer probe SP is 930 text bytes.
+- Added `BOOT_PROBE_FRAMEBUFFER=1` as an opt-in visible framebuffer probe path
+  that fills the full 4bpp frame with a deterministic pattern.
+- Added `BOOT_SAFE_DESKTOP=1` as the default Sub build shape, keeping only the
+  minimal desktop kernel in the boot SP while deferring menu/apps.
+- Added a reusable BlastEm internal screenshot helper at
+  `tools/capture_blastem_internal_screenshot.ps1`.
+
+### Fixed
+- Fixed several UI border/cursor draw calls that passed ending coordinates to
+  `BLT_DrawHLine`/`BLT_DrawVLine` instead of width/height.
+- Removed stale Sub CPU compiler warnings for duplicate defines, duplicate
+  `WORD_RAM_SIZE`, and unused local/static variables.
+- Fixed the Main boot wait to poll Sub readiness across VBlank frames after
+  Main-side VDP/framebuffer initialization instead of failing on an immediate
+  zero status word.
+- Fixed Main CPU stack placement so SegaOS starts below the `$FFF700+` Main BIOS
+  work/system-use region instead of wrapping through `$01000000`.
+- Fixed the Sub-side Word RAM return helper for the observed 1M boot state:
+  clearing RET exposes Sub's `$0C0000` bank at Main `$200000`; setting RET and
+  waiting was wrong for this handoff.
+- Added a conservative Main-side bank return after `FB_UpdateFrame()` so the
+  Sub CPU can own `$0C0000` again before the next render command.
+
+### Documentation
+- Updated Sega CD reference docs around Megadev 1.2.0, pinned at
+  `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`.
+- Added June 2026 homebrew/tooling update notes and boot-disc reconciliation
+  risks.
+- Updated roadmap and state docs to put boot-disc/Megadev reconciliation at the
+  bottom of the bring-up ladder.
+- Reworked the roadmap into a bring-up ladder: reproducible boot artifact,
+  minimal dual-CPU probe, 4bpp framebuffer probe, VDP timing budget, desktop
+  bring-up, storage, and compatibility hardening.
+- Documented the earlier Milestone B isolation step where BlastEm reached the
+  Main `segaos_probe_halt` symbol and SP bytes were loaded at `$006000`, while
+  the C-runtime SP path still produced no Sub breadcrumbs.
+- Documented that a Megadev `hello_world` control image built through the
+  SegaOS ISO builder reached the Megadev Main IP loop, narrowing the next
+  control to a dual-CPU Sub breadcrumb fixture.
+- Updated Milestone B docs after the dual-CPU control and SegaOS
+  `DualCpuStatus` probe proved Sub startup and Gate Array command/status,
+  narrowing the next investigation to Word RAM 1M ownership.
+- Updated Milestone B docs again after `DualCpu` proved one-way Word RAM
+  bank-0 handoff. The active rung is now the deterministic 4bpp framebuffer
+  probe and repeated-frame double-buffer policy.
+- Updated Milestone C docs after `-Probe Framebuffer` proved deterministic
+  4bpp Word RAM readback and VDP VRAM tile-0 readback through `FB_UpdateFrame()`.
+- Updated Milestone C docs again after a visible framebuffer probe was captured
+  with BlastEm's internal screenshotting.
+- Documented that the boot-safe C desktop SP is under 10KB but still fails the
+  Sub-ready gate in BlastEm; the assembly framebuffer probe remains the
+  known-good runtime proof.
+
 ## [0.1.0] - 2026-02-10
 
 ### Added

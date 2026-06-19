@@ -1,5 +1,8 @@
 # Megadev Module System (MMD Format)
-Source: https://github.com/drojaazu/megadev/blob/master/modules.md
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), especially `docs/modules.md`, `docs/cdrom.md`,
+`docs/disc.md`, `lib/main/mmd.macros.s`, and `lib/sub/cdrom.s`.
 
 ## Overview
 Modules are compiled binaries (small "ROMs") on disc. Each represents one piece of the game:
@@ -55,10 +58,10 @@ Work RAM or PRG-RAM (memory that won't change ownership).
 
 ## CD-ROM Access Wrapper
 Sub CPU only. INT2-driven access loop:
-1. Include `sub/cdrom.s` or `cd_sub_cdrom.c` in SP
+1. Include `sub/cdrom.s` or `sub/cdrom.h` in SP/Sub-side code
 2. Call `INIT_ACC_LOOP` in sp_init (usercall0)
 3. Call `PROCESS_ACC_LOOP` in sp_int2 (usercall2)
-4. Load directory cache first: set `ACC_OP_LOAD_DIR`, wait for completion
+4. Load directory cache first: set `CDROM_LOAD_FILE_LIST`, wait for completion
 
 **File Loading Steps:**
 1. Set `filename` pointer to the filename string
@@ -68,6 +71,17 @@ Sub CPU only. INT2-driven access loop:
 
 CDC device destination is set automatically based on the chosen access operation.
 
+Supported load operations in Megadev 1.2.0:
+
+- `CDROM_LOAD_CDC`
+- `CDROM_LOAD_CDC_DMA`
+- `CDROM_LOAD_PRG_DMA`
+- `CDROM_LOAD_PCM_DMA`
+
+Megadev does not currently support the Main CPU read option; use the Sub CPU as
+the disc I/O owner and hand data to the Main CPU through Word RAM or PRG-RAM
+windows.
+
 ## Disc Mastering
 - ISO9660 filesystem for data track
 - Mixed-mode for CD audio (CD-DA)
@@ -75,3 +89,12 @@ CDC device destination is set automatically based on the chosen access operation
 - Audio tracks follow with 2-second pregaps
 - Files in `disc/` directory are included in final ISO
 - CUE sheet specifies track layout
+
+Megadev's maintained build rule is equivalent to:
+
+```
+mkisofs -quiet -iso-level 1 -G boot.bin -pad -V PROJECT_ID \
+  -sysid "MEGA_CD" -o game.iso disc/
+```
+
+For SegaOS, this reinforces the cooked ISO (`MODE1/2048`) path as canonical.

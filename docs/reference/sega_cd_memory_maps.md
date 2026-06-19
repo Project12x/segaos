@@ -1,5 +1,7 @@
 # Sub CPU Memory Map & System Vectors
-Source: Megadev lib/sub/memmap_def.h
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), `lib/sub/memmap.def.h`.
 
 ## PRG-RAM Layout
 
@@ -75,7 +77,9 @@ Source: Megadev lib/sub/memmap_def.h
 ---
 
 # Main CPU Memory Map & System Vectors
-Source: Megadev lib/main/memmap_def.h
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), `lib/main/memmap.def.h`.
 
 ## Memory Map
 
@@ -125,10 +129,14 @@ Source: Megadev lib/main/memmap_def.h
 
 | Symbol | Address | Description |
 |--------|---------|-------------|
-| `_RESET` | $FFFD00 | Reset vector |
-| `_MLEVEL6` | $FFFD06 | **VBlank interrupt** |
-| `_MLEVEL4` | $FFFD0C | HBlank interrupt |
-| `_MLEVEL2` | $FFFD12 | External port interrupt |
+| `_RESET` entry | $FFFD00 | Reset vector jump entry |
+| `EXVEC_RESET` target | $FFFD02 | Longword target inside reset jump entry |
+| `_MLEVEL6` entry | $FFFD06 | **VBlank interrupt** jump entry |
+| `EXVEC_LEVEL6` target | $FFFD08 | Longword target inside VBlank jump entry |
+| `_MLEVEL4` entry | $FFFD0C | HBlank interrupt jump entry |
+| `EXVEC_LEVEL4` target | $FFFD0E | Longword target inside HBlank jump entry |
+| `_MLEVEL2` entry | $FFFD12 | External port interrupt jump entry |
+| `EXVEC_LEVEL2` target | $FFFD14 | Longword target inside external interrupt jump entry |
 | `_VINT_EX` | $FFFDA8 | VBlank extended handler |
 | `_MBURAM` | $FFFDAE | Backup RAM call |
 
@@ -140,3 +148,21 @@ Source: Megadev lib/main/memmap_def.h
 2. **PRG-RAM banking**: BK0/BK1 in GA_MEMMODE select which 1M bank the Main CPU sees
    at $020000 (via `_PRGRAM`)
 3. **Boot ROM library** uses the $FFFD00+ area for its system jump table
+4. **Main BIOS work RAM** uses `$FFF700+`; keep SegaOS C stack and buffers below
+   that region unless the code deliberately stops using Main BIOS services.
+5. **Current boot probe evidence**: SP bytes load to PRG-RAM bank 0 at
+   `$006000`, and the current assembly-only `BOOT_PROBE=1` path proves Sub
+   `sp_init`, Sub `sp_main`, and Gate Array command/status exchange.
+6. **Current SP layout evidence**: the SegaOS SP linker uses Megadev-style
+   `SUBALIGN(2)`; in the current framebuffer probe map, `sp_init` is at `$602A`,
+   `sp_main` is at `$607E`, and `_TEXT_LENGTH` is `$03a2` (930 bytes) for the
+   visible framebuffer probe.
+7. **Current Word RAM evidence**: in the observed 1M boot state, MEM_MODE is
+   `0x2a05`, meaning RET is set and Sub owns the `$0C0000` bank. Clearing RET
+   from Sub moves MEM_MODE to `0x2a04` and exposes that bank at Main `$200000`.
+   The strict `-Probe DualCpu` handoff check passes with `0xa55a/0x5aa5`.
+8. **Current framebuffer evidence**: `-Probe Framebuffer` writes a deterministic
+   4bpp pattern from Sub, clears RET, reads the same words from Main
+   `$200000`, runs `FB_UpdateFrame()`, reads the expected tile row words back
+   from VDP VRAM, and has visible full-screen output confirmed by BlastEm
+   internal screenshotting.

@@ -1,5 +1,8 @@
 # Mega CD Program Architecture Concepts
-Source: https://github.com/drojaazu/megadev/blob/master/program_design.md
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), especially `docs/program_design.md`,
+`docs/megacd_dev.md`, `docs/modules.md`, and `new_project/README.md`.
 
 ## The Hardware
 
@@ -54,3 +57,22 @@ Example layout:
 Two modes:
 - **2M mode**: All 256KB owned by one CPU, inaccessible to the other. Main aspect of CPU sync is reconciling ownership.
 - **1M mode**: Split into 128KB banks, each owned by one CPU. Ownership can be readily switched. Useful for streaming data (video) loaded from disc via Sub CPU into one bank while Main CPU copies from other bank to VRAM, then switching.
+
+## SegaOS Architecture Fit
+
+SegaOS intentionally differs from Megadev's game-module examples:
+
+- The Sub CPU is a resident GUI kernel, not a transient scene loader.
+- Word RAM is primarily a double-buffered framebuffer transport, not a place to
+  run game modules.
+- Main CPU interrupt and VDP code must stay in Work RAM because Word RAM
+  ownership changes every frame.
+
+Megadev is still useful as reference architecture:
+
+- tiny IP/SP boot stubs can load larger resident kernels later if needed;
+- CD-ROM file access should remain Sub CPU owned;
+- Word RAM bank transitions must never leave active interrupt handlers in
+  inaccessible memory;
+- Work RAM usage must be planned explicitly around stack, Boot ROM jump table,
+  framebuffer conversion buffers, and any resident Main CPU services.

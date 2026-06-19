@@ -1,5 +1,7 @@
 # Development using C on Mega CD
-Source: https://github.com/drojaazu/megadev/blob/master/dev_in_c.md
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), `docs/dev_in_c.md`.
 
 ## Standard Library
 There is no standard library. The Boot ROM library provides some helpers, but no string.h, stdlib.h, stdio.h, etc. No printf, no malloc/free. Everything must be written from scratch.
@@ -14,6 +16,10 @@ The value will be whatever already exists in memory. You must manually assign va
 Reason: Retro consoles don't use ELF/PE execution containers. There is no automatic .data initialization. Code execution begins immediately.
 
 It IS possible to copy .data segment as first action in your program, but this must be explicitly implemented.
+
+SegaOS startup currently clears `.bss` in both Main and Sub crt0 files. Any
+initialized `.data` usage must be verified against the linker/startup path
+before relying on it.
 
 ## Integer Types
 Do NOT use `int` type. With gcc-m68k, int is 4 bytes. Use sized types:

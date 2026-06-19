@@ -1,5 +1,8 @@
 # Boot ROM Library Reference (Main CPU)
-Source: Megadev bootlib.md — https://github.com/drojaazu/megadev/blob/master/bootlib.md
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), especially `docs/main_bios.md`,
+`lib/main/bios.def.h`, and `lib/main/bios.h`.
 
 ## Memory Usage
 Boot ROM library uses ~1.25KB of Work RAM at $FFFD00+ and below. It provides:

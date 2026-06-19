@@ -1,5 +1,8 @@
 # Sega CD Gate Array Register Reference
-Source: Megadev gatearr.h (Sub CPU perspective) — https://github.com/drojaazu/megadev/blob/master/lib/sub/gatearr.h
+
+Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+(`MEGADEV 1.2.0`, MIT), especially `lib/sub/gate_arr.def.h`,
+`lib/sub/gate_arr.h`, `lib/main/gate_arr.def.h`, and `lib/main/gate_arr.h`.
 
 Base Address: $FF8000 (Sub CPU), $A12000 (Main CPU)
 
@@ -25,6 +28,11 @@ Sub CPU address: $FF8002
 - **MODE** — Word RAM layout: 0=2M, 1=1M
 - **DMNA** — Main CPU will not access Word RAM (bank swap trigger)
 - **RET** — 2M mode: Give Word RAM to Main CPU; 1M mode: Change bank ownership
+
+SegaOS probe evidence: after BIOS boot into 1M mode, MEM_MODE was `0x2a05`.
+Sub could write/read `$0C0000`, and clearing RET changed MEM_MODE to `0x2a04`;
+Main then read the same words at `$200000`. Setting RET and waiting was wrong
+for this initial bank-0 return because RET was already set.
 
 ## GA Reg 02 — CDC Mode
 Sub CPU address: $FF8004
