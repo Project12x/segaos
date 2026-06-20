@@ -71,9 +71,17 @@ void FB_Init(void) {
 }
 
 void FB_ShowBootPattern(void) {
-  VDP_FillVRAM(0x0000, 0xFFFF, FB_TILE_COUNT * (FB_BYTES_PER_TILE / 2));
-  VDP_FillVRAM((2 * FB_TILES_X) * FB_BYTES_PER_TILE, 0x0000,
-               FB_TILES_X * (FB_BYTES_PER_TILE / 2));
+  uint16_t tx;
+
+  VDP_FillVRAM(0x0000, 0x0000, FB_BYTES_PER_TILE / 2);
+  VDP_FillVRAM(FB_BYTES_PER_TILE, 0xFFFF,
+               (FB_TILE_COUNT - 1) * (FB_BYTES_PER_TILE / 2));
+
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_VRAM_WRITE(VRAM_PLANE_A + (64 * 2));
+  for (tx = 0; tx < FB_TILES_X; tx++) {
+    VDP_DATA_PORT = TILE_ENTRY(0, 0, 0, 0, 0);
+  }
 }
 
 /* ============================================================

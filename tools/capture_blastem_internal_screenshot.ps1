@@ -8,7 +8,9 @@ param(
   [int]$StartPresses = 2,
   [int]$MillisecondsBetweenStartPresses = 1200,
   [int]$ScreenshotPresses = 3,
-  [int]$MillisecondsBetweenScreenshotPresses = 500
+  [int]$MillisecondsBetweenScreenshotPresses = 500,
+  [ValidateSet("Enter", "Space", "Both")]
+  [string]$StartKey = "Both"
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,12 +39,54 @@ function Send-EnterKey() {
   }
 }
 
+function Send-SpaceKey() {
+  Send-Key 0x20 0x39
+  try {
+    $shell = New-Object -ComObject WScript.Shell
+    $shell.SendKeys(" ")
+  } catch {
+  }
+}
+
+function Send-StartKey() {
+  if ($StartKey -eq "Enter" -or $StartKey -eq "Both") {
+    Send-EnterKey
+  }
+  if ($StartKey -eq "Space" -or $StartKey -eq "Both") {
+    Send-SpaceKey
+  }
+}
+
 function Send-ScreenshotKey() {
   Send-Key 0x50 0x19
   try {
     $shell = New-Object -ComObject WScript.Shell
     $shell.SendKeys("p")
   } catch {
+  }
+}
+
+function Focus-ProcessWindow([System.Diagnostics.Process]$Process) {
+  if (-not $Process -or $Process.HasExited) {
+    return
+  }
+
+  $Process.Refresh()
+  $deadline = (Get-Date).AddSeconds(5)
+  while ($Process.MainWindowHandle -eq 0 -and (Get-Date) -lt $deadline) {
+    Start-Sleep -Milliseconds 100
+    $Process.Refresh()
+  }
+
+  if ($Process.MainWindowHandle -ne 0) {
+    [NativeInput]::ShowWindow($Process.MainWindowHandle, 9) | Out-Null
+    [NativeInput]::SetForegroundWindow($Process.MainWindowHandle) | Out-Null
+    try {
+      $shell = New-Object -ComObject WScript.Shell
+      $shell.AppActivate($Process.Id) | Out-Null
+    } catch {
+    }
+    Start-Sleep -Milliseconds 500
   }
 }
 
@@ -68,6 +112,7 @@ try {
   $config = Get-Content -LiteralPath $defaultConfigPath -Raw
   $config = $config -replace "(?m)^(\s*)screenshot_path\s+.*$", "`$1screenshot_path $outputDirForConfig"
   $config = $config -replace "(?m)^(\s*)screenshot_template\s+.*$", "`$1screenshot_template $Template"
+  $config = $config -replace "(?m)^(\s*)enter\s+gamepads\.1\.start\s*$", "`$1enter gamepads.1.start`r`n`$1space gamepads.1.start"
   Set-Content -LiteralPath $configPath -Value $config -Encoding ASCII
 
   Add-Type @"
@@ -80,6 +125,9 @@ public static class NativeInput {
 
   [DllImport("user32.dll")]
   public static extern bool SetForegroundWindow(IntPtr hWnd);
+
+  [DllImport("user32.dll")]
+  public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 }
 "@
 
@@ -90,22 +138,16 @@ public static class NativeInput {
     -PassThru
 
   Start-Sleep -Seconds $SecondsBeforeStart
-  if ($proc.MainWindowHandle -ne 0) {
-    [NativeInput]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-    Start-Sleep -Milliseconds 250
-  }
+  Focus-ProcessWindow $proc
 
   for ($i = 0; $i -lt $StartPresses; $i++) {
-    Send-EnterKey
+    Send-StartKey
     if ($i -lt ($StartPresses - 1)) {
       Start-Sleep -Milliseconds $MillisecondsBetweenStartPresses
     }
   }
   Start-Sleep -Seconds $SecondsAfterStart
-  if ($proc.MainWindowHandle -ne 0) {
-    [NativeInput]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
-    Start-Sleep -Milliseconds 250
-  }
+  Focus-ProcessWindow $proc
   for ($i = 0; $i -lt $ScreenshotPresses; $i++) {
     Send-ScreenshotKey
     if ($i -lt ($ScreenshotPresses - 1)) {
