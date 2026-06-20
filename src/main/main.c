@@ -174,9 +174,6 @@ static void boot_sequence(void) {
     GA_MAIN_REG16(GA_MEM_MODE) = mem;
   }
 
-  /* Give bank 0 to Sub at $0C0000; Sub returns it to Main after rendering. */
-  main_return_wram_to_sub();
-
   /* Step 3: Initialize Mega Mouse on controller port 1 */
   Mouse_Init(1);
 
@@ -196,10 +193,14 @@ static void boot_sequence(void) {
   FB_Init();
   FB_ShowBootPattern();
 
+#if !defined(BOOT_PROBE) && !defined(BOOT_SAFE_DESKTOP)
   /* Step 6: Initialize Sub-side OS/rendering now that Word RAM and the Main
    * display path are ready. */
   main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
   main_wait_done();
+  FB_UpdateFrame(WRAM_BANK0_MAIN);
+  main_return_wram_to_sub();
+#endif
 }
 
 static uint8_t wait_for_sub_ready(void) {
@@ -442,6 +443,10 @@ static void main_loop(void) {
   while (1) {
     /* Wait for VBlank */
     VDP_WaitVSync();
+
+#ifdef BOOT_SAFE_DESKTOP
+    continue;
+#endif
 
     /* Poll Mega Mouse and forward input to Sub CPU */
     if (Mouse_Poll()) {

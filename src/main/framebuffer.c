@@ -71,7 +71,9 @@ void FB_Init(void) {
 }
 
 void FB_ShowBootPattern(void) {
-  VDP_FillVRAM(0x0000, 0x7777, FB_TILE_COUNT * (FB_BYTES_PER_TILE / 2));
+  VDP_FillVRAM(0x0000, 0xFFFF, FB_TILE_COUNT * (FB_BYTES_PER_TILE / 2));
+  VDP_FillVRAM((2 * FB_TILES_X) * FB_BYTES_PER_TILE, 0x0000,
+               FB_TILES_X * (FB_BYTES_PER_TILE / 2));
 }
 
 /* ============================================================

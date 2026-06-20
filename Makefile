@@ -42,6 +42,7 @@ CFLAGS_MAIN += -DBOOT_PROBE
 endif
 ifeq ($(BOOT_SAFE_DESKTOP),1)
 CFLAGS_SUB  += -DBOOT_SAFE_DESKTOP
+CFLAGS_MAIN += -DBOOT_SAFE_DESKTOP
 endif
 ifeq ($(SUB_RUNTIME_SMOKE),1)
 CFLAGS_SUB  += -DSUB_RUNTIME_SMOKE
@@ -77,6 +78,9 @@ DISC_CUE  = $(BUILD_DIR)/segaos.cue
 # Sub CPU Sources
 # ============================================================
 SUB_ASM_SRCS = $(SUB_DIR)/crt0.s
+ifeq ($(BOOT_PROBE),1)
+SUB_C_SRCS   = $(SUB_DIR)/sub.c
+else
 ifeq ($(SUB_RUNTIME_SMOKE),1)
 SUB_C_SRCS   = $(SUB_DIR)/runtime_smoke.c
 else
@@ -89,6 +93,7 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/wm.c
 else
 SUB_C_SRCS   = $(wildcard $(SUB_DIR)/*.c)
+endif
 endif
 endif
 

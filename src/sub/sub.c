@@ -75,6 +75,9 @@ static const uint8_t cursorBitmap[] = {
 /* Forward declarations */
 #ifndef BOOT_PROBE
 static void os_init(void);
+#ifdef BOOT_SAFE_DESKTOP
+static void render_boot_safe_desktop(void);
+#endif
 #endif
 static void process_command(uint8_t cmd);
 
@@ -123,6 +126,25 @@ void sub_main(void) {
 }
 
 #ifndef BOOT_PROBE
+#ifdef BOOT_SAFE_DESKTOP
+static void render_boot_safe_desktop(void) {
+  volatile uint16_t *frame = (volatile uint16_t *)0x0C0000;
+  uint16_t i;
+  Rect menuDivider;
+
+  for (i = 0; i < 17920; i++) {
+    frame[i] = 0xFFFF;
+  }
+
+  menuDivider.left = 0;
+  menuDivider.top = 19;
+  menuDivider.right = 320;
+  menuDivider.bottom = 20;
+  BLT_FillRect(&menuDivider, BLT_BLACK);
+  BLT_BlitBitmap1(cursorX, cursorY, cursorBitmap, 11, 16, BLT_BLACK);
+}
+#endif
+
 static void os_init(void) {
   sub_write_result(7, 0x7301);
   /* Initialize blitter with the verified 1M bank-0 Word RAM base address. */
@@ -132,6 +154,8 @@ static void os_init(void) {
   sub_write_result(7, 0x7303);
 
 #ifdef BOOT_SAFE_DESKTOP
+  render_boot_safe_desktop();
+  sub_return_wram();
   sub_write_result(7, 0x73fe);
 #else
   /* Initialize Window Manager */
@@ -236,19 +260,14 @@ static void process_command(uint8_t cmd) {
 
   case CMD_RENDER_FRAME: {
 #ifdef BOOT_SAFE_DESKTOP
-    Rect menuDivider;
-
     sub_write_result(0, SUB_STATE_RENDERING);
+    sub_write_result(7, 0x7401);
 
-    BLT_Clear(BLT_4_WHITE);
-    menuDivider.left = 0;
-    menuDivider.top = 19;
-    menuDivider.right = 320;
-    menuDivider.bottom = 20;
-    BLT_FillRect(&menuDivider, BLT_BLACK);
-    BLT_BlitBitmap1(cursorX, cursorY, cursorBitmap, 11, 16, BLT_BLACK);
+    render_boot_safe_desktop();
+    sub_write_result(7, 0x7402);
 
     sub_return_wram();
+    sub_write_result(7, 0x7403);
     sub_write_result(0, SUB_STATE_READY);
     sub_done();
     break;

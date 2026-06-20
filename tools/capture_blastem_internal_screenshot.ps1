@@ -6,7 +6,9 @@ param(
   [int]$SecondsBeforeStart = 4,
   [int]$SecondsAfterStart = 4,
   [int]$StartPresses = 2,
-  [int]$MillisecondsBetweenStartPresses = 1200
+  [int]$MillisecondsBetweenStartPresses = 1200,
+  [int]$ScreenshotPresses = 3,
+  [int]$MillisecondsBetweenScreenshotPresses = 500
 )
 
 $ErrorActionPreference = "Stop"
@@ -104,7 +106,12 @@ public static class NativeInput {
     [NativeInput]::SetForegroundWindow($proc.MainWindowHandle) | Out-Null
     Start-Sleep -Milliseconds 250
   }
-  Send-ScreenshotKey
+  for ($i = 0; $i -lt $ScreenshotPresses; $i++) {
+    Send-ScreenshotKey
+    if ($i -lt ($ScreenshotPresses - 1)) {
+      Start-Sleep -Milliseconds $MillisecondsBetweenScreenshotPresses
+    }
+  }
   Start-Sleep -Seconds 1
 
   $beforeNames = @{}
