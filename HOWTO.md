@@ -216,15 +216,20 @@ plan.
 
 Current local evidence:
 
-- normal `make all`: passes verifier with a 10,338-byte Sub SP observed in the
-  latest default build
+- normal `make all`: passes verifier with a 7,498-byte Sub SP observed after
+  backing corrupt title/text drawing out of the boot-safe frame
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
 - `DESKTOP_INIT_PROBE=1`: passes `-Probe DesktopInit`, proving the boot-safe C
   desktop reaches `sub_main`, consumes a first `CMD_RENDER_FRAME`, and returns
   Word RAM for Main upload
-- normal boot-safe C desktop: visible in BlastEm internal screenshot
-  `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png`
+- normal boot-safe C desktop: visible as a checker desktop/menu/window-outline
+  frame; title/text drawing is not currently trusted because the latest
+  title/text screenshot was visibly corrupted
+
+The internal screenshot helper uses guarded host-key injection only after
+BlastEm is confirmed as the foreground process. If another process owns focus,
+the helper fails closed instead of sending START or screenshot keys.
 
 Do not advance the full desktop/app loop until the minimal `WM_NewWindow()`
 render rung and repeated-frame Word RAM policy are proven.

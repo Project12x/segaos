@@ -65,7 +65,10 @@ same failures.
 
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
 - The current visible target is intentionally modest: checker desktop, menu
-  separator, titled starter window, and system-font text.
+  separator, and a clean window-outline starter frame.
+- Do not treat font/title drawing as proven. The first title/text attempt
+  produced visibly corrupted output, so text belongs behind an isolated probe
+  until glyph addressing and framebuffer writes are verified.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

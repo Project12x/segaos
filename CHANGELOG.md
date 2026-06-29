@@ -82,9 +82,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Reworked BLT framebuffer access to route reads/writes through 16-bit Word RAM
   helpers, allowing the boot-safe starter frame to use BLT rectangle and pattern
   primitives again.
-- Updated the boot-safe starter frame to draw a titled window and text through
-  compact BLT title/text primitives while keeping `WM_NewWindow()` out of the
-  first-render path until its command-loop regression is isolated.
+- Backed corrupt title/text drawing out of the boot-safe starter frame and
+  returned the first visible desktop to compact BLT rectangle/window-outline
+  primitives while keeping `WM_NewWindow()` out of the first-render path until
+  its command-loop regression is isolated.
+- Hardened the BlastEm internal screenshot helper so host key injection only
+  occurs after BlastEm is confirmed as the foreground process; otherwise it
+  fails closed instead of sending START or screenshot keys to another app.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -120,7 +124,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   path until Word RAM-safe rendering is designed.
 - Added lessons from the word-safe BLT fix and updated current-state docs with
   the latest BLT-backed screenshot evidence.
-- Documented the latest titled/text boot-safe desktop screenshot and the
+- Documented the corrupt title/text screenshot, the current text-free
+  boot-safe desktop frame, the guarded screenshot helper, and the
   `WM_NewWindow()` bring-up risk.
 
 ## [0.1.0] - 2026-02-10

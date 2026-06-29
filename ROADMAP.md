@@ -132,15 +132,16 @@ Additional evidence: `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves the
 normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
 handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
-frame. The default build now displays a visible checker desktop/menu/titled
-window starter frame through BLT's word-safe framebuffer backend in BlastEm
-internal screenshot
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png`.
-`WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, but the
-starter window intentionally remains a compact BLT title/text renderer. An
-attempt to move `WM_NewWindow()` into the boot render path regressed the Sub
-command loop before command consumption, so the next rung is isolating and
-proving a minimal `WM_NewWindow()` render probe before enabling the full
+frame. The default build now displays a visible checker desktop/menu/window
+outline starter frame through BLT's word-safe framebuffer backend. The captured
+title/text attempt at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` was visibly
+corrupted, so title/text drawing has been backed out of the boot-safe starter.
+`WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, while the
+starter window intentionally remains compact rectangle drawing. An attempt to
+move `WM_NewWindow()` into the boot render path regressed the Sub command loop
+before command consumption, so the next rungs are isolating font/title drawing
+and proving a minimal `WM_NewWindow()` render probe before enabling the full
 window-manager/menu/cursor loop.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through

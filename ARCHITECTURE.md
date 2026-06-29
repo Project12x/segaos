@@ -45,10 +45,12 @@ display through BlastEm's internal screenshot path. A conservative single-bank
 return path now gives bank 0 back to Sub after Main uploads a frame. The
 boot-safe C desktop path now publishes ready, consumes the first render command,
 and displays a visible Mac-like starter frame in BlastEm. The current starter
-uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT title/text
-primitives for the window; full `WM_NewWindow()`/menu/cursor rendering remains
-the next isolated rung. The product goal is still a 68k Mac-like desktop on
-Sega CD; the bootstrap can change to make that goal reliable.
+uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT rectangle
+primitives for the window outline. Title/text rendering is not yet trusted after
+a corrupted capture and must be isolated before returning to the boot frame;
+full `WM_NewWindow()`/menu/cursor rendering remains the next isolated rung. The
+product goal is still a 68k Mac-like desktop on Sega CD; the bootstrap can
+change to make that goal reliable.
 
 ## Memory Map
 

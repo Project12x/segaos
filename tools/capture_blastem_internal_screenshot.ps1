@@ -4,11 +4,12 @@ param(
   [string]$OutputDir = "C:\tmp\segaos_screens_internal",
   [string]$Template = "segaos_internal_%Y%m%d_%H%M%S.png",
   [int]$SecondsBeforeStart = 4,
-  [int]$SecondsAfterStart = 4,
+  [int]$SecondsAfterStart = 20,
   [int]$StartPresses = 2,
   [int]$MillisecondsBetweenStartPresses = 1200,
   [int]$ScreenshotPresses = 3,
   [int]$MillisecondsBetweenScreenshotPresses = 500,
+  [int]$FocusTimeoutSeconds = 8,
   [ValidateSet("Enter", "Space", "Both")]
   [string]$StartKey = "Both"
 )
@@ -23,47 +24,62 @@ function Resolve-ExistingPath([string]$Path, [string]$Label) {
   return $resolved.Path
 }
 
-function Send-Key([byte]$VirtualKey, [byte]$ScanCode) {
+function Get-ForegroundProcessId() {
+  $handle = [NativeInput]::GetForegroundWindow()
+  if ($handle -eq [IntPtr]::Zero) {
+    return 0
+  }
+
+  $foregroundProcessId = 0
+  [NativeInput]::GetWindowThreadProcessId($handle, [ref]$foregroundProcessId) | Out-Null
+  return $foregroundProcessId
+}
+
+function Assert-BlastEmForeground([System.Diagnostics.Process]$Process) {
+  if (-not $Process -or $Process.HasExited) {
+    throw "BlastEm process is not running"
+  }
+
+  $foregroundPid = Get-ForegroundProcessId
+  if ($foregroundPid -ne $Process.Id) {
+    $foregroundName = "<unknown>"
+    if ($foregroundPid -ne 0) {
+      try {
+        $foregroundName = (Get-Process -Id $foregroundPid -ErrorAction Stop).ProcessName
+      } catch {
+      }
+    }
+    throw "Refusing to inject keys: foreground process is $foregroundPid ($foregroundName), expected BlastEm process $($Process.Id)"
+  }
+}
+
+function Send-Key([System.Diagnostics.Process]$Process, [byte]$VirtualKey, [byte]$ScanCode) {
+  Assert-BlastEmForeground $Process
   [NativeInput]::keybd_event($VirtualKey, $ScanCode, 0, [UIntPtr]::Zero)
   Start-Sleep -Milliseconds 80
+  Assert-BlastEmForeground $Process
   [NativeInput]::keybd_event($VirtualKey, $ScanCode, 2, [UIntPtr]::Zero)
 }
 
-function Send-EnterKey() {
-  Send-Key 0x0D 0x1C
-  try {
-    $shell = New-Object -ComObject WScript.Shell
-    $shell.SendKeys("~")
-  } catch {
-    # keybd_event above is the primary path; SendKeys is a best-effort fallback.
-  }
+function Send-EnterKey([System.Diagnostics.Process]$Process) {
+  Send-Key $Process 0x0D 0x1C
 }
 
-function Send-SpaceKey() {
-  Send-Key 0x20 0x39
-  try {
-    $shell = New-Object -ComObject WScript.Shell
-    $shell.SendKeys(" ")
-  } catch {
-  }
+function Send-SpaceKey([System.Diagnostics.Process]$Process) {
+  Send-Key $Process 0x20 0x39
 }
 
-function Send-StartKey() {
+function Send-StartKey([System.Diagnostics.Process]$Process) {
   if ($StartKey -eq "Enter" -or $StartKey -eq "Both") {
-    Send-EnterKey
+    Send-EnterKey $Process
   }
   if ($StartKey -eq "Space" -or $StartKey -eq "Both") {
-    Send-SpaceKey
+    Send-SpaceKey $Process
   }
 }
 
-function Send-ScreenshotKey() {
-  Send-Key 0x50 0x19
-  try {
-    $shell = New-Object -ComObject WScript.Shell
-    $shell.SendKeys("p")
-  } catch {
-  }
+function Send-ScreenshotKey([System.Diagnostics.Process]$Process) {
+  Send-Key $Process 0x50 0x19
 }
 
 function Focus-ProcessWindow([System.Diagnostics.Process]$Process) {
@@ -79,14 +95,24 @@ function Focus-ProcessWindow([System.Diagnostics.Process]$Process) {
   }
 
   if ($Process.MainWindowHandle -ne 0) {
-    [NativeInput]::ShowWindow($Process.MainWindowHandle, 9) | Out-Null
-    [NativeInput]::SetForegroundWindow($Process.MainWindowHandle) | Out-Null
-    try {
-      $shell = New-Object -ComObject WScript.Shell
-      $shell.AppActivate($Process.Id) | Out-Null
-    } catch {
-    }
-    Start-Sleep -Milliseconds 500
+    $deadline = (Get-Date).AddSeconds($FocusTimeoutSeconds)
+    do {
+      [NativeInput]::ShowWindow($Process.MainWindowHandle, 9) | Out-Null
+      [NativeInput]::SetForegroundWindow($Process.MainWindowHandle) | Out-Null
+      try {
+        $shell = New-Object -ComObject WScript.Shell
+        $shell.AppActivate($Process.Id) | Out-Null
+      } catch {
+      }
+      Start-Sleep -Milliseconds 250
+      if ((Get-ForegroundProcessId) -eq $Process.Id) {
+        return
+      }
+    } while ((Get-Date) -lt $deadline)
+
+    Assert-BlastEmForeground $Process
+  } else {
+    throw "BlastEm did not create a window handle before the focus timeout"
   }
 }
 
@@ -128,6 +154,12 @@ public static class NativeInput {
 
   [DllImport("user32.dll")]
   public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
+  public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out int processId);
 }
 "@
 
@@ -141,7 +173,7 @@ public static class NativeInput {
   Focus-ProcessWindow $proc
 
   for ($i = 0; $i -lt $StartPresses; $i++) {
-    Send-StartKey
+    Send-StartKey $proc
     if ($i -lt ($StartPresses - 1)) {
       Start-Sleep -Milliseconds $MillisecondsBetweenStartPresses
     }
@@ -149,7 +181,7 @@ public static class NativeInput {
   Start-Sleep -Seconds $SecondsAfterStart
   Focus-ProcessWindow $proc
   for ($i = 0; $i -lt $ScreenshotPresses; $i++) {
-    Send-ScreenshotKey
+    Send-ScreenshotKey $proc
     if ($i -lt ($ScreenshotPresses - 1)) {
       Start-Sleep -Milliseconds $MillisecondsBetweenScreenshotPresses
     }

@@ -93,9 +93,11 @@ reads back correctly from VDP VRAM. The visible probe build
 pattern and is captured by BlastEm's internal screenshotting. The default build
 now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
 uploads the returned Word RAM frame, and displays a visible checker
-desktop/menu/titled-window starter frame in BlastEm. BLT framebuffer access now
+desktop/menu/window-outline starter frame in BlastEm. BLT framebuffer access now
 uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
-desktop/menu shell. The next desktop gate is isolating a minimal
+desktop/menu shell. A later title/text attempt produced visibly corrupted
+output, so text rendering is back out of the boot frame until it has its own
+probe. The next desktop gate is isolating font/title drawing and a minimal
 `WM_NewWindow()` render probe before enabling normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

@@ -155,6 +155,7 @@ void sub_main(void) {
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
 static void render_boot_safe_desktop(void) {
+  Rect close;
   Rect shadow;
   Rect body;
   Rect title;
@@ -174,16 +175,22 @@ static void render_boot_safe_desktop(void) {
   body.right = 222;
   body.bottom = 148;
 
+  close.left = 45;
+  close.top = 43;
+  close.right = 56;
+  close.bottom = 54;
+
   BLT_ResetClip();
   WM_DrawDesktop();
 
   BLT_FillRect(&shadow, BLT_4_DARK_GRAY);
   BLT_FillRect(&body, BLT_GetWhite());
   BLT_DrawRect(&body, BLT_BLACK);
-  BLT_DrawTitleBar(&title, "SegaOS", 1, 1, SysFont_Get());
-  SysFont_DrawString(body.left + 8, body.top + 12, "SegaOS", BLT_BLACK);
-  SysFont_DrawString(body.left + 8, body.top + 26, "boot-safe frame",
-                     BLT_BLACK);
+  BLT_FillRect(&title, BLT_GetWhite());
+  BLT_DrawRect(&title, BLT_BLACK);
+  BLT_DrawRect(&close, BLT_BLACK);
+  BLT_DrawHLine(70, 49, 122, BLT_BLACK);
+  BLT_DrawHLine(70, 51, 122, BLT_BLACK);
 }
 #endif
 
