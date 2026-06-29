@@ -1,7 +1,7 @@
 # Project State
 
 ## Current Phase
-**Milestone C/D bridge: Framebuffer proven, boot-safe C desktop command path passing**
+**Milestone C/D bridge: visible boot-safe desktop frame**
 
 Phase 1 and Phase 2 are complete. The production Word RAM bank-sync code paths
 are present, but repeated-frame timing still needs validation. Milestone A is complete:
@@ -17,13 +17,14 @@ visible `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1` build is also captured by
 BlastEm's internal screenshot path with the expected full-screen pattern.
 
 The default build uses a boot-safe minimal desktop SP (`BOOT_SAFE_DESKTOP=1`):
-blitter, memory, sysfont, window manager, and the Sub command loop are kept in
-the boot SP while menu/apps are deferred. A C-runtime smoke image now proves the
-normal SP header, BSS clear, `sub_init`, `sub_main`, and command handshake. The
-new `DESKTOP_INIT_PROBE=1` image proves the real boot-safe desktop SP reaches
-the C command loop, completes `CMD_INIT_OS`, completes one `CMD_RENDER_FRAME`,
-and lets Main upload the returned Word RAM frame. The default build now runs the
-same init/render/upload sequence once, then idles on a clean minimal frame.
+memory/sysfont/window-manager code are kept in the boot SP while menu/apps are
+deferred. A C-runtime smoke image proves the normal SP header, BSS clear,
+`sub_init`, `sub_main`, and command handshake. `DESKTOP_INIT_PROBE=1` now proves
+the real boot-safe desktop SP reaches the C command loop, completes a first
+`CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM frame. The
+default build now displays a visible Mac-like boot-safe frame: checker desktop,
+menu separator, and a document-window outline captured at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_161803.png`.
 
 The active strategy is a bring-up ladder:
 
@@ -38,8 +39,8 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 3,784-byte SP binary observed locally after direct boot-safe renderer; full app SP is deferred |
-| Main CPU (`build/main_cpu.bin`) | Builds | 2,772 text bytes observed locally with US security block |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 4,660-byte SP binary observed locally with word-safe first-frame renderer; full app SP is deferred |
+| Main CPU (`build/main_cpu.bin`) | Builds | 2,708 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
 | Emulator IP probe | Passing | BlastEm + USA BIOS + SGDK GDB hit `$00FF0000` and read US security bytes |
@@ -48,7 +49,7 @@ The active strategy is a bring-up ladder:
 | Strict Word RAM probe | Passing | `-Probe DualCpu` proves Sub bank-0 write, 1M RET clear, and Main `$200000` visibility with `0xa55a/0x5aa5` |
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
-| Boot-safe desktop init/render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP init, render command, and Main upload path |
+| Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -61,13 +62,13 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 9,958 bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 6,940 bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
 - BOOT_PROBE SP usage: 930 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
-- Boot-safe desktop SP usage: 3,784 bytes observed locally with
+- Boot-safe desktop SP usage: 4,660 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
@@ -154,11 +155,11 @@ High priority:
   Array command/status, one-way Sub bank-0 Word RAM return, framebuffer-to-VDP
   tile readback, and a visible deterministic framebuffer display. They do not
   yet prove the full alternating double-buffer policy for repeated frames.
-- The boot-safe C desktop path now reaches Sub-ready and completes one
-  init/render/upload sequence. The BLT-backed boot-safe render path is still
-  isolated: direct Word RAM drawing is used for the minimal startup frame
-  because enabling the BLT rectangle/cursor calls during initial render exposed
-  a crash surface.
+- The boot-safe C desktop path now reaches Sub-ready, completes a first
+  render/upload sequence, and displays a visible Mac-like starter frame. The
+  BLT-backed boot-safe render path remains isolated: word-safe 16-bit Word RAM
+  drawing is used for the startup frame because BLT's byte-oriented framebuffer
+  writes do not survive this boot Word RAM path reliably.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

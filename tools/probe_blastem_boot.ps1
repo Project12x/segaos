@@ -492,10 +492,10 @@ try {
       segaos_desktop_main_phase = "0x81ff"
       segaos_desktop_sub_flag = "0x0000"
       segaos_desktop_stat0 = "0x0002"
-      segaos_desktop_trace = "0x7403"
+      segaos_desktop_trace = "0x7404"
       segaos_desktop_done_status = "0x0003"
       segaos_desktop_render_status = "0x0003"
-      segaos_desktop_render_trace = "0x7403"
+      segaos_desktop_render_trace = "0x7404"
     }
 
     $failed = @()

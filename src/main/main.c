@@ -263,8 +263,6 @@ static void boot_sequence(void) {
   main_return_wram_to_sub();
 #elif defined(BOOT_SAFE_DESKTOP) && !defined(DESKTOP_INIT_PROBE) &&         \
     !defined(SUB_RUNTIME_SMOKE)
-  main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
-  main_wait_done();
   main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
   main_wait_done();
   FB_UpdateFrame(WRAM_BANK0_MAIN);
@@ -365,7 +363,7 @@ static void desktop_init_probe(void) {
   segaos_desktop_mem_mode_before = GA_MAIN_REG16(GA_MEM_MODE);
   segaos_desktop_mem_mode_after_return = GA_MAIN_REG16(GA_MEM_MODE);
 
-  main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
+  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
   segaos_desktop_main_phase = 0x8102;
   segaos_desktop_done_status =
       desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
@@ -373,28 +371,17 @@ static void desktop_init_probe(void) {
 
   if (segaos_desktop_done_status != STATUS_DONE ||
       segaos_desktop_stat0 != SUB_STATE_READY ||
-      segaos_desktop_trace != 0x73fe) {
+      segaos_desktop_trace != 0x7404) {
     segaos_desktop_main_phase = 0x81fe;
     segaos_desktop_init_halt();
   }
 
-  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
-  segaos_desktop_main_phase = 0x8103;
-  segaos_desktop_render_status =
-      desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
-  desktop_init_capture_status();
+  segaos_desktop_render_status = segaos_desktop_done_status;
   segaos_desktop_render_trace = segaos_desktop_trace;
-
-  if (segaos_desktop_render_status == STATUS_DONE &&
-      segaos_desktop_stat0 == SUB_STATE_READY &&
-      segaos_desktop_trace == 0x7403) {
-    FB_UpdateFrame(WRAM_BANK0_MAIN);
-    VDP_WaitDMA();
-    main_return_wram_to_sub();
-    segaos_desktop_main_phase = 0x81ff;
-  } else {
-    segaos_desktop_main_phase = 0x81fe;
-  }
+  FB_UpdateFrame(WRAM_BANK0_MAIN);
+  VDP_WaitDMA();
+  main_return_wram_to_sub();
+  segaos_desktop_main_phase = 0x81ff;
 
   segaos_desktop_init_halt();
 }

@@ -69,6 +69,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   Sub clears RET to expose its bank to Main, and Main sets RET to return it.
 - Split boot-safe desktop initialization from rendering so `CMD_INIT_OS` only
   initializes state and `CMD_RENDER_FRAME` returns a direct Word RAM frame.
+- Reworked the boot-safe startup frame to use word-safe 4bpp Word RAM drawing
+  and made the default image display a visible checker desktop/menu/window
+  starter frame.
+- Aligned the boot-safe command wait loop with the probe-proven polling path so
+  the default image consumes the first render command.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -99,8 +104,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documented that the boot-safe C desktop SP is under 10KB but still fails the
   Sub-ready gate in BlastEm; the assembly framebuffer probe remains the
   known-good runtime proof.
-- Documented that runtime smoke and boot-safe desktop init/render probes now
-  pass, narrowing the next desktop work to BLT/window-manager rendering.
+- Documented that runtime smoke and boot-safe desktop render probes now pass,
+  and that BLT's byte-oriented framebuffer writes are isolated from the boot
+  path until Word RAM-safe rendering is designed.
 
 ## [0.1.0] - 2026-02-10
 

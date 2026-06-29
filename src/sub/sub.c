@@ -127,7 +127,7 @@ void sub_main(void) {
   while (1) {
 #ifdef BOOT_PROBE
     uint8_t cmd = sub_wait_cmd();
-#elif defined(DESKTOP_INIT_PROBE)
+#elif defined(DESKTOP_INIT_PROBE) || defined(BOOT_SAFE_DESKTOP)
     uint8_t cmd;
     uint16_t idle_spin = 0;
     do {
@@ -142,25 +142,89 @@ void sub_main(void) {
     sub_write_result(6, (uint16_t)cmd);
 #endif
     process_command(cmd);
+#if defined(DESKTOP_INIT_PROBE)
+    sub_write_result(6, 0x7203);
+#endif
   }
 }
 
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
-static void render_boot_safe_desktop(void) {
+static void boot_safe_set_pixel(int16_t x, int16_t y, uint8_t color) {
   volatile uint16_t *frame = (volatile uint16_t *)0x0C0000;
-  uint16_t i;
-  uint16_t y;
+  uint16_t word_index;
+  uint16_t shift;
+  uint16_t mask;
+  uint16_t word;
 
-  for (i = 0; i < 17920; i++) {
-    frame[i] = 0xFFFF;
+  if (x < 0 || x >= 320 || y < 0 || y >= 224)
+    return;
+
+  word_index = (uint16_t)((y * 80) + (x >> 2));
+  shift = (uint16_t)((3 - (x & 3)) << 2);
+  mask = (uint16_t)(0x000f << shift);
+  word = frame[word_index];
+  word = (uint16_t)((word & ~mask) | (((uint16_t)color & 0x000f) << shift));
+  frame[word_index] = word;
+}
+
+static void boot_safe_hline(int16_t x, int16_t y, int16_t w, uint8_t color) {
+  int16_t px;
+
+  if (w <= 0)
+    return;
+
+  for (px = x; px < x + w; px++) {
+    boot_safe_set_pixel(px, y, color);
   }
+}
 
-  for (y = 32; y < 40; y++) {
-    for (i = 0; i < 80; i++) {
-      frame[(y * 80) + i] = 0x0000;
+static void boot_safe_fill_rect(int16_t left, int16_t top, int16_t right,
+                                int16_t bottom, uint8_t color) {
+  int16_t y;
+
+  for (y = top; y < bottom; y++) {
+    boot_safe_hline(left, y, (int16_t)(right - left), color);
+  }
+}
+
+static void boot_safe_draw_rect(int16_t left, int16_t top, int16_t right,
+                                int16_t bottom, uint8_t color) {
+  boot_safe_hline(left, top, (int16_t)(right - left), color);
+  boot_safe_hline(left, (int16_t)(bottom - 1), (int16_t)(right - left),
+                  color);
+  boot_safe_fill_rect(left, top, (int16_t)(left + 1), bottom, color);
+  boot_safe_fill_rect((int16_t)(right - 1), top, right, bottom, color);
+}
+
+static void boot_safe_checker_rect(int16_t left, int16_t top, int16_t right,
+                                   int16_t bottom) {
+  int16_t x;
+  int16_t y;
+
+  for (y = top; y < bottom; y++) {
+    for (x = left; x < right; x++) {
+      boot_safe_set_pixel(x, y, ((x ^ y) & 1) ? BLT_4_LIGHT_GRAY
+                                              : BLT_4_WHITE);
     }
   }
+}
+
+static void render_boot_safe_desktop(void) {
+  boot_safe_fill_rect(0, 0, 320, 224, BLT_4_WHITE);
+  boot_safe_checker_rect(0, 20, 320, 224);
+  boot_safe_fill_rect(0, 0, 320, 20, BLT_4_WHITE);
+  boot_safe_hline(0, 19, 320, BLT_BLACK);
+
+  boot_safe_fill_rect(44, 45, 226, 151, BLT_4_DARK_GRAY);
+  boot_safe_fill_rect(40, 58, 222, 148, BLT_4_WHITE);
+  boot_safe_draw_rect(40, 58, 222, 148, BLT_BLACK);
+  boot_safe_fill_rect(40, 40, 222, 58, BLT_4_WHITE);
+  boot_safe_draw_rect(40, 40, 222, 58, BLT_BLACK);
+  boot_safe_draw_rect(45, 43, 56, 54, BLT_BLACK);
+  boot_safe_hline(70, 49, 122, BLT_BLACK);
+  boot_safe_hline(70, 51, 122, BLT_BLACK);
+  boot_safe_draw_rect(0, 0, 320, 224, BLT_BLACK);
 }
 #endif
 
@@ -280,11 +344,14 @@ static void process_command(uint8_t cmd) {
     sub_write_result(0, SUB_STATE_RENDERING);
     sub_write_result(7, 0x7401);
 
-    render_boot_safe_desktop();
+    sub_wait_wram();
     sub_write_result(7, 0x7402);
 
-    sub_return_wram();
+    render_boot_safe_desktop();
     sub_write_result(7, 0x7403);
+
+    sub_return_wram();
+    sub_write_result(7, 0x7404);
     sub_write_result(0, SUB_STATE_READY);
     sub_done();
     break;

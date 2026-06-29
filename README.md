@@ -91,10 +91,11 @@ pattern survives the handoff, runs through Main's tile conversion path, and
 reads back correctly from VDP VRAM. The visible probe build
 `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1` also displays the expected full-screen
 pattern and is captured by BlastEm's internal screenshotting. The default build
-now uses a boot-safe minimal desktop SP under 10KB and a conservative
-single-bank Word RAM return path, but the C desktop kernel still fails the
-Sub-ready gate in BlastEm. The immediate runtime gate is normal C-runtime
-Sub startup, then repeated-frame desktop rendering.
+now uses a boot-safe minimal desktop SP under 10KB, consumes a first
+`CMD_RENDER_FRAME`, uploads the returned Word RAM frame, and displays a visible
+checker desktop/menu/window starter frame in BlastEm. BLT/window-manager drawing
+is still isolated because the current BLT path writes bytes into Word RAM; the
+boot-safe startup frame uses word-safe 16-bit 4bpp writes instead.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

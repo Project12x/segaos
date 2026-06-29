@@ -116,8 +116,7 @@ Sub boot, inter-CPU flags, and Word RAM bank ownership.
       pointer is correct after each swap
 - [x] Add a conservative single-bank return path after Main uploads a frame
 - [x] Prove the boot-safe C desktop SP publishes Sub-ready in emulator
-- [x] Prove boot-safe C desktop `CMD_INIT_OS` and one `CMD_RENDER_FRAME`
-      complete in emulator
+- [x] Prove boot-safe C desktop first `CMD_RENDER_FRAME` completes in emulator
 
 Current evidence: `tools/probe_blastem_boot.ps1 -Probe Framebuffer` passes in
 BlastEm. Sub writes a deterministic full-screen 4bpp stripe pattern into
@@ -132,9 +131,13 @@ reaches the displayed frame.
 Additional evidence: `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves the
 normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
-handles `CMD_INIT_OS`, handles one `CMD_RENDER_FRAME`, and lets Main upload the
-returned Word RAM frame. The current boot-safe renderer is direct Word RAM
-drawing; BLT-backed rectangle/cursor drawing remains isolated for the next rung.
+handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
+frame. The default build now displays a visible checker desktop/menu/window
+starter frame in BlastEm internal screenshot
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_161803.png`. The
+current boot-safe renderer is word-safe direct Word RAM drawing; BLT-backed
+rectangle/cursor drawing remains isolated for the next rung because its
+byte-oriented framebuffer writes are unsafe in this boot path.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen
@@ -154,6 +157,7 @@ that matches Genesis VDP constraints.
 
 ### Milestone E: Desktop and App Bring-Up
 - [x] Prove the boot-safe C desktop kernel reaches Sub-ready after BIOS handoff
+- [x] Display a visible boot-safe desktop starter frame in BlastEm
 - [ ] Re-enable the minimal BLT/window-manager render loop on top of proven 4bpp output
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
