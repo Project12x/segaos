@@ -172,7 +172,8 @@ that matches Genesis VDP constraints.
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
 - [x] Add an opt-in plain text render probe separate from title-bar stripes
 - [x] Prove plain text probe pixels in Word RAM and VDP tile data
-- [ ] Visually accept restored title-bar text composition
+- [x] Prove title-bar text composition pixels in Word RAM and VDP tile data
+- [ ] Visually accept restored default title presentation
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 

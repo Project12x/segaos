@@ -93,6 +93,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   rung that keeps text out of the default boot-safe frame.
 - Extended `-Probe DesktopInit` to verify text-probe glyph pixels in both Word
   RAM and VDP tile data when `BOOT_SAFE_TEXT_PROBE=1` is enabled.
+- Added `BOOT_SAFE_TITLE_PROBE=1` and DesktopInit assertions for the centered
+  title-bar glyph row in both Word RAM and VDP tile data.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -133,6 +135,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `WM_NewWindow()` bring-up risk.
 - Documented the GDB-proven plain text probe as separate from visual
   title-bar stripe restoration.
+- Documented the title-bar composition probe as memory/VRAM-proven but still
+  visually opt-in.
 
 ## [0.1.0] - 2026-02-10
 

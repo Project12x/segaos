@@ -225,6 +225,8 @@ Current local evidence:
   Word RAM for Main upload
 - `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`: proves plain body text reaches
   Word RAM and VDP tile data without using the striped title-bar renderer
+- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the striped title-bar
+  text composition reaches Word RAM and VDP tile data
 - normal boot-safe C desktop: visible as a checker desktop/menu/window-outline
   frame in
   `C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`;
@@ -250,6 +252,12 @@ powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
 
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
   DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
+  -Probe DesktopInit
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1
 
 powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
   -Probe DesktopInit

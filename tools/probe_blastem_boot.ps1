@@ -263,7 +263,12 @@ try {
       "segaos_desktop_text_wram_word0",
       "segaos_desktop_text_wram_word1",
       "segaos_desktop_text_vram_word0",
-      "segaos_desktop_text_vram_word1"
+      "segaos_desktop_text_vram_word1",
+      "segaos_desktop_title_probe_enabled",
+      "segaos_desktop_title_wram_word0",
+      "segaos_desktop_title_wram_word1",
+      "segaos_desktop_title_vram_word0",
+      "segaos_desktop_title_vram_word1"
     )
 
     $gdbCommands += @(
@@ -495,7 +500,12 @@ try {
       "segaos_desktop_text_wram_word0",
       "segaos_desktop_text_wram_word1",
       "segaos_desktop_text_vram_word0",
-      "segaos_desktop_text_vram_word1"
+      "segaos_desktop_text_vram_word1",
+      "segaos_desktop_title_probe_enabled",
+      "segaos_desktop_title_wram_word0",
+      "segaos_desktop_title_wram_word1",
+      "segaos_desktop_title_vram_word0",
+      "segaos_desktop_title_vram_word1"
     )
     $desktopValues = Get-NamedProbeValues $gdbOutput $desktopNames
     $expectedValues = [ordered]@{
@@ -536,6 +546,9 @@ try {
     Write-Output "desktop_text_probe_enabled=$($desktopValues["segaos_desktop_text_probe_enabled"])"
     Write-Output "desktop_text_wram=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
     Write-Output "desktop_text_vram=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
+    Write-Output "desktop_title_probe_enabled=$($desktopValues["segaos_desktop_title_probe_enabled"])"
+    Write-Output "desktop_title_wram=$($desktopValues["segaos_desktop_title_wram_word0"]),$($desktopValues["segaos_desktop_title_wram_word1"])"
+    Write-Output "desktop_title_vram=$($desktopValues["segaos_desktop_title_vram_word0"]),$($desktopValues["segaos_desktop_title_vram_word1"])"
 
     if ($desktopValues["segaos_desktop_text_probe_enabled"] -eq "0x0001") {
       $textWramOk = (
@@ -553,6 +566,25 @@ try {
       }
       if (-not $textVramOk) {
         $failed += "segaos_desktop_text_vram"
+      }
+    }
+
+    if ($desktopValues["segaos_desktop_title_probe_enabled"] -eq "0x0001") {
+      $titleWramOk = (
+        $desktopValues["segaos_desktop_title_wram_word0"] -eq "0xff00" -and
+        $desktopValues["segaos_desktop_title_wram_word1"] -eq "0x0fff"
+      )
+      $titleVramOk = (
+        $desktopValues["segaos_desktop_title_vram_word0"] -eq "0xff00" -and
+        $desktopValues["segaos_desktop_title_vram_word1"] -eq "0x0fff"
+      )
+      Write-Output "desktop_title_wram_check=$titleWramOk expected=0xff00,0x0fff actual=$($desktopValues["segaos_desktop_title_wram_word0"]),$($desktopValues["segaos_desktop_title_wram_word1"])"
+      Write-Output "desktop_title_vram_check=$titleVramOk expected=0xff00,0x0fff actual=$($desktopValues["segaos_desktop_title_vram_word0"]),$($desktopValues["segaos_desktop_title_vram_word1"])"
+      if (-not $titleWramOk) {
+        $failed += "segaos_desktop_title_wram"
+      }
+      if (-not $titleVramOk) {
+        $failed += "segaos_desktop_title_vram"
       }
     }
     Write-Output "probe_gdb_exit=$gdbExit"

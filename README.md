@@ -100,7 +100,10 @@ output, so text rendering is back out of the boot frame until it has its own
 probe. `BOOT_SAFE_TEXT_PROBE=1` is now the opt-in build rung for plain body
 text without the striped title-bar renderer, and the combined
 `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves glyph pixels in Word
-RAM and VDP tile data. The current clean window-outline capture is
+RAM and VDP tile data. `BOOT_SAFE_TITLE_PROBE=1` likewise proves centered
+title glyph composition in memory/VRAM, but the default frame stays visually
+conservative until the title presentation is accepted. The current clean
+window-outline capture is
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. The next
 desktop gate is isolating font/title drawing and a minimal `WM_NewWindow()`
 render probe before enabling normal menu/cursor/app rendering.

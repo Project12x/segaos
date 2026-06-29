@@ -72,6 +72,9 @@ same failures.
   glyph row reaches both Word RAM and VDP tile data as `0xf000/0xffff`.
 - Keep text probes separate from title-bar stripes. Plain body text should be
   accepted before the active Mac-style striped title composition is restored.
+- The striped title composition is now memory-proven separately:
+  `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies centered title
+  glyph bytes as `0xff00/0x0fff` in both Word RAM and VDP tile data.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
