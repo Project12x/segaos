@@ -171,7 +171,8 @@ that matches Genesis VDP constraints.
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
 - [x] Add an opt-in plain text render probe separate from title-bar stripes
-- [ ] Visually accept the opt-in plain text render probe
+- [x] Prove plain text probe pixels in Word RAM and VDP tile data
+- [ ] Visually accept restored title-bar text composition
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 

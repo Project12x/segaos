@@ -91,6 +91,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with temporary capture bindings for START and screenshot.
 - Added `BOOT_SAFE_TEXT_PROBE=1` as an opt-in plain body-text render isolation
   rung that keeps text out of the default boot-safe frame.
+- Extended `-Probe DesktopInit` to verify text-probe glyph pixels in both Word
+  RAM and VDP tile data when `BOOT_SAFE_TEXT_PROBE=1` is enabled.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -129,8 +131,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documented the corrupt title/text screenshot, the current text-free
   boot-safe desktop capture, the targeted-message screenshot helper, and the
   `WM_NewWindow()` bring-up risk.
-- Documented the build-verified plain text probe as separate from visual
-  acceptance and title-bar stripe restoration.
+- Documented the GDB-proven plain text probe as separate from visual
+  title-bar stripe restoration.
 
 ## [0.1.0] - 2026-02-10
 

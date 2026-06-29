@@ -66,9 +66,10 @@ same failures.
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
 - The current visible target is intentionally modest: checker desktop, menu
   separator, and a clean window-outline starter frame.
-- Do not treat font/title drawing as proven. The first title/text attempt
-  produced visibly corrupted output, so text belongs behind an isolated probe
-  until glyph addressing and framebuffer writes are verified.
+- Plain body text and title-bar composition are separate risks. The first
+  title/text attempt produced a noisy visual capture, but the later
+  `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` path proved the first "S"
+  glyph row reaches both Word RAM and VDP tile data as `0xf000/0xffff`.
 - Keep text probes separate from title-bar stripes. Plain body text should be
   accepted before the active Mac-style striped title composition is restored.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first

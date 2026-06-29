@@ -258,7 +258,12 @@ try {
       "segaos_desktop_render_trace",
       "segaos_desktop_mem_mode_before",
       "segaos_desktop_mem_mode_after_return",
-      "segaos_desktop_wait_polls"
+      "segaos_desktop_wait_polls",
+      "segaos_desktop_text_probe_enabled",
+      "segaos_desktop_text_wram_word0",
+      "segaos_desktop_text_wram_word1",
+      "segaos_desktop_text_vram_word0",
+      "segaos_desktop_text_vram_word1"
     )
 
     $gdbCommands += @(
@@ -485,7 +490,12 @@ try {
       "segaos_desktop_render_trace",
       "segaos_desktop_mem_mode_before",
       "segaos_desktop_mem_mode_after_return",
-      "segaos_desktop_wait_polls"
+      "segaos_desktop_wait_polls",
+      "segaos_desktop_text_probe_enabled",
+      "segaos_desktop_text_wram_word0",
+      "segaos_desktop_text_wram_word1",
+      "segaos_desktop_text_vram_word0",
+      "segaos_desktop_text_vram_word1"
     )
     $desktopValues = Get-NamedProbeValues $gdbOutput $desktopNames
     $expectedValues = [ordered]@{
@@ -523,6 +533,28 @@ try {
     Write-Output "desktop_mem_mode_before=$($desktopValues["segaos_desktop_mem_mode_before"])"
     Write-Output "desktop_mem_mode_after_return=$($desktopValues["segaos_desktop_mem_mode_after_return"])"
     Write-Output "desktop_wait_polls=$($desktopValues["segaos_desktop_wait_polls"])"
+    Write-Output "desktop_text_probe_enabled=$($desktopValues["segaos_desktop_text_probe_enabled"])"
+    Write-Output "desktop_text_wram=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
+    Write-Output "desktop_text_vram=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
+
+    if ($desktopValues["segaos_desktop_text_probe_enabled"] -eq "0x0001") {
+      $textWramOk = (
+        $desktopValues["segaos_desktop_text_wram_word0"] -eq "0xf000" -and
+        $desktopValues["segaos_desktop_text_wram_word1"] -eq "0xffff"
+      )
+      $textVramOk = (
+        $desktopValues["segaos_desktop_text_vram_word0"] -eq "0xf000" -and
+        $desktopValues["segaos_desktop_text_vram_word1"] -eq "0xffff"
+      )
+      Write-Output "desktop_text_wram_check=$textWramOk expected=0xf000,0xffff actual=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
+      Write-Output "desktop_text_vram_check=$textVramOk expected=0xf000,0xffff actual=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
+      if (-not $textWramOk) {
+        $failed += "segaos_desktop_text_wram"
+      }
+      if (-not $textVramOk) {
+        $failed += "segaos_desktop_text_vram"
+      }
+    }
     Write-Output "probe_gdb_exit=$gdbExit"
     Write-Output "probe_breakpoint_hit=$hitBreakpoint"
 

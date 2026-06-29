@@ -55,7 +55,7 @@ The active strategy is a bring-up ladder:
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
-| Text render isolation | Builds | `BOOT_SAFE_TEXT_PROBE=1` draws plain body text without title-bar stripes; build verified with a 9,682-byte Sub SP, visual acceptance still separate |
+| Text render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first "S" glyph row as `0xf000/0xffff` in both Word RAM and VDP tile data; visual title composition still separate |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -76,8 +76,8 @@ The active strategy is a bring-up ladder:
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
 - Boot-safe desktop SP usage: 7,498 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
-- Boot-safe text probe SP usage: 9,682 bytes observed locally with
-  `BOOT_SAFE_TEXT_PROBE=1`
+- Boot-safe text probe SP usage: 9,730 bytes observed locally with
+  `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
 - Framebuffer: 35,840 bytes @ 4bpp (320x224)
@@ -170,11 +170,13 @@ High priority:
 - The boot-safe C desktop path now reaches Sub-ready, completes a first
   render/upload sequence, and displays a visible Mac-like starter frame through
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
-  starter window stays a compact boot-safe BLT rectangle renderer. Title/text
-  rendering is explicitly unproven after a corrupted capture. BLT framebuffer
-  access uses 16-bit Word RAM helpers; the next risks are isolating font/title
-  rendering and moving to real `WM_NewWindow()`/menu/cursor rendering without
-  regressing command timing or Word RAM ownership.
+  starter window stays a compact boot-safe BLT rectangle renderer. Plain body
+  text rendering is now GDB-proven at the Word RAM and VDP tile levels via
+  `BOOT_SAFE_TEXT_PROBE=1`; the title-bar stripe/text composition remains
+  visually unaccepted after the earlier noisy capture. BLT framebuffer access
+  uses 16-bit Word RAM helpers; the next risks are restoring title composition
+  and moving to real `WM_NewWindow()`/menu/cursor rendering without regressing
+  command timing or Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command
