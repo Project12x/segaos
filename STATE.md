@@ -55,6 +55,7 @@ The active strategy is a bring-up ladder:
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
+| Text render isolation | Builds | `BOOT_SAFE_TEXT_PROBE=1` draws plain body text without title-bar stripes; build verified with a 9,682-byte Sub SP, visual acceptance still separate |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -75,6 +76,8 @@ The active strategy is a bring-up ladder:
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
 - Boot-safe desktop SP usage: 7,498 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
+- Boot-safe text probe SP usage: 9,682 bytes observed locally with
+  `BOOT_SAFE_TEXT_PROBE=1`
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
 - Framebuffer: 35,840 bytes @ 4bpp (320x224)

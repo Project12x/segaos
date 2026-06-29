@@ -10,8 +10,8 @@ param(
   [int]$ScreenshotPresses = 3,
   [int]$MillisecondsBetweenScreenshotPresses = 500,
   [int]$FocusTimeoutSeconds = 8,
-  [ValidateSet("P", "Enter", "Space", "Both")]
-  [string]$StartKey = "P"
+  [ValidateSet("P", "Enter", "Space", "All")]
+  [string]$StartKey = "All"
 )
 
 $ErrorActionPreference = "Stop"
@@ -69,13 +69,13 @@ function Send-SpaceKey([System.Diagnostics.Process]$Process) {
 }
 
 function Send-StartKey([System.Diagnostics.Process]$Process) {
-  if ($StartKey -eq "P") {
+  if ($StartKey -eq "P" -or $StartKey -eq "All") {
     Send-Key $Process 0x50 0x19
   }
-  if ($StartKey -eq "Enter" -or $StartKey -eq "Both") {
+  if ($StartKey -eq "Enter" -or $StartKey -eq "All") {
     Send-EnterKey $Process
   }
-  if ($StartKey -eq "Space" -or $StartKey -eq "Both") {
+  if ($StartKey -eq "Space" -or $StartKey -eq "All") {
     Send-SpaceKey $Process
   }
 }

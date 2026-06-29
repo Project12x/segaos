@@ -69,6 +69,8 @@ same failures.
 - Do not treat font/title drawing as proven. The first title/text attempt
   produced visibly corrupted output, so text belongs behind an isolated probe
   until glyph addressing and framebuffer writes are verified.
+- Keep text probes separate from title-bar stripes. Plain body text should be
+  accepted before the active Mac-style striped title composition is restored.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

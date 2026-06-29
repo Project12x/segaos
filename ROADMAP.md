@@ -170,6 +170,8 @@ that matches Genesis VDP constraints.
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
+- [x] Add an opt-in plain text render probe separate from title-bar stripes
+- [ ] Visually accept the opt-in plain text render probe
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 

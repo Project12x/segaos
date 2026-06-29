@@ -191,6 +191,10 @@ static void render_boot_safe_desktop(void) {
   BLT_DrawRect(&close, BLT_BLACK);
   BLT_DrawHLine(70, 49, 122, BLT_BLACK);
   BLT_DrawHLine(70, 51, 122, BLT_BLACK);
+#ifdef BOOT_SAFE_TEXT_PROBE
+  SysFont_DrawString(body.left + 8, body.top + 14, "SegaOS", BLT_BLACK);
+  SysFont_DrawString(body.left + 8, body.top + 28, "text probe", BLT_BLACK);
+#endif
 }
 #endif
 
