@@ -86,9 +86,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   returned the first visible desktop to compact BLT rectangle/window-outline
   primitives while keeping `WM_NewWindow()` out of the first-render path until
   its command-loop regression is isolated.
-- Hardened the BlastEm internal screenshot helper so host key injection only
-  occurs after BlastEm is confirmed as the foreground process; otherwise it
-  fails closed instead of sending START or screenshot keys to another app.
+- Reworked the BlastEm internal screenshot helper to send targeted window
+  messages to BlastEm's own window handle instead of global host key events,
+  with temporary capture bindings for START and screenshot.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -125,7 +125,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added lessons from the word-safe BLT fix and updated current-state docs with
   the latest BLT-backed screenshot evidence.
 - Documented the corrupt title/text screenshot, the current text-free
-  boot-safe desktop frame, the guarded screenshot helper, and the
+  boot-safe desktop capture, the targeted-message screenshot helper, and the
   `WM_NewWindow()` bring-up risk.
 
 ## [0.1.0] - 2026-02-10

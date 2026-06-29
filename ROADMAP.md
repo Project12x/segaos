@@ -133,8 +133,9 @@ normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
 handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
 frame. The default build now displays a visible checker desktop/menu/window
-outline starter frame through BLT's word-safe framebuffer backend. The captured
-title/text attempt at
+outline starter frame through BLT's word-safe framebuffer backend, captured at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. The
+captured title/text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` was visibly
 corrupted, so title/text drawing has been backed out of the boot-safe starter.
 `WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, while the

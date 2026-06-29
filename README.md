@@ -97,8 +97,10 @@ desktop/menu/window-outline starter frame in BlastEm. BLT framebuffer access now
 uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
 desktop/menu shell. A later title/text attempt produced visibly corrupted
 output, so text rendering is back out of the boot frame until it has its own
-probe. The next desktop gate is isolating font/title drawing and a minimal
-`WM_NewWindow()` render probe before enabling normal menu/cursor/app rendering.
+probe. The current clean window-outline capture is
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. The next
+desktop gate is isolating font/title drawing and a minimal `WM_NewWindow()`
+render probe before enabling normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

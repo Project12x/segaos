@@ -224,12 +224,15 @@ Current local evidence:
   desktop reaches `sub_main`, consumes a first `CMD_RENDER_FRAME`, and returns
   Word RAM for Main upload
 - normal boot-safe C desktop: visible as a checker desktop/menu/window-outline
-  frame; title/text drawing is not currently trusted because the latest
-  title/text screenshot was visibly corrupted
+  frame in
+  `C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`;
+  title/text drawing is not currently trusted because the latest title/text
+  screenshot was visibly corrupted
 
-The internal screenshot helper uses guarded host-key injection only after
-BlastEm is confirmed as the foreground process. If another process owns focus,
-the helper fails closed instead of sending START or screenshot keys.
+The internal screenshot helper now sends targeted window messages to BlastEm's
+own window handle instead of global host key events. For capture runs it remaps
+`p` to controller START and `f12` to `ui.screenshot`, waits longer after START,
+and restores the user's BlastEm config afterward.
 
 Do not advance the full desktop/app loop until the minimal `WM_NewWindow()`
 render rung and repeated-frame Word RAM policy are proven.

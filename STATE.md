@@ -24,7 +24,9 @@ the real boot-safe desktop SP reaches the C command loop, completes a first
 `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM frame. The
 default build now displays a visible Mac-like boot-safe frame through BLT's
 word-safe framebuffer backend: checker desktop, menu separator, and a compact
-window-outline starter frame. A title/text render attempt was captured at
+window-outline starter frame, captured at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. A
+title/text render attempt was captured at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png`, but the
 text was visibly corrupted and has been backed out of the boot-safe frame until
 font/title drawing is isolated.
