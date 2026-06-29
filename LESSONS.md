@@ -65,8 +65,10 @@ same failures.
 
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
 - The current visible target is intentionally modest: checker desktop, menu
-  separator, and document-window outline.
-- The current visual milestone is a Word RAM-safe BLT path drawing the starter
-  frame through normal rectangle/pattern primitives.
-- Next visual milestone is to move from hand-authored BLT starter drawing to
-  normal window-manager objects, menu bar drawing, text, and cursor.
+  separator, titled starter window, and system-font text.
+- `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
+  render should stay compact until each added WM feature has a probe.
+- Moving `WM_NewWindow()` into the boot render path regressed command-loop
+  consumption before the first command was handled. Treat full WM allocation and
+  z-order traversal as the next isolated rung, not as part of the proven
+  starter frame.

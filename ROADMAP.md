@@ -132,11 +132,16 @@ Additional evidence: `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves the
 normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
 handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
-frame. The default build now displays a visible checker desktop/menu/window
-starter frame through BLT's word-safe framebuffer backend in BlastEm internal
-screenshot `C:\tmp\segaos_screens_internal\segaos_internal_20260629_163115.png`.
-The next rung is replacing the starter drawing function with normal
-window-manager/menu/text/cursor rendering.
+frame. The default build now displays a visible checker desktop/menu/titled
+window starter frame through BLT's word-safe framebuffer backend in BlastEm
+internal screenshot
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png`.
+`WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, but the
+starter window intentionally remains a compact BLT title/text renderer. An
+attempt to move `WM_NewWindow()` into the boot render path regressed the Sub
+command loop before command consumption, so the next rung is isolating and
+proving a minimal `WM_NewWindow()` render probe before enabling the full
+window-manager/menu/cursor loop.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen
@@ -158,11 +163,12 @@ that matches Genesis VDP constraints.
 - [x] Prove the boot-safe C desktop kernel reaches Sub-ready after BIOS handoff
 - [x] Display a visible boot-safe desktop starter frame in BlastEm
 - [x] Re-enable BLT rectangle/pattern drawing on top of proven 4bpp output
+- [x] Implement the desktop fill pattern previously stubbed in `WM_DrawDesktop`
 - [ ] Re-enable the minimal window-manager render loop on top of the word-safe BLT backend
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
-- [ ] Implement the desktop fill pattern currently stubbed in `WM_DrawDesktop`
+- [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 
 Acceptance: a full desktop session can be booted, rendered, and interacted

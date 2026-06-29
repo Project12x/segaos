@@ -216,13 +216,18 @@ plan.
 
 Current local evidence:
 
-- normal `make all`: passes verifier with a 9,958-byte Sub SP
+- normal `make all`: passes verifier with a 10,338-byte Sub SP observed in the
+  latest default build
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
-- normal boot-safe C desktop: still times out waiting for Sub-ready in BlastEm
+- `DESKTOP_INIT_PROBE=1`: passes `-Probe DesktopInit`, proving the boot-safe C
+  desktop reaches `sub_main`, consumes a first `CMD_RENDER_FRAME`, and returns
+  Word RAM for Main upload
+- normal boot-safe C desktop: visible in BlastEm internal screenshot
+  `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png`
 
-Do not treat the C desktop loop as boot-proven until a normal-runtime Sub-ready
-control passes.
+Do not advance the full desktop/app loop until the minimal `WM_NewWindow()`
+render rung and repeated-frame Word RAM policy are proven.
 
 Additional diagnostic modes:
 

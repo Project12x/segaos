@@ -9,6 +9,7 @@
  */
 
 #include "wm.h"
+#include "blitter.h"
 #include <string.h>
 
 /* ============================================================
@@ -510,9 +511,44 @@ void WM_EndUpdate(void) {
  * ============================================================ */
 
 void WM_DrawDesktop(void) {
-  /* TODO: Fill screen with desktop pattern via blitter */
   /* Pattern 0 = white, 1 = 50% gray (checkerboard), 2 = 25% checker */
-  (void)wm.desktopPattern;
+  Rect full;
+  Rect menu;
+  Rect desktop;
+  uint8_t lightGray;
+
+  lightGray = (BLT_GetMode() == BLT_MODE_2BIT) ? BLT_2_LIGHT_GRAY
+                                               : BLT_4_LIGHT_GRAY;
+
+  full.left = 0;
+  full.top = 0;
+  full.right = WM_SCREEN_W;
+  full.bottom = WM_SCREEN_H;
+
+  menu.left = 0;
+  menu.top = 0;
+  menu.right = WM_SCREEN_W;
+  menu.bottom = WM_MENUBAR_H;
+
+  desktop.left = 0;
+  desktop.top = WM_MENUBAR_H;
+  desktop.right = WM_SCREEN_W;
+  desktop.bottom = WM_SCREEN_H;
+
+  BLT_ResetClip();
+  BLT_FillRect(&full, BLT_GetWhite());
+
+  if (wm.desktopPattern == 2) {
+    BLT_FillRectPattern2(&desktop, &PAT_GRAY_25, lightGray, BLT_GetWhite());
+  } else if (wm.desktopPattern == 0 || wm.desktopPattern == 1) {
+    BLT_FillRectPattern2(&desktop, &PAT_GRAY_50, lightGray, BLT_GetWhite());
+  } else {
+    BLT_FillRect(&desktop, BLT_GetWhite());
+  }
+
+  BLT_FillRect(&menu, BLT_GetWhite());
+  BLT_DrawHLine(0, WM_MENUBAR_H - 1, WM_SCREEN_W, BLT_BLACK);
+  BLT_DrawRect(&full, BLT_BLACK);
 }
 
 void WM_SetDesktopPattern(uint8_t pattern) {

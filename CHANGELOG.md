@@ -50,6 +50,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `tools/capture_blastem_internal_screenshot.ps1`.
 - Added `SUB_RUNTIME_SMOKE=1` and `DESKTOP_INIT_PROBE=1` validation paths for
   normal C SP startup and boot-safe desktop init/render bring-up.
+- Implemented `WM_DrawDesktop()` so it paints the boot-safe checker desktop and
+  menu shell instead of remaining a stub.
 
 ### Fixed
 - Fixed several UI border/cursor draw calls that passed ending coordinates to
@@ -80,6 +82,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Reworked BLT framebuffer access to route reads/writes through 16-bit Word RAM
   helpers, allowing the boot-safe starter frame to use BLT rectangle and pattern
   primitives again.
+- Updated the boot-safe starter frame to draw a titled window and text through
+  compact BLT title/text primitives while keeping `WM_NewWindow()` out of the
+  first-render path until its command-loop regression is isolated.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -107,14 +112,16 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   4bpp Word RAM readback and VDP VRAM tile-0 readback through `FB_UpdateFrame()`.
 - Updated Milestone C docs again after a visible framebuffer probe was captured
   with BlastEm's internal screenshotting.
-- Documented that the boot-safe C desktop SP is under 10KB but still fails the
-  Sub-ready gate in BlastEm; the assembly framebuffer probe remains the
+- Documented the earlier stage where the boot-safe C desktop SP still failed
+  the Sub-ready gate in BlastEm and the assembly framebuffer probe remained the
   known-good runtime proof.
 - Documented that runtime smoke and boot-safe desktop render probes now pass,
   and that BLT's byte-oriented framebuffer writes are isolated from the boot
   path until Word RAM-safe rendering is designed.
 - Added lessons from the word-safe BLT fix and updated current-state docs with
   the latest BLT-backed screenshot evidence.
+- Documented the latest titled/text boot-safe desktop screenshot and the
+  `WM_NewWindow()` bring-up risk.
 
 ## [0.1.0] - 2026-02-10
 

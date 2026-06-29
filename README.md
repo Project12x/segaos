@@ -91,12 +91,12 @@ pattern survives the handoff, runs through Main's tile conversion path, and
 reads back correctly from VDP VRAM. The visible probe build
 `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1` also displays the expected full-screen
 pattern and is captured by BlastEm's internal screenshotting. The default build
-now uses a boot-safe minimal desktop SP under 10KB, consumes a first
-`CMD_RENDER_FRAME`, uploads the returned Word RAM frame, and displays a visible
-checker desktop/menu/window starter frame in BlastEm. BLT framebuffer access now
-uses word-safe 16-bit helpers, so the starter frame is rendered through BLT
-rectangle and pattern primitives. The next desktop gate is moving from the
-starter draw function to normal window-manager/menu/text/cursor rendering.
+now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
+uploads the returned Word RAM frame, and displays a visible checker
+desktop/menu/titled-window starter frame in BlastEm. BLT framebuffer access now
+uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
+desktop/menu shell. The next desktop gate is isolating a minimal
+`WM_NewWindow()` render probe before enabling normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

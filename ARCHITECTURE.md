@@ -43,11 +43,12 @@ framebuffer proof is now passing too: a deterministic 4bpp pattern written by
 Sub is converted by Main, read back from VDP VRAM, and confirmed on the visible
 display through BlastEm's internal screenshot path. A conservative single-bank
 return path now gives bank 0 back to Sub after Main uploads a frame. The
-remaining runtime issue is normal C desktop startup: the boot-safe C SP is
-under 10KB but still does not publish Sub-ready in BlastEm. Keep the assembly
-probe as the truth source and reintroduce C behind proven invariants. The
-product goal is still a 68k Mac-like desktop on Sega CD; the bootstrap can
-change to make that goal reliable.
+boot-safe C desktop path now publishes ready, consumes the first render command,
+and displays a visible Mac-like starter frame in BlastEm. The current starter
+uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT title/text
+primitives for the window; full `WM_NewWindow()`/menu/cursor rendering remains
+the next isolated rung. The product goal is still a 68k Mac-like desktop on
+Sega CD; the bootstrap can change to make that goal reliable.
 
 ## Memory Map
 
@@ -133,8 +134,9 @@ Important boot-sector constraints:
   marker before emulator testing.
 
 Current probe boundary: Main boot, Sub `sp_init`, Sub `sp_main`, Gate Array
-command/status, one-way Word RAM bank-0 return, and deterministic 4bpp
-framebuffer-to-VDP tile readback are proven by `-Probe DualCpu` and
-`-Probe Framebuffer`; the visible probe is also confirmed by BlastEm internal
-screenshotting. Do not advance the full desktop/app loop until boot-safe C
-runtime startup and repeated-frame bank policy are explicit.
+command/status, one-way Word RAM bank-0 return, deterministic 4bpp
+framebuffer-to-VDP tile readback, C runtime smoke, and boot-safe desktop first
+render are proven by the BlastEm/GDB probes. The default visible desktop frame
+is also confirmed by BlastEm internal screenshotting. Do not advance the full
+desktop/app loop until the minimal `WM_NewWindow()` render rung and the
+repeated-frame bank policy are explicit.

@@ -78,7 +78,7 @@ static const uint8_t cursorBitmap[] = {
 #ifndef BOOT_PROBE
 static void os_init(void);
 #ifdef BOOT_SAFE_DESKTOP
-static void render_boot_safe_desktop(void);
+static void render_boot_safe_desktop(void) __attribute__((noinline));
 #endif
 #endif
 static void process_command(uint8_t cmd);
@@ -155,28 +155,9 @@ void sub_main(void) {
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
 static void render_boot_safe_desktop(void) {
-  Rect full;
-  Rect menu;
-  Rect desktop;
   Rect shadow;
-  Rect title;
   Rect body;
-  Rect close;
-
-  full.left = 0;
-  full.top = 0;
-  full.right = 320;
-  full.bottom = 224;
-
-  menu.left = 0;
-  menu.top = 0;
-  menu.right = 320;
-  menu.bottom = 20;
-
-  desktop.left = 0;
-  desktop.top = 20;
-  desktop.right = 320;
-  desktop.bottom = 224;
+  Rect title;
 
   shadow.left = 44;
   shadow.top = 45;
@@ -193,27 +174,16 @@ static void render_boot_safe_desktop(void) {
   body.right = 222;
   body.bottom = 148;
 
-  close.left = 45;
-  close.top = 43;
-  close.right = 56;
-  close.bottom = 54;
-
   BLT_ResetClip();
-  BLT_FillRect(&full, BLT_GetWhite());
-  BLT_FillRectPattern2(&desktop, &PAT_GRAY_50, BLT_4_LIGHT_GRAY,
-                       BLT_GetWhite());
-  BLT_FillRect(&menu, BLT_GetWhite());
-  BLT_DrawHLine(0, 19, 320, BLT_BLACK);
+  WM_DrawDesktop();
 
   BLT_FillRect(&shadow, BLT_4_DARK_GRAY);
   BLT_FillRect(&body, BLT_GetWhite());
   BLT_DrawRect(&body, BLT_BLACK);
-  BLT_FillRect(&title, BLT_GetWhite());
-  BLT_DrawRect(&title, BLT_BLACK);
-  BLT_DrawRect(&close, BLT_BLACK);
-  BLT_DrawHLine(70, 49, 122, BLT_BLACK);
-  BLT_DrawHLine(70, 51, 122, BLT_BLACK);
-  BLT_DrawRect(&full, BLT_BLACK);
+  BLT_DrawTitleBar(&title, "SegaOS", 1, 1, SysFont_Get());
+  SysFont_DrawString(body.left + 8, body.top + 12, "SegaOS", BLT_BLACK);
+  SysFont_DrawString(body.left + 8, body.top + 26, "boot-safe frame",
+                     BLT_BLACK);
 }
 #endif
 
