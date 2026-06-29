@@ -115,7 +115,9 @@ Sub boot, inter-CPU flags, and Word RAM bank ownership.
 - [ ] Decide whether `WRAM_BANK0_MAIN`, `WRAM_BANK1_MAIN`, or an alternating
       pointer is correct after each swap
 - [x] Add a conservative single-bank return path after Main uploads a frame
-- [ ] Prove the boot-safe C desktop SP publishes Sub-ready in emulator
+- [x] Prove the boot-safe C desktop SP publishes Sub-ready in emulator
+- [x] Prove boot-safe C desktop `CMD_INIT_OS` and one `CMD_RENDER_FRAME`
+      complete in emulator
 
 Current evidence: `tools/probe_blastem_boot.ps1 -Probe Framebuffer` passes in
 BlastEm. Sub writes a deterministic full-screen 4bpp stripe pattern into
@@ -126,6 +128,13 @@ VDP VRAM tile 0. A visible probe build with
 `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1` was also captured with BlastEm's
 internal screenshot hotkey after pressing START, proving the expected pattern
 reaches the displayed frame.
+
+Additional evidence: `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves the
+normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
+`-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
+handles `CMD_INIT_OS`, handles one `CMD_RENDER_FRAME`, and lets Main upload the
+returned Word RAM frame. The current boot-safe renderer is direct Word RAM
+drawing; BLT-backed rectangle/cursor drawing remains isolated for the next rung.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen
@@ -144,8 +153,8 @@ Acceptance: the project has a documented frame budget and a transfer policy
 that matches Genesis VDP constraints.
 
 ### Milestone E: Desktop and App Bring-Up
-- [ ] Prove the boot-safe C desktop kernel reaches Sub-ready after BIOS handoff
-- [ ] Re-enable the minimal window-manager render loop on top of proven 4bpp output
+- [x] Prove the boot-safe C desktop kernel reaches Sub-ready after BIOS handoff
+- [ ] Re-enable the minimal BLT/window-manager render loop on top of proven 4bpp output
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion

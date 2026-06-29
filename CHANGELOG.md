@@ -45,6 +45,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   minimal desktop kernel in the boot SP while deferring menu/apps.
 - Added a reusable BlastEm internal screenshot helper at
   `tools/capture_blastem_internal_screenshot.ps1`.
+- Added `SUB_RUNTIME_SMOKE=1` and `DESKTOP_INIT_PROBE=1` validation paths for
+  normal C SP startup and boot-safe desktop init/render bring-up.
 
 ### Fixed
 - Fixed several UI border/cursor draw calls that passed ending coordinates to
@@ -61,6 +63,12 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   waiting was wrong for this handoff.
 - Added a conservative Main-side bank return after `FB_UpdateFrame()` so the
   Sub CPU can own `$0C0000` again before the next render command.
+- Fixed normal Sub startup readiness so READY is published from the C runtime
+  path instead of early assembly callbacks.
+- Fixed the C Word RAM handoff helpers to match the proven 1M RET polarity:
+  Sub clears RET to expose its bank to Main, and Main sets RET to return it.
+- Split boot-safe desktop initialization from rendering so `CMD_INIT_OS` only
+  initializes state and `CMD_RENDER_FRAME` returns a direct Word RAM frame.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -91,6 +99,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documented that the boot-safe C desktop SP is under 10KB but still fails the
   Sub-ready gate in BlastEm; the assembly framebuffer probe remains the
   known-good runtime proof.
+- Documented that runtime smoke and boot-safe desktop init/render probes now
+  pass, narrowing the next desktop work to BLT/window-manager rendering.
 
 ## [0.1.0] - 2026-02-10
 

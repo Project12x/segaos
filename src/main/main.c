@@ -34,7 +34,49 @@ static void boot_sequence(void);
 static uint8_t wait_for_sub_ready(void);
 void main_enable_interrupts(void);
 void probe_bios_clear_comm(void);
-#ifndef BOOT_PROBE
+#ifdef SUB_RUNTIME_SMOKE
+void segaos_runtime_smoke_halt(void) __attribute__((noinline, used));
+static void runtime_smoke_probe(void);
+static void runtime_smoke_capture_status(void);
+
+volatile uint16_t segaos_smoke_main_phase;
+volatile uint16_t segaos_smoke_sub_flag;
+volatile uint16_t segaos_smoke_stat0;
+volatile uint16_t segaos_smoke_stat1;
+volatile uint16_t segaos_smoke_stat2;
+volatile uint16_t segaos_smoke_stat3;
+volatile uint16_t segaos_smoke_trace;
+volatile uint16_t segaos_smoke_done_status;
+#endif
+#ifdef DESKTOP_INIT_PROBE
+void segaos_desktop_init_halt(void) __attribute__((noinline, used));
+static void desktop_init_probe(void);
+static void desktop_init_capture_status(void);
+static uint8_t desktop_probe_wait_done(uint32_t poll_limit);
+
+volatile uint16_t segaos_desktop_main_phase;
+volatile uint16_t segaos_desktop_sub_flag;
+volatile uint16_t segaos_desktop_stat0;
+volatile uint16_t segaos_desktop_stat1;
+volatile uint16_t segaos_desktop_stat2;
+volatile uint16_t segaos_desktop_stat3;
+volatile uint16_t segaos_desktop_stat5;
+volatile uint16_t segaos_desktop_stat6;
+volatile uint16_t segaos_desktop_trace;
+volatile uint16_t segaos_desktop_main_flag;
+volatile uint16_t segaos_desktop_ready_sub_flag;
+volatile uint16_t segaos_desktop_ready_stat0;
+volatile uint16_t segaos_desktop_ready_stat1;
+volatile uint16_t segaos_desktop_ready_trace;
+volatile uint16_t segaos_desktop_done_status;
+volatile uint16_t segaos_desktop_render_status;
+volatile uint16_t segaos_desktop_render_trace;
+volatile uint16_t segaos_desktop_mem_mode_before;
+volatile uint16_t segaos_desktop_mem_mode_after_return;
+volatile uint16_t segaos_desktop_wait_polls;
+#endif
+#if !defined(BOOT_PROBE) && !defined(SUB_RUNTIME_SMOKE) &&                 \
+    !defined(DESKTOP_INIT_PROBE)
 static void main_loop(void);
 #endif
 #ifdef BOOT_PROBE
@@ -129,7 +171,11 @@ volatile uint16_t segaos_probe_vblank_counter;
 
 int main(void) {
   boot_sequence();
-#ifdef BOOT_PROBE
+#ifdef SUB_RUNTIME_SMOKE
+  runtime_smoke_probe();
+#elif defined(DESKTOP_INIT_PROBE)
+  desktop_init_probe();
+#elif defined(BOOT_PROBE)
   boot_probe();
 #else
   main_loop();
@@ -155,6 +201,10 @@ static void boot_sequence(void) {
   return;
 #endif
 
+#ifdef SUB_RUNTIME_SMOKE
+  segaos_smoke_main_phase = 0x8001;
+#endif
+
   GA_MAIN_SET_FLAG(CMD_NONE);
 
   /* Step 1: Wait for Sub CPU BIOS usercall startup before touching shared
@@ -162,10 +212,21 @@ static void boot_sequence(void) {
    * after this gate; installing it here can disturb GA communication before
    * SegaOS owns the Sub command protocol. */
   if (!wait_for_sub_ready()) {
+#ifdef SUB_RUNTIME_SMOKE
+    runtime_smoke_capture_status();
+    segaos_smoke_main_phase = 0x80fe;
+    segaos_runtime_smoke_halt();
+#else
     /* Sub CPU failed to boot - halt */
     while (1) {
     }
+#endif
   }
+
+#ifdef SUB_RUNTIME_SMOKE
+  runtime_smoke_capture_status();
+  segaos_smoke_main_phase = 0x8002;
+#endif
 
   /* Step 2: Set Word RAM to 1M mode for the verified boot framebuffer bank */
   {
@@ -200,8 +261,149 @@ static void boot_sequence(void) {
   main_wait_done();
   FB_UpdateFrame(WRAM_BANK0_MAIN);
   main_return_wram_to_sub();
+#elif defined(BOOT_SAFE_DESKTOP) && !defined(DESKTOP_INIT_PROBE) &&         \
+    !defined(SUB_RUNTIME_SMOKE)
+  main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
+  main_wait_done();
+  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+  main_wait_done();
+  FB_UpdateFrame(WRAM_BANK0_MAIN);
+  VDP_WaitDMA();
+  main_return_wram_to_sub();
 #endif
 }
+
+#ifdef SUB_RUNTIME_SMOKE
+static void runtime_smoke_capture_status(void) {
+  segaos_smoke_sub_flag = GA_MAIN_READ_SUB_FLAG();
+  segaos_smoke_stat0 = main_read_result(0);
+  segaos_smoke_stat1 = main_read_result(1);
+  segaos_smoke_stat2 = main_read_result(2);
+  segaos_smoke_stat3 = main_read_result(3);
+  segaos_smoke_trace = main_read_result(7);
+}
+
+static void runtime_smoke_probe(void) {
+  runtime_smoke_capture_status();
+  if (segaos_smoke_sub_flag != STATUS_IDLE ||
+      segaos_smoke_stat0 != SUB_STATE_READY ||
+      segaos_smoke_stat1 != RUNTIME_SMOKE_READY_MAGIC) {
+    segaos_smoke_main_phase = 0x80fd;
+    segaos_runtime_smoke_halt();
+  }
+
+  main_send_cmd(CMD_BOOT_PROBE, 0x1357, 0x2468, 0, 0);
+  segaos_smoke_main_phase = 0x8003;
+  segaos_smoke_done_status = main_wait_done();
+  runtime_smoke_capture_status();
+
+  if (segaos_smoke_done_status == STATUS_DONE &&
+      segaos_smoke_stat0 == RUNTIME_SMOKE_DONE_MAGIC &&
+      segaos_smoke_stat1 == CMD_BOOT_PROBE &&
+      segaos_smoke_trace == 0x72fe) {
+    segaos_smoke_main_phase = 0x80ff;
+  } else {
+    segaos_smoke_main_phase = 0x80fc;
+  }
+
+  segaos_runtime_smoke_halt();
+}
+
+void segaos_runtime_smoke_halt(void) {
+  while (1) {
+  }
+}
+#endif
+
+#ifdef DESKTOP_INIT_PROBE
+#define DESKTOP_PROBE_WAIT_LIMIT 0x00100000UL
+
+static void desktop_init_capture_status(void) {
+  segaos_desktop_main_flag = GA_MAIN_REG8(GA_COMM_FLAG);
+  segaos_desktop_sub_flag = GA_MAIN_READ_SUB_FLAG();
+  segaos_desktop_stat0 = main_read_result(0);
+  segaos_desktop_stat1 = main_read_result(1);
+  segaos_desktop_stat2 = main_read_result(2);
+  segaos_desktop_stat3 = main_read_result(3);
+  segaos_desktop_stat5 = main_read_result(5);
+  segaos_desktop_stat6 = main_read_result(6);
+  segaos_desktop_trace = main_read_result(7);
+}
+
+static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
+  uint32_t polls;
+  uint8_t status;
+
+  for (polls = 0; polls < poll_limit; polls++) {
+    status = GA_MAIN_READ_SUB_FLAG();
+    if (status == STATUS_DONE || status == STATUS_ERROR) {
+      segaos_desktop_wait_polls = (uint16_t)polls;
+      GA_MAIN_SET_FLAG(CMD_NONE);
+      while (GA_MAIN_READ_SUB_FLAG() != STATUS_IDLE) {
+      }
+      return status;
+    }
+  }
+
+  segaos_desktop_wait_polls = 0xffff;
+  return 0xee;
+}
+
+static void desktop_init_probe(void) {
+  segaos_desktop_main_phase = 0x8101;
+  desktop_init_capture_status();
+  segaos_desktop_ready_sub_flag = segaos_desktop_sub_flag;
+  segaos_desktop_ready_stat0 = segaos_desktop_stat0;
+  segaos_desktop_ready_stat1 = segaos_desktop_stat1;
+  segaos_desktop_ready_trace = segaos_desktop_trace;
+  if (segaos_desktop_sub_flag != STATUS_IDLE ||
+      segaos_desktop_stat0 != SUB_STATE_READY) {
+    segaos_desktop_main_phase = 0x81fd;
+    segaos_desktop_init_halt();
+  }
+
+  segaos_desktop_mem_mode_before = GA_MAIN_REG16(GA_MEM_MODE);
+  segaos_desktop_mem_mode_after_return = GA_MAIN_REG16(GA_MEM_MODE);
+
+  main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
+  segaos_desktop_main_phase = 0x8102;
+  segaos_desktop_done_status =
+      desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
+  desktop_init_capture_status();
+
+  if (segaos_desktop_done_status != STATUS_DONE ||
+      segaos_desktop_stat0 != SUB_STATE_READY ||
+      segaos_desktop_trace != 0x73fe) {
+    segaos_desktop_main_phase = 0x81fe;
+    segaos_desktop_init_halt();
+  }
+
+  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+  segaos_desktop_main_phase = 0x8103;
+  segaos_desktop_render_status =
+      desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
+  desktop_init_capture_status();
+  segaos_desktop_render_trace = segaos_desktop_trace;
+
+  if (segaos_desktop_render_status == STATUS_DONE &&
+      segaos_desktop_stat0 == SUB_STATE_READY &&
+      segaos_desktop_trace == 0x7403) {
+    FB_UpdateFrame(WRAM_BANK0_MAIN);
+    VDP_WaitDMA();
+    main_return_wram_to_sub();
+    segaos_desktop_main_phase = 0x81ff;
+  } else {
+    segaos_desktop_main_phase = 0x81fe;
+  }
+
+  segaos_desktop_init_halt();
+}
+
+void segaos_desktop_init_halt(void) {
+  while (1) {
+  }
+}
+#endif
 
 static uint8_t wait_for_sub_ready(void) {
   uint16_t frame;
@@ -438,7 +640,8 @@ void segaos_probe_halt(void) {
 }
 #endif
 
-#ifndef BOOT_PROBE
+#if !defined(BOOT_PROBE) && !defined(SUB_RUNTIME_SMOKE) &&                 \
+    !defined(DESKTOP_INIT_PROBE)
 static void main_loop(void) {
   while (1) {
     /* Wait for VBlank */

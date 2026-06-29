@@ -51,6 +51,7 @@ static int16_t dragOffsetY = 0;
 static uint8_t windowCounter = 0;
 #endif
 
+#ifndef BOOT_SAFE_DESKTOP
 /* 1-bit cursor bitmap (11x16 pixels, classic Mac arrow) */
 static const uint8_t cursorBitmap[] = {
     0xC0, 0x00, /* 11...... ........ */
@@ -70,6 +71,7 @@ static const uint8_t cursorBitmap[] = {
     0x00, 0x80, /* .......  1....... */
     0x00, 0x00, /* ........ ........ */
 };
+#endif
 #endif
 
 /* Forward declarations */
@@ -119,8 +121,26 @@ void sub_init(void) {
  * Runs the cooperative multitasking command loop. Does not return.
  */
 void sub_main(void) {
+#if defined(DESKTOP_INIT_PROBE)
+  sub_write_result(7, 0x7201);
+#endif
   while (1) {
+#ifdef BOOT_PROBE
     uint8_t cmd = sub_wait_cmd();
+#elif defined(DESKTOP_INIT_PROBE)
+    uint8_t cmd;
+    uint16_t idle_spin = 0;
+    do {
+      cmd = GA_SUB_READ_MAIN_FLAG();
+      sub_write_result(5, idle_spin++);
+    } while (cmd == CMD_NONE);
+#else
+    uint8_t cmd = sub_wait_cmd();
+#endif
+#if defined(DESKTOP_INIT_PROBE)
+    sub_write_result(7, 0x7202);
+    sub_write_result(6, (uint16_t)cmd);
+#endif
     process_command(cmd);
   }
 }
@@ -130,18 +150,17 @@ void sub_main(void) {
 static void render_boot_safe_desktop(void) {
   volatile uint16_t *frame = (volatile uint16_t *)0x0C0000;
   uint16_t i;
-  Rect menuDivider;
+  uint16_t y;
 
   for (i = 0; i < 17920; i++) {
     frame[i] = 0xFFFF;
   }
 
-  menuDivider.left = 0;
-  menuDivider.top = 19;
-  menuDivider.right = 320;
-  menuDivider.bottom = 20;
-  BLT_FillRect(&menuDivider, BLT_BLACK);
-  BLT_BlitBitmap1(cursorX, cursorY, cursorBitmap, 11, 16, BLT_BLACK);
+  for (y = 32; y < 40; y++) {
+    for (i = 0; i < 80; i++) {
+      frame[(y * 80) + i] = 0x0000;
+    }
+  }
 }
 #endif
 
@@ -154,8 +173,6 @@ static void os_init(void) {
   sub_write_result(7, 0x7303);
 
 #ifdef BOOT_SAFE_DESKTOP
-  render_boot_safe_desktop();
-  sub_return_wram();
   sub_write_result(7, 0x73fe);
 #else
   /* Initialize Window Manager */

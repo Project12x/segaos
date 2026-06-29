@@ -6,7 +6,7 @@ param(
   [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit")]
   [string]$Probe = "Ip"
 )
 
@@ -216,6 +216,60 @@ try {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$symbol"
     }
+  } elseif ($Probe -eq "RuntimeSmoke") {
+    $smokeNames = @(
+      "segaos_smoke_main_phase",
+      "segaos_smoke_sub_flag",
+      "segaos_smoke_stat0",
+      "segaos_smoke_stat1",
+      "segaos_smoke_stat2",
+      "segaos_smoke_stat3",
+      "segaos_smoke_trace",
+      "segaos_smoke_done_status"
+    )
+
+    $gdbCommands += @(
+      "break segaos_runtime_smoke_halt",
+      "continue",
+      "info registers pc sp"
+    )
+    foreach ($name in $smokeNames) {
+      $gdbCommands += "echo $name="
+      $gdbCommands += "p/x (unsigned short)$name"
+    }
+  } elseif ($Probe -eq "DesktopInit") {
+    $desktopNames = @(
+      "segaos_desktop_main_phase",
+      "segaos_desktop_sub_flag",
+      "segaos_desktop_stat0",
+      "segaos_desktop_stat1",
+      "segaos_desktop_stat2",
+      "segaos_desktop_stat3",
+      "segaos_desktop_stat5",
+      "segaos_desktop_stat6",
+      "segaos_desktop_trace",
+      "segaos_desktop_main_flag",
+      "segaos_desktop_ready_sub_flag",
+      "segaos_desktop_ready_stat0",
+      "segaos_desktop_ready_stat1",
+      "segaos_desktop_ready_trace",
+      "segaos_desktop_done_status",
+      "segaos_desktop_render_status",
+      "segaos_desktop_render_trace",
+      "segaos_desktop_mem_mode_before",
+      "segaos_desktop_mem_mode_after_return",
+      "segaos_desktop_wait_polls"
+    )
+
+    $gdbCommands += @(
+      "break segaos_desktop_init_halt",
+      "continue",
+      "info registers pc sp"
+    )
+    foreach ($name in $desktopNames) {
+      $gdbCommands += "echo $name="
+      $gdbCommands += "p/x (unsigned short)$name"
+    }
   } elseif ($Probe -eq "MegadevControl") {
     $controlNames = @(
       "megadev_control_main_magic",
@@ -361,6 +415,114 @@ try {
     }
     Write-Output "probe_mem_mode_summary before=$($probeValues["probe_mem_mode_before"]) after_cmd=$($probeValues["probe_mem_mode_after"]) after_wram=$($probeValues["probe_mem_mode_after_wram"]) sub_snapshot=$($probeValues["probe_sub_result3"])"
 
+    Write-Output "probe_gdb_exit=$gdbExit"
+    Write-Output "probe_breakpoint_hit=$hitBreakpoint"
+
+    if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
+      exit 1
+    }
+  } elseif ($Probe -eq "RuntimeSmoke") {
+    $joined = $gdbOutput -join "`n"
+    $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_runtime_smoke_halt")
+    $smokeNames = @(
+      "segaos_smoke_main_phase",
+      "segaos_smoke_sub_flag",
+      "segaos_smoke_stat0",
+      "segaos_smoke_stat1",
+      "segaos_smoke_stat2",
+      "segaos_smoke_stat3",
+      "segaos_smoke_trace",
+      "segaos_smoke_done_status"
+    )
+    $smokeValues = Get-NamedProbeValues $gdbOutput $smokeNames
+    $expectedValues = [ordered]@{
+      segaos_smoke_main_phase = "0x80ff"
+      segaos_smoke_sub_flag = "0x0000"
+      segaos_smoke_stat0 = "0x534d"
+      segaos_smoke_stat1 = "0x0003"
+      segaos_smoke_trace = "0x72fe"
+      segaos_smoke_done_status = "0x0003"
+    }
+
+    $failed = @()
+    foreach ($name in $expectedValues.Keys) {
+      $actualValue = $smokeValues[$name]
+      $ok = $actualValue -eq $expectedValues[$name]
+      Write-Output "smoke_check_$name=$ok expected=$($expectedValues[$name]) actual=$actualValue"
+      if (-not $ok) {
+        $failed += $name
+      }
+    }
+
+    Write-Output "smoke_stat2=$($smokeValues["segaos_smoke_stat2"])"
+    Write-Output "smoke_stat3=$($smokeValues["segaos_smoke_stat3"])"
+    Write-Output "probe_gdb_exit=$gdbExit"
+    Write-Output "probe_breakpoint_hit=$hitBreakpoint"
+
+    if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
+      exit 1
+    }
+  } elseif ($Probe -eq "DesktopInit") {
+    $joined = $gdbOutput -join "`n"
+    $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_desktop_init_halt")
+    $desktopNames = @(
+      "segaos_desktop_main_phase",
+      "segaos_desktop_sub_flag",
+      "segaos_desktop_stat0",
+      "segaos_desktop_stat1",
+      "segaos_desktop_stat2",
+      "segaos_desktop_stat3",
+      "segaos_desktop_stat5",
+      "segaos_desktop_stat6",
+      "segaos_desktop_trace",
+      "segaos_desktop_main_flag",
+      "segaos_desktop_ready_sub_flag",
+      "segaos_desktop_ready_stat0",
+      "segaos_desktop_ready_stat1",
+      "segaos_desktop_ready_trace",
+      "segaos_desktop_done_status",
+      "segaos_desktop_render_status",
+      "segaos_desktop_render_trace",
+      "segaos_desktop_mem_mode_before",
+      "segaos_desktop_mem_mode_after_return",
+      "segaos_desktop_wait_polls"
+    )
+    $desktopValues = Get-NamedProbeValues $gdbOutput $desktopNames
+    $expectedValues = [ordered]@{
+      segaos_desktop_main_phase = "0x81ff"
+      segaos_desktop_sub_flag = "0x0000"
+      segaos_desktop_stat0 = "0x0002"
+      segaos_desktop_trace = "0x7403"
+      segaos_desktop_done_status = "0x0003"
+      segaos_desktop_render_status = "0x0003"
+      segaos_desktop_render_trace = "0x7403"
+    }
+
+    $failed = @()
+    foreach ($name in $expectedValues.Keys) {
+      $actualValue = $desktopValues[$name]
+      $ok = $actualValue -eq $expectedValues[$name]
+      Write-Output "desktop_check_$name=$ok expected=$($expectedValues[$name]) actual=$actualValue"
+      if (-not $ok) {
+        $failed += $name
+      }
+    }
+
+    Write-Output "desktop_stat1=$($desktopValues["segaos_desktop_stat1"])"
+    Write-Output "desktop_stat2=$($desktopValues["segaos_desktop_stat2"])"
+    Write-Output "desktop_stat3=$($desktopValues["segaos_desktop_stat3"])"
+    Write-Output "desktop_stat5=$($desktopValues["segaos_desktop_stat5"])"
+    Write-Output "desktop_stat6=$($desktopValues["segaos_desktop_stat6"])"
+    Write-Output "desktop_main_flag=$($desktopValues["segaos_desktop_main_flag"])"
+    Write-Output "desktop_ready_sub_flag=$($desktopValues["segaos_desktop_ready_sub_flag"])"
+    Write-Output "desktop_ready_stat0=$($desktopValues["segaos_desktop_ready_stat0"])"
+    Write-Output "desktop_ready_stat1=$($desktopValues["segaos_desktop_ready_stat1"])"
+    Write-Output "desktop_ready_trace=$($desktopValues["segaos_desktop_ready_trace"])"
+    Write-Output "desktop_render_status=$($desktopValues["segaos_desktop_render_status"])"
+    Write-Output "desktop_render_trace=$($desktopValues["segaos_desktop_render_trace"])"
+    Write-Output "desktop_mem_mode_before=$($desktopValues["segaos_desktop_mem_mode_before"])"
+    Write-Output "desktop_mem_mode_after_return=$($desktopValues["segaos_desktop_mem_mode_after_return"])"
+    Write-Output "desktop_wait_polls=$($desktopValues["segaos_desktop_wait_polls"])"
     Write-Output "probe_gdb_exit=$gdbExit"
     Write-Output "probe_breakpoint_hit=$hitBreakpoint"
 

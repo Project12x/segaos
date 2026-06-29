@@ -133,11 +133,11 @@ static inline void main_send_param(uint8_t index, uint16_t value) {
 /* ---- Word RAM Bank Swap (Main CPU side) ---- */
 
 /* Check if Main CPU currently has the bank exposed at WRAM_BANK0_MAIN.
- * In 1M mode, RET=1 exposes Sub bank 0 to Main at $200000. */
+ * In 1M mode, RET=0 exposes Sub bank 0 to Main at $200000. */
 static inline uint8_t main_has_wram(void) {
   uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    return (mem & MEM_MODE_RET) != 0;
+    return !(mem & MEM_MODE_RET);
   }
   return (mem & MEM_MODE_RET) != 0;
 }
@@ -153,13 +153,13 @@ static inline void main_request_swap(void) {
 }
 
 /* Return Main's currently displayed Word RAM bank to the Sub CPU.
- * In 1M mode, clearing RET gives bank 0 back to Sub at $0C0000.
+ * In 1M mode, setting RET gives bank 0 back to Sub at $0C0000.
  */
 static inline void main_return_wram_to_sub(void) {
   uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
     GA_MAIN_REG8(GA_MEM_MODE + 1) =
-        (uint8_t)(mem & ~(MEM_MODE_RET | MEM_MODE_DMNA));
+        (uint8_t)((mem | MEM_MODE_RET) & ~MEM_MODE_DMNA);
   } else {
     GA_MAIN_REG8(GA_MEM_MODE + 1) =
         (uint8_t)(mem & ~(MEM_MODE_RET | MEM_MODE_DMNA));
@@ -221,13 +221,14 @@ static inline void sub_error(void) {
 /* ---- Word RAM Bank Swap (Sub CPU side) ---- */
 
 /* Return the Sub CPU's bank-0 Word RAM work area to the Main CPU.
- * In 1M mode, setting RET exposes bank 0 at Main $200000. In 2M mode, setting
+ * In 1M mode, clearing RET exposes bank 0 at Main $200000. In 2M mode, setting
  * RET grants Main the 2M block.
  */
 static inline void sub_return_wram(void) {
   uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    GA_SUB_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem | MEM_MODE_RET);
+    GA_SUB_REG8(GA_MEM_MODE + 1) =
+        (uint8_t)(mem & ~(MEM_MODE_RET | MEM_MODE_DMNA));
   } else {
     GA_SUB_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem | MEM_MODE_RET);
   }
@@ -237,7 +238,7 @@ static inline void sub_return_wram(void) {
 static inline uint8_t sub_has_wram(void) {
   uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    return !(mem & MEM_MODE_RET);
+    return (mem & MEM_MODE_RET) != 0;
   }
   return !(mem & MEM_MODE_RET);
 }

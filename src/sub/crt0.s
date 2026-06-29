@@ -54,13 +54,13 @@ sp_init:
     .else
     /*
      * Keep BIOS initialization callback minimal. The Boot ROM calls sp_init
-     * while it still owns parts of Sub CPU setup; the proven BOOT_PROBE path
-     * only publishes readiness here and returns. Normal C runtime setup is
-     * deferred to sp_main below.
+     * while it still owns parts of Sub CPU setup. Do not publish
+     * SUB_STATE_READY here: Main may immediately send a command before sp_main
+     * reaches the C command loop, causing a startup deadlock.
      */
-    move.w  #0x0002, 0xFF8020   /* status0: SUB_STATE_READY */
+    move.w  #0x0001, 0xFF8020   /* status0: SUB_STATE_BOOTING */
     move.w  #0x5101, 0xFF802E   /* status7: entered sp_init */
-    move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
+    move.b  #0x01, 0xFF800F    /* CFS: STATUS_BUSY */
     rts
     .endif
 
@@ -197,9 +197,9 @@ sp_main:
     move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
     bra.w   .probe_wait_cmd
     .else
-    move.w  #0x0002, 0xFF8020   /* status0: SUB_STATE_READY */
+    move.w  #0x0001, 0xFF8020   /* status0: SUB_STATE_BOOTING */
     move.w  #0x5201, 0xFF802E   /* status7: entered sp_main */
-    move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
+    move.b  #0x01, 0xFF800F    /* CFS: STATUS_BUSY */
     .endif
 
     /* Set stack pointer (in case BIOS clobbered it) */
@@ -215,17 +215,18 @@ sp_main:
     cmp.l   %a1, %a0
     blt.s   .main_bss_loop
 
-    /* Call C initialization after BIOS has entered the main callback. */
-    jsr     sub_init
-
     /*
      * The Boot ROM can leave a nonzero Main command flag while handing off to
      * the IP. Do not let the C command loop consume that stale BIOS value as a
-     * SegaOS command; wait until Main clears CFM and owns the protocol.
+     * SegaOS command; wait until Main clears CFM and owns the protocol before
+     * publishing normal C-runtime readiness.
      */
 .wait_main_protocol_idle:
     move.b  0xFF800E, %d0
     bne.s   .wait_main_protocol_idle
+
+    /* Call C initialization after BIOS has entered the main callback. */
+    jsr     sub_init
     move.b  #0x00, 0xFF800F    /* CFS: STATUS_IDLE */
 
     /* Enter C main loop (does not return) */
