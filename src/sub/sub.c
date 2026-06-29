@@ -108,6 +108,10 @@ void sub_init(void) {
   sub_write_result(1, PROBE_READY_MAGIC);
   GA_SUB_SET_FLAG(STATUS_IDLE);
 #else
+#ifdef BOOT_SAFE_DESKTOP
+  BLT_Init((uint8_t *)0x0C0000);
+  BLT_SetMode(BLT_MODE_4BIT);
+#endif
   /* Signal readiness only. Main must establish Word RAM and the VDP path
    * before it sends CMD_INIT_OS to initialize rendering. */
   sub_write_result(0, SUB_STATE_READY);
@@ -150,81 +154,66 @@ void sub_main(void) {
 
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
-static void boot_safe_set_pixel(int16_t x, int16_t y, uint8_t color) {
-  volatile uint16_t *frame = (volatile uint16_t *)0x0C0000;
-  uint16_t word_index;
-  uint16_t shift;
-  uint16_t mask;
-  uint16_t word;
-
-  if (x < 0 || x >= 320 || y < 0 || y >= 224)
-    return;
-
-  word_index = (uint16_t)((y * 80) + (x >> 2));
-  shift = (uint16_t)((3 - (x & 3)) << 2);
-  mask = (uint16_t)(0x000f << shift);
-  word = frame[word_index];
-  word = (uint16_t)((word & ~mask) | (((uint16_t)color & 0x000f) << shift));
-  frame[word_index] = word;
-}
-
-static void boot_safe_hline(int16_t x, int16_t y, int16_t w, uint8_t color) {
-  int16_t px;
-
-  if (w <= 0)
-    return;
-
-  for (px = x; px < x + w; px++) {
-    boot_safe_set_pixel(px, y, color);
-  }
-}
-
-static void boot_safe_fill_rect(int16_t left, int16_t top, int16_t right,
-                                int16_t bottom, uint8_t color) {
-  int16_t y;
-
-  for (y = top; y < bottom; y++) {
-    boot_safe_hline(left, y, (int16_t)(right - left), color);
-  }
-}
-
-static void boot_safe_draw_rect(int16_t left, int16_t top, int16_t right,
-                                int16_t bottom, uint8_t color) {
-  boot_safe_hline(left, top, (int16_t)(right - left), color);
-  boot_safe_hline(left, (int16_t)(bottom - 1), (int16_t)(right - left),
-                  color);
-  boot_safe_fill_rect(left, top, (int16_t)(left + 1), bottom, color);
-  boot_safe_fill_rect((int16_t)(right - 1), top, right, bottom, color);
-}
-
-static void boot_safe_checker_rect(int16_t left, int16_t top, int16_t right,
-                                   int16_t bottom) {
-  int16_t x;
-  int16_t y;
-
-  for (y = top; y < bottom; y++) {
-    for (x = left; x < right; x++) {
-      boot_safe_set_pixel(x, y, ((x ^ y) & 1) ? BLT_4_LIGHT_GRAY
-                                              : BLT_4_WHITE);
-    }
-  }
-}
-
 static void render_boot_safe_desktop(void) {
-  boot_safe_fill_rect(0, 0, 320, 224, BLT_4_WHITE);
-  boot_safe_checker_rect(0, 20, 320, 224);
-  boot_safe_fill_rect(0, 0, 320, 20, BLT_4_WHITE);
-  boot_safe_hline(0, 19, 320, BLT_BLACK);
+  Rect full;
+  Rect menu;
+  Rect desktop;
+  Rect shadow;
+  Rect title;
+  Rect body;
+  Rect close;
 
-  boot_safe_fill_rect(44, 45, 226, 151, BLT_4_DARK_GRAY);
-  boot_safe_fill_rect(40, 58, 222, 148, BLT_4_WHITE);
-  boot_safe_draw_rect(40, 58, 222, 148, BLT_BLACK);
-  boot_safe_fill_rect(40, 40, 222, 58, BLT_4_WHITE);
-  boot_safe_draw_rect(40, 40, 222, 58, BLT_BLACK);
-  boot_safe_draw_rect(45, 43, 56, 54, BLT_BLACK);
-  boot_safe_hline(70, 49, 122, BLT_BLACK);
-  boot_safe_hline(70, 51, 122, BLT_BLACK);
-  boot_safe_draw_rect(0, 0, 320, 224, BLT_BLACK);
+  full.left = 0;
+  full.top = 0;
+  full.right = 320;
+  full.bottom = 224;
+
+  menu.left = 0;
+  menu.top = 0;
+  menu.right = 320;
+  menu.bottom = 20;
+
+  desktop.left = 0;
+  desktop.top = 20;
+  desktop.right = 320;
+  desktop.bottom = 224;
+
+  shadow.left = 44;
+  shadow.top = 45;
+  shadow.right = 226;
+  shadow.bottom = 151;
+
+  title.left = 40;
+  title.top = 40;
+  title.right = 222;
+  title.bottom = 58;
+
+  body.left = 40;
+  body.top = 58;
+  body.right = 222;
+  body.bottom = 148;
+
+  close.left = 45;
+  close.top = 43;
+  close.right = 56;
+  close.bottom = 54;
+
+  BLT_ResetClip();
+  BLT_FillRect(&full, BLT_GetWhite());
+  BLT_FillRectPattern2(&desktop, &PAT_GRAY_50, BLT_4_LIGHT_GRAY,
+                       BLT_GetWhite());
+  BLT_FillRect(&menu, BLT_GetWhite());
+  BLT_DrawHLine(0, 19, 320, BLT_BLACK);
+
+  BLT_FillRect(&shadow, BLT_4_DARK_GRAY);
+  BLT_FillRect(&body, BLT_GetWhite());
+  BLT_DrawRect(&body, BLT_BLACK);
+  BLT_FillRect(&title, BLT_GetWhite());
+  BLT_DrawRect(&title, BLT_BLACK);
+  BLT_DrawRect(&close, BLT_BLACK);
+  BLT_DrawHLine(70, 49, 122, BLT_BLACK);
+  BLT_DrawHLine(70, 51, 122, BLT_BLACK);
+  BLT_DrawRect(&full, BLT_BLACK);
 }
 #endif
 
@@ -237,6 +226,10 @@ static void os_init(void) {
   sub_write_result(7, 0x7303);
 
 #ifdef BOOT_SAFE_DESKTOP
+  BLT_Init((uint8_t *)0x0C0000);
+  sub_write_result(7, 0x73f1);
+  BLT_SetMode(BLT_MODE_4BIT);
+  sub_write_result(7, 0x73f2);
   sub_write_result(7, 0x73fe);
 #else
   /* Initialize Window Manager */

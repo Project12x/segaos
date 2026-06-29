@@ -22,9 +22,10 @@ deferred. A C-runtime smoke image proves the normal SP header, BSS clear,
 `sub_init`, `sub_main`, and command handshake. `DESKTOP_INIT_PROBE=1` now proves
 the real boot-safe desktop SP reaches the C command loop, completes a first
 `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM frame. The
-default build now displays a visible Mac-like boot-safe frame: checker desktop,
-menu separator, and a document-window outline captured at
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_161803.png`.
+default build now displays a visible Mac-like boot-safe frame through BLT's
+word-safe framebuffer backend: checker desktop, menu separator, and a
+document-window outline captured at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_163115.png`.
 
 The active strategy is a bring-up ladder:
 
@@ -39,7 +40,7 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 4,660-byte SP binary observed locally with word-safe first-frame renderer; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 7,122-byte SP binary observed locally with word-safe BLT framebuffer backend; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,708 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
@@ -62,13 +63,13 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 6,940 bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 9,404 bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
 - BOOT_PROBE SP usage: 930 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
-- Boot-safe desktop SP usage: 4,660 bytes observed locally with
+- Boot-safe desktop SP usage: 7,122 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
@@ -77,6 +78,10 @@ The active strategy is a bring-up ladder:
 - Disc image: 150 cooked sectors, `MODE1/2048`, 32KB boot/system area
 
 ## Current Reference Baseline
+
+Before changing boot, Word RAM, framebuffer, or desktop bring-up code, read
+`LESSONS.md`; it captures emulator-proven constraints that should not be
+rediscovered by trial and error.
 
 Megadev 1.2.0:
 
@@ -156,10 +161,10 @@ High priority:
   tile readback, and a visible deterministic framebuffer display. They do not
   yet prove the full alternating double-buffer policy for repeated frames.
 - The boot-safe C desktop path now reaches Sub-ready, completes a first
-  render/upload sequence, and displays a visible Mac-like starter frame. The
-  BLT-backed boot-safe render path remains isolated: word-safe 16-bit Word RAM
-  drawing is used for the startup frame because BLT's byte-oriented framebuffer
-  writes do not survive this boot Word RAM path reliably.
+  render/upload sequence, and displays a visible Mac-like starter frame through
+  BLT. BLT framebuffer access now uses 16-bit Word RAM helpers; the next risk is
+  moving from the starter drawing function to full window-manager/menu/cursor
+  rendering without regressing command timing or Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ## [Unreleased]
 
 ### Added
+- Added `LESSONS.md` to capture emulator-proven Sega CD bring-up lessons,
+  including Megadev reference-first workflow, Word RAM ownership, and
+  byte-versus-word framebuffer write constraints.
 - Added Megadev's MIT regional Sega CD security block as
   `src/main/security.c`, linked first in the Main CPU IP.
 - Added `CD_REGION` build selection for JP/US/EU security-code variants.
@@ -74,6 +77,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   starter frame.
 - Aligned the boot-safe command wait loop with the probe-proven polling path so
   the default image consumes the first render command.
+- Reworked BLT framebuffer access to route reads/writes through 16-bit Word RAM
+  helpers, allowing the boot-safe starter frame to use BLT rectangle and pattern
+  primitives again.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -107,6 +113,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Documented that runtime smoke and boot-safe desktop render probes now pass,
   and that BLT's byte-oriented framebuffer writes are isolated from the boot
   path until Word RAM-safe rendering is designed.
+- Added lessons from the word-safe BLT fix and updated current-state docs with
+  the latest BLT-backed screenshot evidence.
 
 ## [0.1.0] - 2026-02-10
 

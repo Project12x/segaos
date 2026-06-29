@@ -90,6 +90,35 @@ static inline uint8_t fill_byte(uint8_t color) {
     return fill_byte_4bit(color);
 }
 
+static uint8_t fb_read_byte(uint32_t offset) {
+  volatile uint16_t *words = (volatile uint16_t *)fb;
+  uint16_t word = words[offset >> 1];
+
+  return (offset & 1) ? (uint8_t)(word & 0x00ff) : (uint8_t)(word >> 8);
+}
+
+static void fb_write_byte(uint32_t offset, uint8_t value) {
+  volatile uint16_t *words = (volatile uint16_t *)fb;
+  uint16_t index = (uint16_t)(offset >> 1);
+  uint16_t word = words[index];
+
+  if (offset & 1) {
+    word = (uint16_t)((word & 0xff00) | value);
+  } else {
+    word = (uint16_t)((word & 0x00ff) | ((uint16_t)value << 8));
+  }
+
+  words[index] = word;
+}
+
+static void fb_fill_bytes(uint32_t offset, uint8_t value, uint32_t count) {
+  uint32_t i;
+
+  for (i = 0; i < count; i++) {
+    fb_write_byte(offset + i, value);
+  }
+}
+
 /* ============================================================
  * Mode Management
  * ============================================================ */
@@ -137,7 +166,7 @@ void BLT_SetFramebuffer(uint8_t *framebuffer) { fb = framebuffer; }
 void BLT_Clear(uint8_t color) {
   if (!fb)
     return;
-  memset(fb, fill_byte(color), fbSize);
+  fb_fill_bytes(0, fill_byte(color), fbSize);
 }
 
 /* ============================================================
@@ -145,7 +174,8 @@ void BLT_Clear(uint8_t color) {
  * ============================================================ */
 
 void BLT_SetPixel(int16_t x, int16_t y, uint8_t color) {
-  uint8_t *byte;
+  uint32_t offset;
+  uint8_t byte;
   uint8_t shift, mask;
 
   if (!fb || !clip_point(x, y))
@@ -154,20 +184,24 @@ void BLT_SetPixel(int16_t x, int16_t y, uint8_t color) {
   if (curMode == BLT_MODE_2BIT) {
     /* 2bpp: 4 pixels per byte, MSB-first */
     /* Pixel 0 in bits 7-6, pixel 1 in bits 5-4, etc. */
-    byte = &fb[y * bpr + (x >> 2)];
+    offset = (uint32_t)y * bpr + (uint16_t)(x >> 2);
     shift = 6 - ((x & 3) << 1); /* 6, 4, 2, 0 */
     mask = 0x03 << shift;
-    *byte = (*byte & ~mask) | ((color & 0x03) << shift);
+    byte = fb_read_byte(offset);
+    byte = (uint8_t)((byte & ~mask) | ((color & 0x03) << shift));
+    fb_write_byte(offset, byte);
   } else {
     /* 4bpp: 2 pixels per byte, high nibble = left */
-    byte = &fb[y * bpr + (x >> 1)];
+    offset = (uint32_t)y * bpr + (uint16_t)(x >> 1);
+    byte = fb_read_byte(offset);
     if (x & 1) {
       /* Low nibble (right pixel) */
-      *byte = (*byte & 0xF0) | (color & 0x0F);
+      byte = (uint8_t)((byte & 0xF0) | (color & 0x0F));
     } else {
       /* High nibble (left pixel) */
-      *byte = (*byte & 0x0F) | ((color & 0x0F) << 4);
+      byte = (uint8_t)((byte & 0x0F) | ((color & 0x0F) << 4));
     }
+    fb_write_byte(offset, byte);
   }
 }
 
@@ -177,9 +211,10 @@ uint8_t BLT_GetPixel(int16_t x, int16_t y) {
 
   if (curMode == BLT_MODE_2BIT) {
     uint8_t shift = 6 - ((x & 3) << 1);
-    return (fb[y * bpr + (x >> 2)] >> shift) & 0x03;
+    return (fb_read_byte((uint32_t)y * bpr + (uint16_t)(x >> 2)) >> shift) &
+           0x03;
   } else {
-    uint8_t b = fb[y * bpr + (x >> 1)];
+    uint8_t b = fb_read_byte((uint32_t)y * bpr + (uint16_t)(x >> 1));
     return (x & 1) ? (b & 0x0F) : (b >> 4);
   }
 }
@@ -207,32 +242,38 @@ void BLT_DrawHLine(int16_t x, int16_t y, int16_t w, uint8_t color) {
     if (byteStart == byteEnd) {
       /* Single byte span */
       for (px = x; px < x1; px++) {
+        uint32_t offset = (uint32_t)y * bpr + (uint16_t)(px >> 2);
         uint8_t shift = 6 - ((px & 3) << 1);
         uint8_t mask = 0x03 << shift;
-        uint8_t *b = &fb[y * bpr + (px >> 2)];
-        *b = (*b & ~mask) | ((color & 0x03) << shift);
+        uint8_t b = fb_read_byte(offset);
+        b = (uint8_t)((b & ~mask) | ((color & 0x03) << shift));
+        fb_write_byte(offset, b);
       }
     } else {
       /* First partial byte */
       for (px = x; px < ((byteStart + 1) << 2) && px < x1; px++) {
+        uint32_t offset = (uint32_t)y * bpr + (uint16_t)(px >> 2);
         uint8_t shift = 6 - ((px & 3) << 1);
         uint8_t mask = 0x03 << shift;
-        uint8_t *b = &fb[y * bpr + (px >> 2)];
-        *b = (*b & ~mask) | ((color & 0x03) << shift);
+        uint8_t b = fb_read_byte(offset);
+        b = (uint8_t)((b & ~mask) | ((color & 0x03) << shift));
+        fb_write_byte(offset, b);
       }
       /* Full middle bytes */
       {
         int16_t i;
         for (i = byteStart + 1; i < byteEnd; i++) {
-          fb[y * bpr + i] = fillByte;
+          fb_write_byte((uint32_t)y * bpr + (uint16_t)i, fillByte);
         }
       }
       /* Last partial byte */
       for (px = byteEnd << 2; px < x1; px++) {
+        uint32_t offset = (uint32_t)y * bpr + (uint16_t)(px >> 2);
         uint8_t shift = 6 - ((px & 3) << 1);
         uint8_t mask = 0x03 << shift;
-        uint8_t *b = &fb[y * bpr + (px >> 2)];
-        *b = (*b & ~mask) | ((color & 0x03) << shift);
+        uint8_t b = fb_read_byte(offset);
+        b = (uint8_t)((b & ~mask) | ((color & 0x03) << shift));
+        fb_write_byte(offset, b);
       }
     }
   } else {
@@ -243,29 +284,35 @@ void BLT_DrawHLine(int16_t x, int16_t y, int16_t w, uint8_t color) {
 
     if (byteStart == byteEnd) {
       for (px = x; px < x1; px++) {
-        uint8_t *b = &fb[y * bpr + (px >> 1)];
+        uint32_t offset = (uint32_t)y * bpr + (uint16_t)(px >> 1);
+        uint8_t b = fb_read_byte(offset);
         if (px & 1)
-          *b = (*b & 0xF0) | (color & 0x0F);
+          b = (uint8_t)((b & 0xF0) | (color & 0x0F));
         else
-          *b = (*b & 0x0F) | ((color & 0x0F) << 4);
+          b = (uint8_t)((b & 0x0F) | ((color & 0x0F) << 4));
+        fb_write_byte(offset, b);
       }
     } else {
       /* First pixel if odd */
       if (x & 1) {
-        uint8_t *b = &fb[y * bpr + byteStart];
-        *b = (*b & 0xF0) | (color & 0x0F);
+        uint32_t offset = (uint32_t)y * bpr + (uint16_t)byteStart;
+        uint8_t b = fb_read_byte(offset);
+        b = (uint8_t)((b & 0xF0) | (color & 0x0F));
+        fb_write_byte(offset, b);
         byteStart++;
       }
       /* Last pixel if even end */
       if (x1 & 1) {
-        uint8_t *b = &fb[y * bpr + byteEnd];
-        *b = (*b & 0x0F) | ((color & 0x0F) << 4);
+        uint32_t offset = (uint32_t)y * bpr + (uint16_t)byteEnd;
+        uint8_t b = fb_read_byte(offset);
+        b = (uint8_t)((b & 0x0F) | ((color & 0x0F) << 4));
+        fb_write_byte(offset, b);
         byteEnd--;
       }
       /* Full middle bytes */
       if (byteEnd >= byteStart) {
-        memset(&fb[y * bpr + byteStart], fillByte,
-               (uint16_t)(byteEnd - byteStart + 1));
+        fb_fill_bytes((uint32_t)y * bpr + (uint16_t)byteStart, fillByte,
+                      (uint16_t)(byteEnd - byteStart + 1));
       }
     }
   }
@@ -291,8 +338,10 @@ void BLT_DrawVLine(int16_t x, int16_t y, int16_t h, uint8_t color) {
     uint8_t val = (color & 0x03) << shift;
 
     for (row = y0; row < y1; row++) {
-      uint8_t *b = &fb[row * bpr + byteCol];
-      *b = (*b & ~mask) | val;
+      uint32_t offset = (uint32_t)row * bpr + (uint16_t)byteCol;
+      uint8_t b = fb_read_byte(offset);
+      b = (uint8_t)((b & ~mask) | val);
+      fb_write_byte(offset, b);
     }
   } else {
     int16_t byteCol = x >> 1;
@@ -307,8 +356,10 @@ void BLT_DrawVLine(int16_t x, int16_t y, int16_t h, uint8_t color) {
     }
 
     for (row = y0; row < y1; row++) {
-      uint8_t *b = &fb[row * bpr + byteCol];
-      *b = (*b & mask) | val;
+      uint32_t offset = (uint32_t)row * bpr + (uint16_t)byteCol;
+      uint8_t b = fb_read_byte(offset);
+      b = (uint8_t)((b & mask) | val);
+      fb_write_byte(offset, b);
     }
   }
 }
