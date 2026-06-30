@@ -158,3 +158,11 @@ repeated-frame double-buffer policy problem, not disc recognition, Sub startup,
 first Word RAM return, or first visible framebuffer display. The framebuffer
 rung now also has BlastEm internal screenshot proof for the deterministic
 full-screen 4bpp pattern.
+
+Follow-up display evidence on 2026-06-30: the default boot-safe desktop frame is
+now captured with `BOOT_SAFE_VISUAL_PROBE=1` and
+`tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot`, which uses GDB
+to prove the app reached `segaos_visual_probe_halt` phase `0x76ff` before
+triggering BlastEm internal screenshotting. Treat this debugger-backed path as
+the default visual proof route; START-key autoplay captures can land on the Sega
+CD BIOS screen and should not be accepted as app-render evidence.

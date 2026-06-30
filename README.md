@@ -56,6 +56,10 @@ C:\SDKS\SGDK\bin\make.exe -f Makefile main
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso VDP_TEXT_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe VdpText
 
+# Build and capture the default boot-safe desktop frame deterministically
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BOOT_SAFE_VISUAL_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -StartKey Enter -ScreenshotKey P -Template segaos_debug_visual_p_%Y%m%d_%H%M%S.png
+
 # Clean
 C:\SDKS\SGDK\bin\make.exe -f Makefile clean
 ```
@@ -119,9 +123,18 @@ from SGDK v2.11's MIT `font_default.png`; provenance and license are recorded
 in `src/sub/sysfont.c` and `third_party/sgdk_font/`. The visible title/body
 canary now uses that font in the default boot-safe window, with
 `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving a sampled default body
-text row as `0xf11f/0x1f11` in both Word RAM and VDP tile data. The last accepted
-default visual capture is the older block-canary frame at
-`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
+text row as `0xf11f/0x1f11` in both Word RAM and VDP tile data. The default
+boot-safe visual capture is now debugger-driven: build with
+`BOOT_SAFE_VISUAL_PROBE=1` and run
+`tools\capture_blastem_internal_screenshot.ps1` with
+`-DebugAutoBoot -StartKey Enter -ScreenshotKey P`. GDB proves
+`segaos_visual_probe_halt` and phase `0x76ff`,
+then resumes BlastEm so the emulator's internal `ui.screenshot` binding captures
+the app frame instead of a BIOS screen. The latest accepted default screenshot is
+`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`; the
+older block-canary frame at
+`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is retained
+only as historical evidence. The
 known-bad blank capture
 `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` and the
 pre-fix sparse/corrupt capture

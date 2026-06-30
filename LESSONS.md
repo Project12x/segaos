@@ -56,6 +56,11 @@ same failures.
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
+- For default boot-safe desktop screenshots, prefer the deterministic visual
+  probe path: build `BOOT_SAFE_VISUAL_PROBE=1`, launch BlastEm with
+  `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot`, require GDB
+  to hit `segaos_visual_probe_halt` with phase `0x76ff`, then let BlastEm's
+  internal `ui.screenshot` binding capture the resumed app frame.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
   moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"
@@ -130,9 +135,13 @@ same failures.
 - The default boot-safe text/title canary is memory-proven separately:
   `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies a sampled default
   body text row as `0xf11f/0x1f11` in both Word RAM and VDP tile data.
-- Latest accepted default internal screenshot, from the older block-canary
-  frame:
-  `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
+- Latest accepted default internal screenshot, captured with
+  `BOOT_SAFE_VISUAL_PROBE=1` and `-DebugAutoBoot` after GDB proved phase
+  `0x76ff`:
+  `C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`.
+  The older block-canary frame at
+  `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is only a
+  historical reference.
 - Latest accepted opt-in desktop-composited SGDK-font text probe screenshot:
   `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png`.
   The earlier `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png`
@@ -140,7 +149,8 @@ same failures.
   captures are known-bad references from before index-0 transparency was fixed.
 - A default autoplay capture can still stop at the Sega CD BIOS screen if START
   is not delivered to BlastEm. Treat that as capture automation evidence, not a
-  rendering regression.
+  rendering regression. Do not use BIOS-screen captures as default desktop
+  acceptance evidence.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

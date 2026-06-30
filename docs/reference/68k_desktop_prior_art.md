@@ -126,30 +126,31 @@ Clean-room SegaOS translation:
 ## Architectural Decision
 
 Do not continue by pushing the full `WM_NewWindow()` path into the boot frame.
-The current visible block `OS` canary proves that the boot-safe path can draw
+The earlier visible block `OS` canary proved that the boot-safe path could draw
 recognizable pixels, but the missing readable title text and prior corrupted
-output prove that the graphics stack is not decomposed enough.
+output proved that the graphics stack was not decomposed enough.
 
-The next implementation rungs are:
+Status update, 2026-06-30: the first text primitive rung is complete. SegaOS now
+uses SGDK v2.11's MIT 8x8 font, proves direct VDP tile text through
+`VDP_TEXT_PROBE=1`, proves desktop-composited scaled text through
+`BOOT_SAFE_TEXT_PROBE=1`, and captures the restored default menu/title/body
+frame at
+`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`
+through debugger-backed BlastEm internal screenshotting.
 
-1. Text primitive proof:
-   - draw a simple fixed 8x8 or 8x16 monochrome font into the existing 4bpp
-     framebuffer;
-   - verify Word RAM and VDP tile bytes;
-   - capture a BlastEm internal screenshot with readable letters;
-   - keep striped title bars and stylized sysfont composition disabled until
-     this proof is visually accepted.
-2. Dirty rectangle and clipping proof:
+The remaining implementation rungs are:
+
+1. Dirty rectangle and clipping proof:
    - implement a static rectangle pool;
    - implement intersection/subtraction/iteration tests on host first;
    - map dirty rectangles to tile ranges for the Main CPU upload path.
-3. Root desktop redraw proof:
+2. Root desktop redraw proof:
    - redraw desktop fill/menu/root objects through the new contracts;
    - no application windows yet.
-4. Minimal window furniture proof:
+3. Minimal window furniture proof:
    - draw one window frame/title/furniture through the dirty-rect list;
    - no app content callbacks yet.
-5. Application content and event routing:
+4. Application content and event routing:
    - add app-owned content rectangles;
    - route mouse/key events only after visible ownership and redraw are stable.
 

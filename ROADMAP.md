@@ -135,7 +135,11 @@ handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
 frame. The default build now displays a visible checker desktop/menu/window
 starter frame with real SGDK-font menu, title, and body text through BLT's
 word-safe framebuffer backend. The older block-canary capture is retained at
-`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
+`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
+current accepted default capture is
+`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`,
+created by the `BOOT_SAFE_VISUAL_PROBE=1` / `-DebugAutoBoot` path after GDB
+proved `segaos_visual_probe_halt` phase `0x76ff`.
 The captured striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
 known-bad visual reference, so body text and striped title styling stay opt-in.
@@ -190,6 +194,9 @@ that matches Genesis VDP constraints.
       desktop compositor probe
 - [x] Restore accepted text and title presentation to the default boot-safe
       desktop path
+- [x] Capture and visually accept the restored default boot-safe desktop via
+      debugger-backed BlastEm internal screenshotting, not BIOS/autoplay
+      capture
 - [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
       used by the boot-safe renderer
 - [ ] Route root desktop redraw through the dirty-rectangle/clipping contract
@@ -207,7 +214,7 @@ that matches Genesis VDP constraints.
       desktop-composited scaled SGDK-font text, not a BIOS frame or blank
       transition frame
 - [x] Prove title-bar text composition pixels in Word RAM and VDP tile data
-- [ ] Visually accept restored default title presentation after the simpler
+- [x] Visually accept restored default title presentation after the simpler
       fixed-font text proof passes
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
       dirty-rectangle/root-redraw contracts pass

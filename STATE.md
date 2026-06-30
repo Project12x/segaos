@@ -26,7 +26,12 @@ default build now displays a visible Mac-like boot-safe frame through BLT's
 word-safe framebuffer backend: checker desktop, menu separator, and a compact
 window starter frame. The starter frame now uses the real SGDK-derived font for
 menu, title, and body text instead of the old block `OS` visual canary. The
-previous block-canary screenshot is retained at
+latest accepted default internal screenshot is
+`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`,
+captured from a `BOOT_SAFE_VISUAL_PROBE=1` build after GDB hit
+`segaos_visual_probe_halt` with phase `0x76ff` and BlastEm's own
+`ui.screenshot` binding wrote the PNG. The previous block-canary screenshot is
+retained as historical evidence at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
 An opt-in SGDK-derived font text probe capture is also available at
 `C:\tmp\segaos_screens_internal\segaos_sgdk_text_20260629_215956.png`.
@@ -88,6 +93,7 @@ The active strategy is a bring-up ladder:
 | Direct VDP text canary | Passing | `VDP_TEXT_PROBE=1` + `-Probe VdpText` proves SGDK-derived 8x8 glyph tile upload, VRAM readback `0x00ff/0xff00`, Plane A entries `0x0001/0x0002/0x0003`, and a readable internal screenshot |
 | Desktop scaled text isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff11`, full-glyph signature `0xd2dd`, Plane A entries `0x0198/0x0199/0x019a`, and readable desktop-compositor screenshot `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png` |
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
+| Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -112,6 +118,9 @@ The active strategy is a bring-up ladder:
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
 - Boot-safe title/default-text probe SP usage: 10,636 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
+- Boot-safe visual-probe IP usage: 2,728 text bytes observed locally with
+  `BOOT_SAFE_VISUAL_PROBE=1`; SP remains the 10,588-byte boot-safe desktop
+  payload
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
   `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
   part of the probe path
@@ -250,8 +259,11 @@ High priority:
   The default boot-safe path now restores a real-font menu/title/body starter
   frame without using `WM_NewWindow()` allocation or app callbacks, and
   `BOOT_SAFE_TITLE_PROBE=1` proves a sampled default text row through both Word
-  RAM and VDP tile readback. BLT framebuffer access and Main framebuffer upload
-  both use 16-bit Word RAM helpers. The next risks are simpler and lower-level:
+  RAM and VDP tile readback. `BOOT_SAFE_VISUAL_PROBE=1` now also gives a
+  debugger-backed BlastEm internal screenshot of the default frame, so a BIOS
+  screen or old block-canary capture is no longer acceptable visual evidence.
+  BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
+  helpers. The next risks are simpler and lower-level:
   add dirty-rectangle/clipping ownership, route root desktop redraw through that
   contract, then move to real `WM_NewWindow()`/menu/cursor rendering without
   regressing command timing or Word RAM ownership.

@@ -92,6 +92,10 @@ volatile uint16_t segaos_desktop_title_wram_word1;
 volatile uint16_t segaos_desktop_title_vram_word0;
 volatile uint16_t segaos_desktop_title_vram_word1;
 #endif
+#ifdef BOOT_SAFE_VISUAL_PROBE
+void segaos_visual_probe_halt(void) __attribute__((noinline, used));
+volatile uint16_t segaos_visual_probe_phase;
+#endif
 #ifdef VDP_TEXT_PROBE
 void segaos_vdp_text_probe(void);
 #endif
@@ -293,8 +297,19 @@ static void boot_sequence(void) {
   FB_UpdateFrame(WRAM_BANK0_MAIN);
   VDP_WaitDMA();
   main_return_wram_to_sub();
+#ifdef BOOT_SAFE_VISUAL_PROBE
+  segaos_visual_probe_phase = 0x76ff;
+  segaos_visual_probe_halt();
+#endif
 #endif
 }
+
+#ifdef BOOT_SAFE_VISUAL_PROBE
+void segaos_visual_probe_halt(void) {
+  while (1) {
+  }
+}
+#endif
 
 #ifdef SUB_RUNTIME_SMOKE
 static void runtime_smoke_capture_status(void) {

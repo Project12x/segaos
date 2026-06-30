@@ -16,7 +16,11 @@ param(
   [ValidateSet("P", "Enter", "Space", "All")]
   [string]$StartKey = "All",
   [ValidateSet("P", "F12")]
-  [string]$ScreenshotKey = "P"
+  [string]$ScreenshotKey = "P",
+  [switch]$DebugAutoBoot,
+  [string]$Elf = "build\main_cpu.elf",
+  [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
+  [string]$DebugBreakSymbol = "segaos_visual_probe_halt"
 )
 
 $ErrorActionPreference = "Stop"
@@ -145,6 +149,12 @@ function Send-ScreenshotKey([System.Diagnostics.Process]$Process) {
 
 $blastemExe = Resolve-ExistingPath (Join-Path $BlastEmDir "blastem.exe") "BlastEm executable"
 $cuePath = Resolve-ExistingPath $Cue "CUE"
+$elfPath = $null
+$gdbPath = $null
+if ($DebugAutoBoot) {
+  $elfPath = Resolve-ExistingPath $Elf "Main CPU ELF"
+  $gdbPath = Resolve-ExistingPath $Gdb "m68k GDB"
+}
 $defaultConfigPath = Resolve-ExistingPath (Join-Path $BlastEmDir "default.cfg") "BlastEm default config"
 $configDir = Join-Path $env:LOCALAPPDATA "blastem"
 $configPath = Join-Path $configDir "blastem.cfg"
@@ -218,18 +228,73 @@ public static class NativeInput {
 "@
 
   $before = @(Get-ChildItem -LiteralPath $OutputDir -Filter "*.png" -ErrorAction SilentlyContinue)
+  $blastemArgs = @($cuePath)
+  if ($DebugAutoBoot) {
+    $blastemArgs += "-D"
+  }
+
   $proc = Start-Process -FilePath $blastemExe `
-    -ArgumentList @($cuePath) `
+    -ArgumentList $blastemArgs `
     -WorkingDirectory $BlastEmDir `
     -PassThru
 
   Start-Sleep -Seconds $SecondsBeforeStart
-  Get-BlastEmWindowHandle $proc | Out-Null
+  if (-not $DebugAutoBoot) {
+    Get-BlastEmWindowHandle $proc | Out-Null
+  }
 
-  for ($i = 0; $i -lt $StartPresses; $i++) {
-    Send-StartKey $proc
-    if ($i -lt ($StartPresses - 1)) {
-      Start-Sleep -Milliseconds $MillisecondsBetweenStartPresses
+  if ($DebugAutoBoot) {
+    $gdbArgs = @(
+      "-q",
+      "-batch",
+      "-ex",
+      "set mi-async on",
+      "-ex",
+      "set tcp connect-timeout 5",
+      "-ex",
+      "set remotetimeout 10",
+      "-ex",
+      "target remote 127.0.0.1:1234",
+      "-ex",
+      "break $DebugBreakSymbol",
+      "-ex",
+      "continue",
+      "-ex",
+      "p/x (unsigned short)segaos_visual_probe_phase",
+      # Keep BlastEm running after the proof point; a stopped GDB target does
+      # not reliably process the UI screenshot binding.
+      "-ex",
+      "delete breakpoints",
+      "-ex",
+      "continue&",
+      "-ex",
+      "disconnect",
+      $elfPath
+    )
+    $oldErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $gdbOutput = & $gdbPath @gdbArgs 2>&1 | ForEach-Object { $_.ToString() }
+      $gdbExit = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $oldErrorActionPreference
+    }
+    $hitBreakpoint = (($gdbOutput -join "`n") -match "Breakpoint \d+, .*${DebugBreakSymbol}")
+    $phaseOk = (($gdbOutput -join "`n") -match "0x76ff")
+    Write-Output "debug_gdb_exit=$gdbExit"
+    Write-Output "debug_breakpoint_hit=$hitBreakpoint"
+    Write-Output "debug_phase_ok=$phaseOk"
+    if ($gdbExit -ne 0 -or -not $hitBreakpoint -or -not $phaseOk) {
+      $gdbOutput | ForEach-Object { Write-Output $_ }
+      throw "Debug auto-boot did not reach $DebugBreakSymbol with phase 0x76ff"
+    }
+    Get-BlastEmWindowHandle $proc | Out-Null
+  } else {
+    for ($i = 0; $i -lt $StartPresses; $i++) {
+      Send-StartKey $proc
+      if ($i -lt ($StartPresses - 1)) {
+        Start-Sleep -Milliseconds $MillisecondsBetweenStartPresses
+      }
     }
   }
   Start-Sleep -Seconds $SecondsAfterStart
