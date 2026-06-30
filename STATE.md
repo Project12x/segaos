@@ -69,7 +69,7 @@ The active strategy is a bring-up ladder:
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
-| Text render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the SGDK-font "S" glyph sample at `x=64`, `y=83` as `0xffff/0xff00` in both Word RAM and VDP tile data |
+| Text render isolation | Memory/plane passing, visual pending | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff00`, full-glyph signature `0xa429`, and Plane A entries `0x0198/0x0199/0x019a`; accepted readable internal screenshot is still pending |
 | Title/block render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves the sampled block title row as `0x0fff/0xffff` in both Word RAM and VDP tile data |
 
 ## Toolchain
@@ -219,11 +219,14 @@ High priority:
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
   starter window stays a compact boot-safe BLT rectangle renderer. Plain body
   text rendering now uses a real SGDK-derived 8x8 font and is GDB-proven at
-  the Word RAM and VDP tile levels via `BOOT_SAFE_TEXT_PROBE=1`. Title-bar
+  the Word RAM, VDP tile, and Plane A levels via `BOOT_SAFE_TEXT_PROBE=1`.
+  The normal BlastEm screenshot path still needs a readable text capture; do
+  not treat the blank text-probe captures as visual acceptance. Title-bar
   stripe/text composition is also
   GDB-proven via `BOOT_SAFE_TITLE_PROBE=1`, but remains opt-in until the visual
-  presentation is accepted. BLT framebuffer access uses 16-bit Word RAM helpers.
-  The next risks are simpler and lower-level: clean up the scaled-font stroke
+  presentation is accepted. BLT framebuffer access and Main framebuffer upload
+  both use 16-bit Word RAM helpers. The next risks are simpler and lower-level:
+  make the text probe produce an accepted internal screenshot, clean up the scaled-font stroke
   presentation, add dirty-rectangle/clipping ownership, route root desktop
   redraw through that contract, then move to real `WM_NewWindow()`/menu/cursor
   rendering without regressing command timing or Word RAM ownership.

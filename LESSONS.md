@@ -57,8 +57,9 @@ same failures.
   old boot pattern.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
-  moved to `y=86`. The corrected SGDK-font probe samples a tile-aligned "S"
-  glyph row at `x=64`, `y=83` and expects `0xffff/0xff00`.
+  moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"
+  row at `x=64`, `y=83` (`0xffff/0xff00`) and the full 24x24 scaled first
+  glyph signature (`0xa429`) in Word RAM and VDP tile data.
 
 ## Word RAM Ownership
 
@@ -79,6 +80,9 @@ same failures.
   boot-safe output.
 - BLT framebuffer reads/writes now go through 16-bit Word RAM helpers while
   preserving the same 4bpp byte/nibble layout for Main's `FB_UpdateFrame()`.
+- Main's framebuffer converter must also read returned Word RAM as 16-bit
+  words, then unpack the bytes locally. Byte-copying the returned bank can make
+  small glyph strokes appear corrupt even when the source glyph data is real.
 - Source glyph/bitmap reads can remain normal byte reads because they come from
   PRG-RAM/rodata, not Word RAM.
 
@@ -99,8 +103,11 @@ same failures.
 - Plain body text and striped title-bar composition are separate risks. The old
   hand-authored 6x10 placeholder sysfont was not a defensible target. It has
   been replaced with SGDK v2.11's real 8x8 font, and
-  `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` proves the sampled "S"
-  glyph row reaches both Word RAM and VDP tile data as `0xffff/0xff00`.
+  `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` proves the first scaled "S"
+  as a full-glyph signature (`0xa429`) in both Word RAM and VDP tile data.
+- The same text probe now reads Plane A entries under the first scaled "S" and
+  expects `0x0198/0x0199/0x019a`, proving the visible plane points at the
+  verified text tiles in the GDB-driven run.
 - Keep text probes separate from title-bar stripes. Plain body text should be
   visually accepted before the active Mac-style striped title composition is
   restored.
@@ -109,11 +116,12 @@ same failures.
   title bytes as `0x0fff/0xffff` in both Word RAM and VDP tile data.
 - Latest default internal screenshot:
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
-- Latest opt-in SGDK-font text probe screenshot:
-  `C:\tmp\segaos_screens_internal\segaos_sgdk_text_20260629_215956.png`.
-- The latest text screenshot uses real glyph outlines but still shows a
-  broken-stroke scaled presentation. Treat that as the next visual-rendering
-  problem, not as a reason to return to placeholder letter shapes.
+- Latest opt-in SGDK-font text probe screenshot attempts did not yet produce
+  accepted readable text. Treat `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png`
+  as a failed/blank capture, not as proof of display.
+- Do not mark text visually accepted until a BlastEm internal screenshot shows
+  readable glyphs. GDB memory/VRAM/Plane A proof is necessary but not sufficient
+  for the visual milestone.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

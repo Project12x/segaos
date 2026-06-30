@@ -98,8 +98,9 @@ void FB_ShowBootPattern(void) {
  *   4 bytes = 8 pixels starting at column tx*8
  *   tile_data[tile_index * 32 + r * 4 .. +3]
  *
- * Both formats pack pixels identically (high nibble = left),
- * so we just copy 4 bytes from the linear row to the tile row.
+ * Both formats pack pixels identically (high nibble = left). Word RAM access
+ * is kept 16-bit wide and unpacked into bytes locally; byte reads from the
+ * shared RAM path have produced misleading partial glyphs in emulator testing.
  * ============================================================ */
 static void convert_strip(const uint8_t *linear_fb, uint16_t strip_y) {
   uint16_t tile_rows = STRIP_TILE_ROWS;
@@ -122,15 +123,19 @@ static void convert_strip(const uint8_t *linear_fb, uint16_t strip_y) {
       uint16_t byte_x = tx * 4; /* 8 pixels @ 4bpp = 4 bytes */
 
       for (uint16_t r = 0; r < 8; r++) {
-        const uint8_t *src_row =
-            &linear_fb[(px_y + r) * FB_LINEAR_BPR + byte_x];
+        uint32_t src_offset =
+            ((uint32_t)(px_y + r) * FB_LINEAR_BPR) + (uint32_t)byte_x;
+        volatile const uint16_t *src_words =
+            (volatile const uint16_t *)(linear_fb + src_offset);
+        uint16_t row_word0 = src_words[0];
+        uint16_t row_word1 = src_words[1];
         uint8_t *dst_row = &tile_dst[r * 4];
 
         /* Copy 4 bytes (8 pixels) - same nibble packing */
-        dst_row[0] = src_row[0];
-        dst_row[1] = src_row[1];
-        dst_row[2] = src_row[2];
-        dst_row[3] = src_row[3];
+        dst_row[0] = (uint8_t)(row_word0 >> 8);
+        dst_row[1] = (uint8_t)(row_word0 & 0x00ff);
+        dst_row[2] = (uint8_t)(row_word1 >> 8);
+        dst_row[3] = (uint8_t)(row_word1 & 0x00ff);
       }
     }
   }

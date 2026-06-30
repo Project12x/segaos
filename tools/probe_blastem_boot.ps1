@@ -264,6 +264,11 @@ try {
       "segaos_desktop_text_wram_word1",
       "segaos_desktop_text_vram_word0",
       "segaos_desktop_text_vram_word1",
+      "segaos_desktop_text_wram_sig",
+      "segaos_desktop_text_vram_sig",
+      "segaos_desktop_text_plane_entry0",
+      "segaos_desktop_text_plane_entry1",
+      "segaos_desktop_text_plane_entry2",
       "segaos_desktop_title_probe_enabled",
       "segaos_desktop_title_wram_word0",
       "segaos_desktop_title_wram_word1",
@@ -501,6 +506,11 @@ try {
       "segaos_desktop_text_wram_word1",
       "segaos_desktop_text_vram_word0",
       "segaos_desktop_text_vram_word1",
+      "segaos_desktop_text_wram_sig",
+      "segaos_desktop_text_vram_sig",
+      "segaos_desktop_text_plane_entry0",
+      "segaos_desktop_text_plane_entry1",
+      "segaos_desktop_text_plane_entry2",
       "segaos_desktop_title_probe_enabled",
       "segaos_desktop_title_wram_word0",
       "segaos_desktop_title_wram_word1",
@@ -546,6 +556,8 @@ try {
     Write-Output "desktop_text_probe_enabled=$($desktopValues["segaos_desktop_text_probe_enabled"])"
     Write-Output "desktop_text_wram=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
     Write-Output "desktop_text_vram=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
+    Write-Output "desktop_text_sig wram=$($desktopValues["segaos_desktop_text_wram_sig"]) vram=$($desktopValues["segaos_desktop_text_vram_sig"])"
+    Write-Output "desktop_text_plane=$($desktopValues["segaos_desktop_text_plane_entry0"]),$($desktopValues["segaos_desktop_text_plane_entry1"]),$($desktopValues["segaos_desktop_text_plane_entry2"])"
     Write-Output "desktop_title_probe_enabled=$($desktopValues["segaos_desktop_title_probe_enabled"])"
     Write-Output "desktop_title_wram=$($desktopValues["segaos_desktop_title_wram_word0"]),$($desktopValues["segaos_desktop_title_wram_word1"])"
     Write-Output "desktop_title_vram=$($desktopValues["segaos_desktop_title_vram_word0"]),$($desktopValues["segaos_desktop_title_vram_word1"])"
@@ -561,11 +573,30 @@ try {
       )
       Write-Output "desktop_text_wram_check=$textWramOk expected=0xffff,0xff00 actual=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
       Write-Output "desktop_text_vram_check=$textVramOk expected=0xffff,0xff00 actual=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
+      $textWramGlyphOk = ($desktopValues["segaos_desktop_text_wram_sig"] -eq "0xa429")
+      $textVramGlyphOk = ($desktopValues["segaos_desktop_text_vram_sig"] -eq "0xa429")
+      $textPlaneOk = (
+        $desktopValues["segaos_desktop_text_plane_entry0"] -eq "0x0198" -and
+        $desktopValues["segaos_desktop_text_plane_entry1"] -eq "0x0199" -and
+        $desktopValues["segaos_desktop_text_plane_entry2"] -eq "0x019a"
+      )
+      Write-Output "desktop_text_wram_glyph_check=$textWramGlyphOk expected=0xa429 actual=$($desktopValues["segaos_desktop_text_wram_sig"])"
+      Write-Output "desktop_text_vram_glyph_check=$textVramGlyphOk expected=0xa429 actual=$($desktopValues["segaos_desktop_text_vram_sig"])"
+      Write-Output "desktop_text_plane_check=$textPlaneOk expected=0x0198,0x0199,0x019a actual=$($desktopValues["segaos_desktop_text_plane_entry0"]),$($desktopValues["segaos_desktop_text_plane_entry1"]),$($desktopValues["segaos_desktop_text_plane_entry2"])"
       if (-not $textWramOk) {
         $failed += "segaos_desktop_text_wram"
       }
       if (-not $textVramOk) {
         $failed += "segaos_desktop_text_vram"
+      }
+      if (-not $textWramGlyphOk) {
+        $failed += "segaos_desktop_text_wram_glyph"
+      }
+      if (-not $textVramGlyphOk) {
+        $failed += "segaos_desktop_text_vram_glyph"
+      }
+      if (-not $textPlaneOk) {
+        $failed += "segaos_desktop_text_plane"
       }
     }
 

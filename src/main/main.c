@@ -79,6 +79,11 @@ volatile uint16_t segaos_desktop_text_wram_word0;
 volatile uint16_t segaos_desktop_text_wram_word1;
 volatile uint16_t segaos_desktop_text_vram_word0;
 volatile uint16_t segaos_desktop_text_vram_word1;
+volatile uint16_t segaos_desktop_text_wram_sig;
+volatile uint16_t segaos_desktop_text_vram_sig;
+volatile uint16_t segaos_desktop_text_plane_entry0;
+volatile uint16_t segaos_desktop_text_plane_entry1;
+volatile uint16_t segaos_desktop_text_plane_entry2;
 volatile uint16_t segaos_desktop_title_probe_enabled;
 volatile uint16_t segaos_desktop_title_wram_word0;
 volatile uint16_t segaos_desktop_title_wram_word1;
@@ -328,18 +333,11 @@ void segaos_runtime_smoke_halt(void) {
 #define DESKTOP_TEXT_PROBE_X 64U
 #define DESKTOP_TEXT_PROBE_Y 80U
 #define DESKTOP_TEXT_PROBE_ROW 3U
-#define DESKTOP_TEXT_PROBE_BYTE_OFFSET                                           \
-  (((DESKTOP_TEXT_PROBE_Y + DESKTOP_TEXT_PROBE_ROW) * FB_LINEAR_BPR) +          \
-   (DESKTOP_TEXT_PROBE_X / 2U))
 #define DESKTOP_TEXT_PROBE_TILE_X (DESKTOP_TEXT_PROBE_X / 8U)
-#define DESKTOP_TEXT_PROBE_TILE_Y                                                   \
-  ((DESKTOP_TEXT_PROBE_Y + DESKTOP_TEXT_PROBE_ROW) / 8U)
-#define DESKTOP_TEXT_PROBE_TILE_ROW                                                 \
-  ((DESKTOP_TEXT_PROBE_Y + DESKTOP_TEXT_PROBE_ROW) & 7U)
-#define DESKTOP_TEXT_PROBE_VRAM_OFFSET                                              \
-  ((((DESKTOP_TEXT_PROBE_TILE_Y * FB_TILES_X) + DESKTOP_TEXT_PROBE_TILE_X) *      \
-    FB_BYTES_PER_TILE) +                                                           \
-   (DESKTOP_TEXT_PROBE_TILE_ROW * 4U))
+#define DESKTOP_TEXT_PROBE_SCALE 3U
+#define DESKTOP_TEXT_PROBE_ROWS (8U * DESKTOP_TEXT_PROBE_SCALE)
+#define DESKTOP_TEXT_PROBE_WORDS_PER_ROW 6U
+#define DESKTOP_TEXT_PROBE_SIG_SEED 0x5347U
 #define DESKTOP_TITLE_PROBE_X 113U
 #define DESKTOP_TITLE_PROBE_Y 44U
 #define DESKTOP_TITLE_PROBE_ROW 1U
@@ -355,6 +353,93 @@ void segaos_runtime_smoke_halt(void) {
   ((((DESKTOP_TITLE_PROBE_TILE_Y * FB_TILES_X) + DESKTOP_TITLE_PROBE_TILE_X) * \
     FB_BYTES_PER_TILE) +                                                       \
    (DESKTOP_TITLE_PROBE_TILE_ROW * 4U))
+
+#ifdef BOOT_SAFE_TEXT_PROBE
+static uint16_t desktop_text_read_wram_word(uint16_t row, uint16_t word_index) {
+  uint16_t y = (uint16_t)(DESKTOP_TEXT_PROBE_Y + row);
+  uint32_t byte_offset =
+      (((uint32_t)y << 7) + ((uint32_t)y << 5) +
+       (DESKTOP_TEXT_PROBE_X >> 1) + ((uint32_t)word_index << 1));
+  volatile const uint16_t *word =
+      (volatile const uint16_t *)(WRAM_BANK0_MAIN + byte_offset);
+
+  return word[0];
+}
+
+static uint16_t desktop_text_read_vram_word(uint16_t row, uint16_t word_index) {
+  uint16_t tile_x =
+      (uint16_t)(DESKTOP_TEXT_PROBE_TILE_X + (word_index >> 1));
+  uint16_t tile_y = (uint16_t)((DESKTOP_TEXT_PROBE_Y + row) >> 3);
+  uint16_t tile_row = (uint16_t)((DESKTOP_TEXT_PROBE_Y + row) & 7U);
+  uint16_t word_in_tile = (uint16_t)(word_index & 1U);
+  uint16_t vram_offset =
+      (uint16_t)((((tile_y * FB_TILES_X) + tile_x) * FB_BYTES_PER_TILE) +
+                 (tile_row << 2) + (word_in_tile << 1));
+
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_VRAM_READ(vram_offset);
+  return VDP_DATA_PORT;
+}
+
+static uint16_t desktop_text_mix_sig(uint16_t sig, uint16_t word) {
+  return (uint16_t)((uint16_t)((sig << 5) | (sig >> 11)) ^ word);
+}
+
+static uint16_t desktop_text_read_plane_entry(uint16_t tile_offset) {
+  uint16_t plane_offset =
+      (uint16_t)(VRAM_PLANE_A +
+                 ((((DESKTOP_TEXT_PROBE_Y >> 3) * 64U) +
+                   DESKTOP_TEXT_PROBE_TILE_X + tile_offset)
+                  << 1));
+
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_VRAM_READ(plane_offset);
+  return VDP_DATA_PORT;
+}
+
+static void desktop_text_capture_wram(void) {
+  uint16_t row;
+  uint16_t word_index;
+  uint16_t sig = DESKTOP_TEXT_PROBE_SIG_SEED;
+
+  segaos_desktop_text_wram_word0 =
+      desktop_text_read_wram_word(DESKTOP_TEXT_PROBE_ROW, 0);
+  segaos_desktop_text_wram_word1 =
+      desktop_text_read_wram_word(DESKTOP_TEXT_PROBE_ROW, 1);
+
+  for (row = 0; row < DESKTOP_TEXT_PROBE_ROWS; row++) {
+    for (word_index = 0; word_index < DESKTOP_TEXT_PROBE_WORDS_PER_ROW;
+         word_index++) {
+      uint16_t actual = desktop_text_read_wram_word(row, word_index);
+      sig = desktop_text_mix_sig(sig, actual);
+    }
+  }
+  segaos_desktop_text_wram_sig = sig;
+}
+
+static void desktop_text_capture_vram(void) {
+  uint16_t row;
+  uint16_t word_index;
+  uint16_t sig = DESKTOP_TEXT_PROBE_SIG_SEED;
+
+  segaos_desktop_text_vram_word0 =
+      desktop_text_read_vram_word(DESKTOP_TEXT_PROBE_ROW, 0);
+  segaos_desktop_text_vram_word1 =
+      desktop_text_read_vram_word(DESKTOP_TEXT_PROBE_ROW, 1);
+  segaos_desktop_text_plane_entry0 = desktop_text_read_plane_entry(0);
+  segaos_desktop_text_plane_entry1 = desktop_text_read_plane_entry(1);
+  segaos_desktop_text_plane_entry2 = desktop_text_read_plane_entry(2);
+
+  for (row = 0; row < DESKTOP_TEXT_PROBE_ROWS; row++) {
+    for (word_index = 0; word_index < DESKTOP_TEXT_PROBE_WORDS_PER_ROW;
+         word_index++) {
+      uint16_t actual = desktop_text_read_vram_word(row, word_index);
+      sig = desktop_text_mix_sig(sig, actual);
+    }
+  }
+  segaos_desktop_text_vram_sig = sig;
+}
+#endif
 
 static void desktop_init_capture_status(void) {
   segaos_desktop_main_flag = GA_MAIN_REG8(GA_COMM_FLAG);
@@ -419,20 +504,19 @@ static void desktop_init_probe(void) {
   segaos_desktop_render_status = segaos_desktop_done_status;
   segaos_desktop_render_trace = segaos_desktop_trace;
 #ifdef BOOT_SAFE_TEXT_PROBE
-  {
-    volatile const uint16_t *text_wram =
-        (volatile const uint16_t *)(WRAM_BANK0_MAIN +
-                                    DESKTOP_TEXT_PROBE_BYTE_OFFSET);
-    segaos_desktop_text_probe_enabled = 1;
-    segaos_desktop_text_wram_word0 = text_wram[0];
-    segaos_desktop_text_wram_word1 = text_wram[1];
-  }
+  segaos_desktop_text_probe_enabled = 1;
+  desktop_text_capture_wram();
 #else
   segaos_desktop_text_probe_enabled = 0;
   segaos_desktop_text_wram_word0 = 0;
   segaos_desktop_text_wram_word1 = 0;
   segaos_desktop_text_vram_word0 = 0;
   segaos_desktop_text_vram_word1 = 0;
+  segaos_desktop_text_wram_sig = 0;
+  segaos_desktop_text_vram_sig = 0;
+  segaos_desktop_text_plane_entry0 = 0;
+  segaos_desktop_text_plane_entry1 = 0;
+  segaos_desktop_text_plane_entry2 = 0;
 #endif
 #ifdef BOOT_SAFE_TITLE_PROBE
   {
@@ -453,10 +537,7 @@ static void desktop_init_probe(void) {
   FB_UpdateFrame(WRAM_BANK0_MAIN);
   VDP_WaitDMA();
 #ifdef BOOT_SAFE_TEXT_PROBE
-  VDP_SET_REG(VDP_REG_AUTOINC, 2);
-  VDP_VRAM_READ(DESKTOP_TEXT_PROBE_VRAM_OFFSET);
-  segaos_desktop_text_vram_word0 = VDP_DATA_PORT;
-  segaos_desktop_text_vram_word1 = VDP_DATA_PORT;
+  desktop_text_capture_vram();
 #endif
 #ifdef BOOT_SAFE_TITLE_PROBE
   VDP_SET_REG(VDP_REG_AUTOINC, 2);

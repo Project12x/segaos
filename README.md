@@ -93,12 +93,15 @@ reads back correctly from VDP VRAM. The visible probe build
 pattern and is captured by BlastEm's internal screenshotting. The default build
 now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
 uploads the returned Word RAM frame, and displays a visible checker
-desktop/menu/window starter frame with a coarse block `OS` canary in BlastEm. BLT framebuffer access now
-uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
-desktop/menu shell. `BOOT_SAFE_TEXT_PROBE=1` is now the opt-in build rung for plain body
-text without the striped title-bar renderer, and the combined
-`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves SGDK-derived 8x8
-font pixels in Word RAM and VDP tile data. The system font is now converted
+desktop/menu/window starter frame with a coarse block `OS` canary in BlastEm. BLT framebuffer access and
+Main framebuffer upload now use word-safe 16-bit Word RAM helpers, and
+`WM_DrawDesktop()` owns the boot-safe desktop/menu shell. `BOOT_SAFE_TEXT_PROBE=1`
+is now the opt-in build rung for plain body text without the striped title-bar
+renderer, and the combined `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path
+proves SGDK-derived 8x8 font pixels as a full first-glyph signature (`0xa429`)
+in Word RAM and VDP tile data, with Plane A entries `0x0198/0x0199/0x019a`.
+An accepted readable BlastEm internal screenshot for that text path is still
+pending. The system font is now converted
 from SGDK v2.11's MIT `font_default.png`; provenance and license are recorded
 in `src/sub/sysfont.c` and `third_party/sgdk_font/`. The visible title/body
 canary is now a block wordmark, with
@@ -106,8 +109,9 @@ canary is now a block wordmark, with
 row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current default
 capture is
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
-current opt-in SGDK-font text probe capture is
-`C:\tmp\segaos_screens_internal\segaos_sgdk_text_20260629_215956.png`.
+latest opt-in SGDK-font text probe capture attempts are still diagnostic only;
+the blank capture `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png`
+is not a visual pass.
 That block canary is diagnostic, not the final UI. After the 68k desktop
 prior-art pass and the real-font correction, the next desktop gates are
 cleaning up the remaining scaled-text visual presentation, then a

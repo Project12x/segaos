@@ -189,6 +189,10 @@ that matches Genesis VDP constraints.
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
 - [x] Add an opt-in plain text render probe separate from title-bar stripes
 - [x] Prove plain text probe pixels in Word RAM and VDP tile data
+- [x] Prove the first scaled SGDK glyph as a full `0xa429` signature and prove
+      Plane A maps the visible tiles to `0x0198/0x0199/0x019a`
+- [ ] Capture and visually accept a BlastEm internal screenshot with readable
+      SGDK-font text, not a BIOS frame or blank transition frame
 - [x] Prove title-bar text composition pixels in Word RAM and VDP tile data
 - [ ] Visually accept restored default title presentation after the simpler
       fixed-font text proof passes
