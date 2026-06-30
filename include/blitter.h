@@ -250,10 +250,18 @@ void BLT_BlitBitmap(int16_t dstX, int16_t dstY, const uint8_t *src,
 /* Draw a single character glyph (1bpp source, expanded to color) */
 void BLT_DrawGlyph(int16_t x, int16_t y, const Glyph *glyph, uint8_t color);
 
+/* Draw a single character glyph with integer pixel scaling */
+void BLT_DrawGlyphScaled(int16_t x, int16_t y, const Glyph *glyph,
+                         uint8_t color, uint8_t scale);
+
 /* Draw a null-terminated string */
 /* Returns the X position after the last character */
 int16_t BLT_DrawString(int16_t x, int16_t y, const char *str, const Font *font,
                        uint8_t color);
+
+/* Draw a null-terminated string with integer pixel scaling */
+int16_t BLT_DrawStringScaled(int16_t x, int16_t y, const char *str,
+                             const Font *font, uint8_t color, uint8_t scale);
 
 /* Measure string width in pixels (without drawing) */
 int16_t BLT_StringWidth(const char *str, const Font *font);

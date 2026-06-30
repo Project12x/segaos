@@ -50,6 +50,14 @@ These references are not code sources for SegaOS. They establish the clean-room
 architecture target: a VDI-like drawing/text/clipping layer, an AES-like
 window/event/redraw ownership layer, and a desktop shell on top.
 
+Concrete font data currently comes from SGDK v2.11:
+
+- repo: https://github.com/Stephane-D/SGDK
+- commit: `ef9292c03fe33a2f8af3a2589ab856a53dcef35c`
+- license: MIT
+- reuse mode: direct-copy, format-converted from `res/image/font_default.png`
+  into SegaOS' 1bpp `Glyph` rows
+
 The current pre-alpha boot posture is deliberately flexible. A permanent
 Megadev-derived dual-CPU control image built through SegaOS's ISO builder
 reports from Sub-side code, and the SegaOS `BOOT_PROBE=1` assembly path now
@@ -63,12 +71,13 @@ return path now gives bank 0 back to Sub after Main uploads a frame. The
 boot-safe C desktop path now publishes ready, consumes the first render command,
 and displays a visible Mac-like starter frame in BlastEm. The current starter
 uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT rectangle
-primitives for the window outline, with a coarse block `OS` canary. Sysfont and
-title text are memory/VRAM-proven in opt-in probes but not visually accepted as
-default UI. The next architecture work is the VDI/AES/Desktop split: fixed-font
-text proof, dirty-rectangle/clipping proof, root desktop redraw, then minimal
-window furniture. The product goal is still a 68k Mac-like desktop on Sega CD;
-the bootstrap can change to make that goal reliable.
+primitives for the window outline, with a coarse block `OS` canary. The
+SGDK-derived fixed font and title canary are memory/VRAM-proven in opt-in
+probes but text is not yet visually accepted as default UI. The next
+architecture work is the VDI/AES/Desktop split: clean text presentation,
+dirty-rectangle/clipping proof, root desktop redraw, then minimal window
+furniture. The product goal is still a 68k Mac-like desktop on Sega CD; the
+bootstrap can change to make that goal reliable.
 
 ## Memory Map
 
@@ -158,6 +167,6 @@ command/status, one-way Word RAM bank-0 return, deterministic 4bpp
 framebuffer-to-VDP tile readback, C runtime smoke, and boot-safe desktop first
 render are proven by the BlastEm/GDB probes. The default visible desktop frame
 is also confirmed by BlastEm internal screenshotting. Do not advance the full
-desktop/app loop until the fixed-font text, dirty-rectangle/clipping, root
+desktop/app loop until text presentation, dirty-rectangle/clipping, root
 desktop redraw, minimal window-furniture, and repeated-frame bank policies are
 explicit.

@@ -43,6 +43,11 @@ freestanding C headers. May be useful if the SGDK toolchain lacks these.
 ## Current Tooling Position
 
 - SGDK remains useful as the local m68k toolchain provider for SegaOS.
+- SGDK v2.11 is now also the current system-font source:
+  `Stephane-D/SGDK@ef9292c03fe33a2f8af3a2589ab856a53dcef35c`, MIT.
+  SegaOS directly reuses `res/image/font_default.png` in format-converted
+  form as 1bpp `Glyph` rows in `src/sub/sysfont.c`; attribution and license
+  are in `third_party/sgdk_font/`.
 - Megadev is now the primary permissive Sega CD framework reference for boot
   layout, IP/SP structure, CD-ROM access, modules, and ISO generation.
 - EmuTOS, FreeMiNT/XaAES, and OpenGEM are now recorded as GPL-family

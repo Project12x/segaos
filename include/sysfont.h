@@ -1,14 +1,16 @@
 /*
- * sysfont.h - System Font for Genesis System 1
+ * sysfont.h - SegaOS system font
  *
- * Fixed-width 6x10 bitmap font covering ASCII 32-126 (95 glyphs).
- * Designed in the style of early Macintosh system fonts (Chicago/Geneva).
+ * Fixed-width 8x8 bitmap font covering ASCII 32-126 (95 glyphs).
+ * The glyph bitmap data is format-converted from SGDK v2.11's MIT-licensed
+ * font_default.png. Attribution and license details are recorded in
+ * src/sub/sysfont.c and third_party/sgdk_font/.
  *
- * Each glyph is 6 pixels wide, 10 pixels tall.
- * Stored as 1 byte per row (MSB-first, only bits 7-2 used).
- * Total: 95 glyphs * 10 bytes = 950 bytes.
+ * Each glyph is 8 pixels wide, 8 pixels tall.
+ * Stored as 1 byte per row (MSB-first, all bits used).
+ * Total: 95 glyphs * 8 bytes = 760 bytes.
  *
- * This font is compiled into ROM as const data — no file I/O needed.
+ * This font is compiled into ROM as const data; no file I/O needed.
  */
 
 #ifndef SYSFONT_H

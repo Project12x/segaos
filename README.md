@@ -97,17 +97,21 @@ desktop/menu/window starter frame with a coarse block `OS` canary in BlastEm. BL
 uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
 desktop/menu shell. `BOOT_SAFE_TEXT_PROBE=1` is now the opt-in build rung for plain body
 text without the striped title-bar renderer, and the combined
-`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves glyph pixels in Word
-RAM and VDP tile data. The visible title/body canary is now a block wordmark,
-with `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block
-title row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current
-default capture is
+`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves SGDK-derived 8x8
+font pixels in Word RAM and VDP tile data. The system font is now converted
+from SGDK v2.11's MIT `font_default.png`; provenance and license are recorded
+in `src/sub/sysfont.c` and `third_party/sgdk_font/`. The visible title/body
+canary is now a block wordmark, with
+`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block title
+row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current default
+capture is
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
-current opt-in sysfont text probe capture is
-`C:\tmp\segaos_screens_internal\segaos_text_probe_20260629_211127.png`.
+current opt-in SGDK-font text probe capture is
+`C:\tmp\segaos_screens_internal\segaos_sgdk_text_20260629_215956.png`.
 That block canary is diagnostic, not the final UI. After the 68k desktop
-prior-art pass, the next desktop gates are a clean fixed-font text proof, then
-a dirty-rectangle/clipping proof, then root desktop redraw, before returning to
+prior-art pass and the real-font correction, the next desktop gates are
+cleaning up the remaining scaled-text visual presentation, then a
+dirty-rectangle/clipping proof, then root desktop redraw, before returning to
 minimal window furniture and normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

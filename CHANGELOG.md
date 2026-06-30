@@ -22,6 +22,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added `DualCpuStatus`, `DualCpuWramSurvey`, `DualCpuWramRetClear`,
   `DualCpuWramSweep`, `Framebuffer`, and `MegadevControl` modes to
   `tools/probe_blastem_boot.ps1` for staged BlastEm/GDB validation.
+- Added SGDK v2.11 font provenance under `third_party/sgdk_font/`, including
+  the MIT license for the converted system font data.
+- Added scaled text drawing helpers `BLT_DrawGlyphScaled()` and
+  `BLT_DrawStringScaled()` for readable boot-safe text probes.
 
 ### Changed
 - Replaced the `pycdlib` ISO path with a Python standard-library cooked
@@ -105,8 +109,14 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   keeping sysfont/body text behind opt-in probes.
 - Repointed the title probe at the block canary and revalidated
   `0x0fff/0xffff` in both Word RAM and VDP tile data.
-- Fixed the DesktopInit text probe sample coordinate so it samples the actual
-  sysfont body text at `y=86` instead of a stale white body row.
+- Fixed the DesktopInit text probe sample coordinate so it samples rendered
+  body text instead of stale white body rows.
+- Replaced the hand-authored placeholder sysfont with SGDK v2.11's MIT 8x8
+  `font_default.png`, format-converted into SegaOS' 1bpp `Glyph` rows.
+- Realigned the DesktopInit text probe to the SGDK-font sample at `x=64`,
+  `y=83`, expecting `0xffff/0xff00` in both Word RAM and VDP tile data.
+- Fixed the full non-boot-safe Sub build by excluding `runtime_smoke.c` from
+  the wildcard app build, avoiding duplicate `sub_init`/`sub_main` entrypoints.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -158,6 +168,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Updated roadmap/current-state docs so the next desktop rungs are fixed-font
   text, dirty-rectangle/clipping, root desktop redraw, and minimal window
   furniture instead of immediately re-enabling broad `WM_NewWindow()` behavior.
+- Documented the SGDK-derived system font source and the latest opt-in
+  SGDK-font text probe screenshot.
 
 ## [0.1.0] - 2026-02-10
 

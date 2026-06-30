@@ -17,6 +17,11 @@ same failures.
   `docs/reference/68k_desktop_prior_art.md`: EmuTOS, FreeMiNT/XaAES, and
   OpenGEM. They are GPL-family references, so the allowed reuse mode is
   pattern-only / clean-room behavior specs.
+- For concrete UI assets such as fonts, do not invent vague placeholder
+  glyphs and then debug against them. The current system font is SGDK v2.11's
+  MIT 8x8 `font_default.png`, pinned at
+  `Stephane-D/SGDK@ef9292c03fe33a2f8af3a2589ab856a53dcef35c` and converted
+  into SegaOS' 1bpp glyph format with attribution in `third_party/sgdk_font/`.
 
 ## Desktop Architecture
 
@@ -52,8 +57,8 @@ same failures.
   old boot pattern.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
-  moved to `y=86`; the corrected probe now samples the actual first "S" glyph
-  row and expects `0xf000/0xffff`.
+  moved to `y=86`. The corrected SGDK-font probe samples a tile-aligned "S"
+  glyph row at `x=64`, `y=83` and expects `0xffff/0xff00`.
 
 ## Word RAM Ownership
 
@@ -91,19 +96,24 @@ same failures.
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
 - The current visible target is intentionally modest: checker desktop, menu
   separator, and a clean window starter frame with a coarse block `OS` canary.
-- Plain body text and striped title-bar composition are separate risks. The first
-  striped title/body-text attempt produced a noisy visual capture, but the later
-  `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` path proved the first "S"
-  glyph row reaches both Word RAM and VDP tile data as `0xf000/0xffff`.
+- Plain body text and striped title-bar composition are separate risks. The old
+  hand-authored 6x10 placeholder sysfont was not a defensible target. It has
+  been replaced with SGDK v2.11's real 8x8 font, and
+  `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` proves the sampled "S"
+  glyph row reaches both Word RAM and VDP tile data as `0xffff/0xff00`.
 - Keep text probes separate from title-bar stripes. Plain body text should be
-  accepted before the active Mac-style striped title composition is restored.
+  visually accepted before the active Mac-style striped title composition is
+  restored.
 - The block title canary is memory-proven separately:
   `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies sampled block
   title bytes as `0x0fff/0xffff` in both Word RAM and VDP tile data.
 - Latest default internal screenshot:
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
-- Latest opt-in sysfont text probe screenshot:
-  `C:\tmp\segaos_screens_internal\segaos_text_probe_20260629_211127.png`.
+- Latest opt-in SGDK-font text probe screenshot:
+  `C:\tmp\segaos_screens_internal\segaos_sgdk_text_20260629_215956.png`.
+- The latest text screenshot uses real glyph outlines but still shows a
+  broken-stroke scaled presentation. Treat that as the next visual-rendering
+  problem, not as a reason to return to placeholder letter shapes.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

@@ -223,15 +223,16 @@ Current local evidence:
 - `DESKTOP_INIT_PROBE=1`: passes `-Probe DesktopInit`, proving the boot-safe C
   desktop reaches `sub_main`, consumes a first `CMD_RENDER_FRAME`, and returns
   Word RAM for Main upload
-- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`: proves plain body text reaches
-  Word RAM and VDP tile data without using the striped title-bar renderer
+- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`: proves SGDK-derived 8x8 body
+  text reaches Word RAM and VDP tile data without using the striped title-bar
+  renderer
 - `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the sampled block title
   row reaches Word RAM and VDP tile data
 - normal boot-safe C desktop: visible as a checker desktop/menu/window frame
   with a large block `OS` canary in
-  `C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`;
-  sysfont/body text remains opt-in because the earlier striped title/body-text
-  screenshot was visibly corrupted
+  `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`;
+  SGDK-font body text remains opt-in while the scaled-stroke presentation is
+  cleaned up for default UI use
 
 The internal screenshot helper defaults to targeted window messages. For reliable
 BIOS START automation under SDL, use `-InputMode SendInputGuarded -ClickToFocus`;

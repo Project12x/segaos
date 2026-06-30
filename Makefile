@@ -108,7 +108,8 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/sysfont.c \
                $(SUB_DIR)/wm.c
 else
-SUB_C_SRCS   = $(wildcard $(SUB_DIR)/*.c)
+SUB_C_SRCS   = $(filter-out $(SUB_DIR)/runtime_smoke.c, \
+               $(wildcard $(SUB_DIR)/*.c))
 endif
 endif
 endif

@@ -552,15 +552,15 @@ try {
 
     if ($desktopValues["segaos_desktop_text_probe_enabled"] -eq "0x0001") {
       $textWramOk = (
-        $desktopValues["segaos_desktop_text_wram_word0"] -eq "0xf000" -and
-        $desktopValues["segaos_desktop_text_wram_word1"] -eq "0xffff"
+        $desktopValues["segaos_desktop_text_wram_word0"] -eq "0xffff" -and
+        $desktopValues["segaos_desktop_text_wram_word1"] -eq "0xff00"
       )
       $textVramOk = (
-        $desktopValues["segaos_desktop_text_vram_word0"] -eq "0xf000" -and
-        $desktopValues["segaos_desktop_text_vram_word1"] -eq "0xffff"
+        $desktopValues["segaos_desktop_text_vram_word0"] -eq "0xffff" -and
+        $desktopValues["segaos_desktop_text_vram_word1"] -eq "0xff00"
       )
-      Write-Output "desktop_text_wram_check=$textWramOk expected=0xf000,0xffff actual=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
-      Write-Output "desktop_text_vram_check=$textVramOk expected=0xf000,0xffff actual=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
+      Write-Output "desktop_text_wram_check=$textWramOk expected=0xffff,0xff00 actual=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
+      Write-Output "desktop_text_vram_check=$textVramOk expected=0xffff,0xff00 actual=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"
       if (-not $textWramOk) {
         $failed += "segaos_desktop_text_wram"
       }

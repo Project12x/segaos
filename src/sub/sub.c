@@ -185,6 +185,7 @@ static void boot_safe_draw_wordmark(int16_t x, int16_t y, uint8_t scale,
   }
 }
 
+#ifndef BOOT_SAFE_TEXT_PROBE
 static void boot_safe_fill(int16_t left, int16_t top, int16_t right,
                            int16_t bottom, uint8_t color) {
   Rect r;
@@ -216,6 +217,7 @@ static void boot_safe_draw_big_os(int16_t x, int16_t y, uint8_t color) {
   boot_safe_fill((int16_t)(x + 32), (int16_t)(y + 21),
                  (int16_t)(x + 38), (int16_t)(y + 48), color);
 }
+#endif
 
 static void render_boot_safe_desktop(void) {
   const uint8_t titleScale = 4;
@@ -261,10 +263,13 @@ static void render_boot_safe_desktop(void) {
   BLT_DrawRect(&title, BLT_BLACK);
   BLT_DrawRect(&close, BLT_BLACK);
   boot_safe_draw_wordmark(titleTextX, titleTextY, titleScale, BLT_BLACK);
-  boot_safe_draw_big_os(86, 89, BLT_BLACK);
 #ifdef BOOT_SAFE_TEXT_PROBE
-  SysFont_DrawString(body.left + 8, body.top + 14, "SegaOS", BLT_BLACK);
-  SysFont_DrawString(body.left + 8, body.top + 28, "text probe", BLT_BLACK);
+  BLT_DrawStringScaled(body.left + 24, body.top + 8, "SegaOS", SysFont_Get(),
+                       BLT_BLACK, 3);
+  BLT_DrawStringScaled(body.left + 24, body.top + 44, "TEXT OK",
+                       SysFont_Get(), BLT_BLACK, 3);
+#else
+  boot_safe_draw_big_os(86, 89, BLT_BLACK);
 #endif
 }
 #endif

@@ -26,11 +26,14 @@ default build now displays a visible Mac-like boot-safe frame through BLT's
 word-safe framebuffer backend: checker desktop, menu separator, and a compact
 window starter frame with a coarse block `OS` visual canary, captured at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
-An opt-in sysfont text probe capture is also available at
-`C:\tmp\segaos_screens_internal\segaos_text_probe_20260629_211127.png`.
+An opt-in SGDK-derived font text probe capture is also available at
+`C:\tmp\segaos_screens_internal\segaos_sgdk_text_20260629_215956.png`.
 The earlier striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
 known-bad visual reference; body text stays opt-in behind `BOOT_SAFE_TEXT_PROBE=1`.
+The old hand-authored 6x10 placeholder sysfont has been replaced with SGDK
+v2.11's MIT 8x8 `font_default.png`, converted into SegaOS' 1bpp `Glyph` rows
+with attribution in `third_party/sgdk_font/`.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -57,6 +60,7 @@ The active strategy is a bring-up ladder:
 | Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 7,904-byte SP binary observed locally with the block visual canary; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,708 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
+| Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
 | Emulator IP probe | Passing | BlastEm + USA BIOS + SGDK GDB hit `$00FF0000` and read US security bytes |
 | Megadev dual-CPU control | Passing | `tools/build_megadev_dualcpu_control.ps1` + `-Probe MegadevControl` proves the builder/security path can boot a Megadev-shaped SP and report from Sub code |
@@ -65,7 +69,7 @@ The active strategy is a bring-up ladder:
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
-| Text render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first "S" glyph row at the actual `y=86` body-text origin as `0xf000/0xffff` in both Word RAM and VDP tile data |
+| Text render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the SGDK-font "S" glyph sample at `x=64`, `y=83` as `0xffff/0xff00` in both Word RAM and VDP tile data |
 | Title/block render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves the sampled block title row as `0x0fff/0xffff` in both Word RAM and VDP tile data |
 
 ## Toolchain
@@ -87,7 +91,7 @@ The active strategy is a bring-up ladder:
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
 - Boot-safe desktop SP usage: 7,904 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
-- Boot-safe text probe SP usage: 9,730 bytes observed locally with
+- Boot-safe text probe SP usage: 10,268 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
 - Boot-safe title probe SP usage: 10,284 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
@@ -157,6 +161,18 @@ Key adopted assumptions:
   frame with the same alternating row pattern and has been captured through
   BlastEm's internal screenshotting.
 
+SGDK font source:
+
+- Repo: https://github.com/Stephane-D/SGDK
+- Commit: `ef9292c03fe33a2f8af3a2589ab856a53dcef35c` (`v2.11`)
+- License: MIT, copied to `third_party/sgdk_font/LICENSE.txt`
+- Reuse mode: direct-copy, format-converted from indexed PNG tiles to 1bpp
+  `Glyph` rows
+- Inspected files: `license.txt`, `res/libres.res`,
+  `res/image/font_default.png`, `inc/font.h`, `src/vdp.c`
+- Adopted assumption: SegaOS' current system font should come from this real
+  8x8 tile font until a deliberate, licensed Mac-like bitmap font is selected.
+
 68k desktop prior art:
 
 - EmuTOS:
@@ -202,14 +218,15 @@ High priority:
   render/upload sequence, and displays a visible Mac-like starter frame through
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
   starter window stays a compact boot-safe BLT rectangle renderer. Plain body
-  text rendering is now GDB-proven at the Word RAM and VDP tile levels via
-  `BOOT_SAFE_TEXT_PROBE=1`. Title-bar stripe/text composition is also
+  text rendering now uses a real SGDK-derived 8x8 font and is GDB-proven at
+  the Word RAM and VDP tile levels via `BOOT_SAFE_TEXT_PROBE=1`. Title-bar
+  stripe/text composition is also
   GDB-proven via `BOOT_SAFE_TITLE_PROBE=1`, but remains opt-in until the visual
   presentation is accepted. BLT framebuffer access uses 16-bit Word RAM helpers.
-  The next risks are simpler and lower-level: produce readable fixed-font text,
-  add dirty-rectangle/clipping ownership, route root desktop redraw through that
-  contract, then move to real `WM_NewWindow()`/menu/cursor rendering without
-  regressing command timing or Word RAM ownership.
+  The next risks are simpler and lower-level: clean up the scaled-font stroke
+  presentation, add dirty-rectangle/clipping ownership, route root desktop
+  redraw through that contract, then move to real `WM_NewWindow()`/menu/cursor
+  rendering without regressing command timing or Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

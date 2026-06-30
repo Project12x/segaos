@@ -143,8 +143,11 @@ known-bad visual reference, so body text and striped title styling stay opt-in.
 starter window intentionally remains compact rectangle drawing. An attempt to
 move `WM_NewWindow()` into the boot render path regressed the Sub command loop
 before command consumption. The 68k desktop prior-art pass now moves the next
-work down one layer: prove fixed-font text, dirty rectangles/clipping, and root
-desktop redraw before returning to minimal window furniture.
+work down one layer: prove real fixed-font text, dirty rectangles/clipping, and
+root desktop redraw before returning to minimal window furniture. The fixed-font
+rung now uses SGDK v2.11's MIT `font_default.png`, converted into SegaOS'
+1bpp glyph format and proven through the DesktopInit text probe; its scaled
+visual presentation still needs polish before it becomes default UI.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen
@@ -169,8 +172,12 @@ that matches Genesis VDP constraints.
 - [x] Implement the desktop fill pattern previously stubbed in `WM_DrawDesktop`
 - [x] Study GEM/TOS/EmuTOS/FreeMiNT/OpenGEM prior art and document the
       reference-backed VDI/AES/Desktop architecture pivot
-- [ ] Prove a readable fixed-font text primitive visually and through
+- [x] Replace the placeholder sysfont with SGDK v2.11's MIT 8x8 font and
+      record source/license provenance
+- [x] Prove a real fixed-font text primitive visually and through
       Word RAM/VDP tile probes
+- [ ] Clean up the remaining scaled-text stroke presentation before restoring
+      text to the default boot-safe desktop
 - [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
       used by the boot-safe renderer
 - [ ] Route root desktop redraw through the dirty-rectangle/clipping contract

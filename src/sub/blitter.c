@@ -604,6 +604,37 @@ void BLT_DrawGlyph(int16_t x, int16_t y, const Glyph *glyph, uint8_t color) {
   }
 }
 
+void BLT_DrawGlyphScaled(int16_t x, int16_t y, const Glyph *glyph,
+                         uint8_t color, uint8_t scale) {
+  int16_t gx, gy;
+  int16_t bytesPerRow;
+
+  if (!glyph || !glyph->data)
+    return;
+
+  if (scale <= 1) {
+    BLT_DrawGlyph(x, y, glyph, color);
+    return;
+  }
+
+  bytesPerRow = (glyph->width + 7) / 8;
+
+  for (gy = 0; gy < glyph->height; gy++) {
+    for (gx = 0; gx < glyph->width; gx++) {
+      uint8_t bit =
+          (glyph->data[gy * bytesPerRow + (gx >> 3)] >> (7 - (gx & 7))) & 1;
+      if (bit) {
+        Rect px;
+        px.left = (int16_t)(x + gx * scale);
+        px.top = (int16_t)(y + gy * scale);
+        px.right = (int16_t)(px.left + scale);
+        px.bottom = (int16_t)(px.top + scale);
+        BLT_FillRect(&px, color);
+      }
+    }
+  }
+}
+
 int16_t BLT_DrawString(int16_t x, int16_t y, const char *str, const Font *font,
                        uint8_t color) {
   if (!str || !font || !font->glyphs)
@@ -615,6 +646,30 @@ int16_t BLT_DrawString(int16_t x, int16_t y, const char *str, const Font *font,
       const Glyph *g = &font->glyphs[ch - font->firstChar];
       BLT_DrawGlyph(x, y + font->ascent - g->baseline, g, color);
       x += g->advance;
+    }
+    str++;
+  }
+  return x;
+}
+
+int16_t BLT_DrawStringScaled(int16_t x, int16_t y, const char *str,
+                             const Font *font, uint8_t color, uint8_t scale) {
+  if (!str || !font || !font->glyphs)
+    return x;
+
+  if (scale <= 1) {
+    return BLT_DrawString(x, y, str, font, color);
+  }
+
+  while (*str) {
+    uint8_t ch = (uint8_t)*str;
+    if (ch >= font->firstChar && ch <= font->lastChar) {
+      const Glyph *g = &font->glyphs[ch - font->firstChar];
+      int16_t glyphY =
+          (int16_t)(y + ((int16_t)font->ascent - (int16_t)g->baseline) *
+                            (int16_t)scale);
+      BLT_DrawGlyphScaled(x, glyphY, g, color, scale);
+      x = (int16_t)(x + g->advance * scale);
     }
     str++;
   }
