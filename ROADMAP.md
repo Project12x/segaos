@@ -133,9 +133,9 @@ normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
 handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
 frame. The default build now displays a visible checker desktop/menu/window
-starter frame with a clean centered `SegaOS` title through BLT's word-safe
+starter frame with a coarse block `OS` canary through BLT's word-safe
 framebuffer backend, captured at
-`C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`.
+`C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`.
 The captured striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
 known-bad visual reference, so body text and striped title styling stay opt-in.

@@ -154,7 +154,71 @@ void sub_main(void) {
 
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
+static const uint8_t BOOT_WORDMARK[6][7] = {
+    {0x1E, 0x10, 0x10, 0x1E, 0x02, 0x02, 0x1E}, /* S */
+    {0x1E, 0x10, 0x10, 0x1C, 0x10, 0x10, 0x1E}, /* E */
+    {0x1E, 0x10, 0x10, 0x16, 0x12, 0x12, 0x1E}, /* G */
+    {0x0C, 0x12, 0x12, 0x1E, 0x12, 0x12, 0x12}, /* A */
+    {0x1E, 0x12, 0x12, 0x12, 0x12, 0x12, 0x1E}, /* O */
+    {0x1E, 0x10, 0x10, 0x1E, 0x02, 0x02, 0x1E}  /* S */
+};
+
+static void boot_safe_draw_wordmark(int16_t x, int16_t y, uint8_t scale,
+                                    uint8_t color) {
+  uint8_t letter;
+  for (letter = 0; letter < 6; letter++) {
+    uint8_t row;
+    for (row = 0; row < 7; row++) {
+      uint8_t bits = BOOT_WORDMARK[letter][row];
+      uint8_t col;
+      for (col = 0; col < 5; col++) {
+        if (bits & (uint8_t)(0x10 >> col)) {
+          Rect px;
+          px.left = (int16_t)(x + (letter * 6 * scale) + (col * scale));
+          px.top = (int16_t)(y + (row * scale));
+          px.right = (int16_t)(px.left + scale);
+          px.bottom = (int16_t)(px.top + scale);
+          BLT_FillRect(&px, color);
+        }
+      }
+    }
+  }
+}
+
+static void boot_safe_fill(int16_t left, int16_t top, int16_t right,
+                           int16_t bottom, uint8_t color) {
+  Rect r;
+  r.left = left;
+  r.top = top;
+  r.right = right;
+  r.bottom = bottom;
+  BLT_FillRect(&r, color);
+}
+
+static void boot_safe_draw_big_os(int16_t x, int16_t y, uint8_t color) {
+  /* O: 38x48 outline, 6px stroke */
+  boot_safe_fill(x, y, (int16_t)(x + 38), (int16_t)(y + 6), color);
+  boot_safe_fill(x, (int16_t)(y + 42), (int16_t)(x + 38),
+                 (int16_t)(y + 48), color);
+  boot_safe_fill(x, y, (int16_t)(x + 6), (int16_t)(y + 48), color);
+  boot_safe_fill((int16_t)(x + 32), y, (int16_t)(x + 38),
+                 (int16_t)(y + 48), color);
+
+  x = (int16_t)(x + 50);
+
+  /* S: 38x48, 6px stroke */
+  boot_safe_fill(x, y, (int16_t)(x + 38), (int16_t)(y + 6), color);
+  boot_safe_fill(x, (int16_t)(y + 21), (int16_t)(x + 38),
+                 (int16_t)(y + 27), color);
+  boot_safe_fill(x, (int16_t)(y + 42), (int16_t)(x + 38),
+                 (int16_t)(y + 48), color);
+  boot_safe_fill(x, y, (int16_t)(x + 6), (int16_t)(y + 27), color);
+  boot_safe_fill((int16_t)(x + 32), (int16_t)(y + 21),
+                 (int16_t)(x + 38), (int16_t)(y + 48), color);
+}
+
 static void render_boot_safe_desktop(void) {
+  const uint8_t titleScale = 4;
   Rect close;
   Rect shadow;
   Rect body;
@@ -164,26 +228,26 @@ static void render_boot_safe_desktop(void) {
   int16_t titleTextY;
 
   shadow.left = 44;
-  shadow.top = 45;
+  shadow.top = 40;
   shadow.right = 226;
   shadow.bottom = 151;
 
   title.left = 40;
-  title.top = 40;
+  title.top = 35;
   title.right = 222;
-  title.bottom = 58;
+  title.bottom = 72;
 
   body.left = 40;
-  body.top = 58;
+  body.top = 72;
   body.right = 222;
   body.bottom = 148;
 
   close.left = 45;
-  close.top = 43;
-  close.right = 56;
-  close.bottom = 54;
+  close.top = 46;
+  close.right = 60;
+  close.bottom = 60;
 
-  titleTextW = SysFont_StringWidth("SegaOS");
+  titleTextW = (int16_t)(35 * titleScale);
   titleTextX = (int16_t)(title.left + ((title.right - title.left - titleTextW) / 2));
   titleTextY = (int16_t)(title.top + 4);
 
@@ -196,7 +260,8 @@ static void render_boot_safe_desktop(void) {
   BLT_FillRect(&title, BLT_GetWhite());
   BLT_DrawRect(&title, BLT_BLACK);
   BLT_DrawRect(&close, BLT_BLACK);
-  SysFont_DrawString(titleTextX, titleTextY, "SegaOS", BLT_BLACK);
+  boot_safe_draw_wordmark(titleTextX, titleTextY, titleScale, BLT_BLACK);
+  boot_safe_draw_big_os(86, 89, BLT_BLACK);
 #ifdef BOOT_SAFE_TEXT_PROBE
   SysFont_DrawString(body.left + 8, body.top + 14, "SegaOS", BLT_BLACK);
   SysFont_DrawString(body.left + 8, body.top + 28, "text probe", BLT_BLACK);

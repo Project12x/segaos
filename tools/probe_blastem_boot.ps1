@@ -571,15 +571,15 @@ try {
 
     if ($desktopValues["segaos_desktop_title_probe_enabled"] -eq "0x0001") {
       $titleWramOk = (
-        $desktopValues["segaos_desktop_title_wram_word0"] -eq "0xff00" -and
-        $desktopValues["segaos_desktop_title_wram_word1"] -eq "0x0fff"
+        $desktopValues["segaos_desktop_title_wram_word0"] -eq "0x0fff" -and
+        $desktopValues["segaos_desktop_title_wram_word1"] -eq "0xffff"
       )
       $titleVramOk = (
-        $desktopValues["segaos_desktop_title_vram_word0"] -eq "0xff00" -and
-        $desktopValues["segaos_desktop_title_vram_word1"] -eq "0x0fff"
+        $desktopValues["segaos_desktop_title_vram_word0"] -eq "0x0fff" -and
+        $desktopValues["segaos_desktop_title_vram_word1"] -eq "0xffff"
       )
-      Write-Output "desktop_title_wram_check=$titleWramOk expected=0xff00,0x0fff actual=$($desktopValues["segaos_desktop_title_wram_word0"]),$($desktopValues["segaos_desktop_title_wram_word1"])"
-      Write-Output "desktop_title_vram_check=$titleVramOk expected=0xff00,0x0fff actual=$($desktopValues["segaos_desktop_title_vram_word0"]),$($desktopValues["segaos_desktop_title_vram_word1"])"
+      Write-Output "desktop_title_wram_check=$titleWramOk expected=0x0fff,0xffff actual=$($desktopValues["segaos_desktop_title_wram_word0"]),$($desktopValues["segaos_desktop_title_wram_word1"])"
+      Write-Output "desktop_title_vram_check=$titleVramOk expected=0x0fff,0xffff actual=$($desktopValues["segaos_desktop_title_vram_word0"]),$($desktopValues["segaos_desktop_title_vram_word1"])"
       if (-not $titleWramOk) {
         $failed += "segaos_desktop_title_wram"
       }

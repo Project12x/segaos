@@ -98,10 +98,10 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a guarded BlastEm screenshot input mode
   (`-InputMode SendInputGuarded -ClickToFocus`) that verifies BlastEm foreground
   focus before sending BIOS START or screenshot hotkeys.
-- Restored a clean centered `SegaOS` title to the default boot-safe desktop
-  while keeping body text behind the opt-in text probe.
-- Moved the title probe sample row to the clean title text and revalidated
-  `0xff00/0x0fff` in both Word RAM and VDP tile data.
+- Added a coarse block `OS` visual canary to the default boot-safe desktop while
+  keeping sysfont/body text behind opt-in probes.
+- Repointed the title probe at the block canary and revalidated
+  `0x0fff/0xffff` in both Word RAM and VDP tile data.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -144,7 +144,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   title-bar stripe restoration.
 - Documented the title-bar composition probe as memory/VRAM-proven but still
   visually opt-in.
-- Documented the clean title default and the guarded BlastEm internal screenshot
+- Documented the block visual canary and the guarded BlastEm internal screenshot
   workflow.
 
 ## [0.1.0] - 2026-02-10

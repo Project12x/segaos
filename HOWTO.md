@@ -216,8 +216,8 @@ plan.
 
 Current local evidence:
 
-- normal `make all`: passes verifier with a 9,716-byte Sub SP observed after
-  restoring a clean centered title label to the boot-safe frame
+- normal `make all`: passes verifier with a 7,904-byte Sub SP observed with the
+  coarse block visual canary in the boot-safe frame
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
 - `DESKTOP_INIT_PROBE=1`: passes `-Probe DesktopInit`, proving the boot-safe C
@@ -225,13 +225,13 @@ Current local evidence:
   Word RAM for Main upload
 - `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`: proves plain body text reaches
   Word RAM and VDP tile data without using the striped title-bar renderer
-- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the clean centered
-  title text reaches Word RAM and VDP tile data
+- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the sampled block title
+  row reaches Word RAM and VDP tile data
 - normal boot-safe C desktop: visible as a checker desktop/menu/window frame
-  with a centered `SegaOS` title in
-  `C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`;
-  body text remains opt-in because the earlier striped title/body-text screenshot
-  was visibly corrupted
+  with a large block `OS` canary in
+  `C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`;
+  sysfont/body text remains opt-in because the earlier striped title/body-text
+  screenshot was visibly corrupted
 
 The internal screenshot helper defaults to targeted window messages. For reliable
 BIOS START automation under SDL, use `-InputMode SendInputGuarded -ClickToFocus`;

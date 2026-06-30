@@ -65,16 +65,16 @@ same failures.
 
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
 - The current visible target is intentionally modest: checker desktop, menu
-  separator, and a clean window starter frame with a centered `SegaOS` title.
+  separator, and a clean window starter frame with a coarse block `OS` canary.
 - Plain body text and striped title-bar composition are separate risks. The first
   striped title/body-text attempt produced a noisy visual capture, but the later
   `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` path proved the first "S"
   glyph row reaches both Word RAM and VDP tile data as `0xf000/0xffff`.
 - Keep text probes separate from title-bar stripes. Plain body text should be
   accepted before the active Mac-style striped title composition is restored.
-- The clean centered title is now default and memory-proven separately:
-  `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies centered title
-  glyph bytes as `0xff00/0x0fff` in both Word RAM and VDP tile data.
+- The block title canary is memory-proven separately:
+  `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies sampled block
+  title bytes as `0x0fff/0xffff` in both Word RAM and VDP tile data.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

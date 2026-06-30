@@ -93,16 +93,16 @@ reads back correctly from VDP VRAM. The visible probe build
 pattern and is captured by BlastEm's internal screenshotting. The default build
 now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
 uploads the returned Word RAM frame, and displays a visible checker
-desktop/menu/window starter frame with a compact `SegaOS` title in BlastEm. BLT framebuffer access now
+desktop/menu/window starter frame with a coarse block `OS` canary in BlastEm. BLT framebuffer access now
 uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
 desktop/menu shell. `BOOT_SAFE_TEXT_PROBE=1` is now the opt-in build rung for plain body
 text without the striped title-bar renderer, and the combined
 `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves glyph pixels in Word
-RAM and VDP tile data. The title path is now default, with
-`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled title glyph
-row as `0xff00/0x0fff` in both Word RAM and VDP tile data. The current clean
-title capture is
-`C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`.
+RAM and VDP tile data. The visible title/body canary is now a block wordmark,
+with `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block
+title row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current
+visible text capture is
+`C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`.
 The next desktop gate is a minimal `WM_NewWindow()` render probe before enabling
 normal menu/cursor/app rendering.
 
