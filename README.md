@@ -93,20 +93,18 @@ reads back correctly from VDP VRAM. The visible probe build
 pattern and is captured by BlastEm's internal screenshotting. The default build
 now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
 uploads the returned Word RAM frame, and displays a visible checker
-desktop/menu/window-outline starter frame in BlastEm. BLT framebuffer access now
+desktop/menu/window starter frame with a compact `SegaOS` title in BlastEm. BLT framebuffer access now
 uses word-safe 16-bit helpers, and `WM_DrawDesktop()` owns the boot-safe
-desktop/menu shell. A later title/text attempt produced visibly corrupted
-output, so text rendering is back out of the boot frame until it has its own
-probe. `BOOT_SAFE_TEXT_PROBE=1` is now the opt-in build rung for plain body
+desktop/menu shell. `BOOT_SAFE_TEXT_PROBE=1` is now the opt-in build rung for plain body
 text without the striped title-bar renderer, and the combined
 `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves glyph pixels in Word
-RAM and VDP tile data. `BOOT_SAFE_TITLE_PROBE=1` likewise proves centered
-title glyph composition in memory/VRAM, but the default frame stays visually
-conservative until the title presentation is accepted. The current clean
-window-outline capture is
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. The next
-desktop gate is isolating font/title drawing and a minimal `WM_NewWindow()`
-render probe before enabling normal menu/cursor/app rendering.
+RAM and VDP tile data. The title path is now default, with
+`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled title glyph
+row as `0xff00/0x0fff` in both Word RAM and VDP tile data. The current clean
+title capture is
+`C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`.
+The next desktop gate is a minimal `WM_NewWindow()` render probe before enabling
+normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

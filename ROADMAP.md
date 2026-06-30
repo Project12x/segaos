@@ -133,17 +133,18 @@ normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
 handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
 frame. The default build now displays a visible checker desktop/menu/window
-outline starter frame through BLT's word-safe framebuffer backend, captured at
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. The
-captured title/text attempt at
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` was visibly
-corrupted, so title/text drawing has been backed out of the boot-safe starter.
+starter frame with a clean centered `SegaOS` title through BLT's word-safe
+framebuffer backend, captured at
+`C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`.
+The captured striped title/body-text attempt at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
+known-bad visual reference, so body text and striped title styling stay opt-in.
 `WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, while the
 starter window intentionally remains compact rectangle drawing. An attempt to
 move `WM_NewWindow()` into the boot render path regressed the Sub command loop
-before command consumption, so the next rungs are isolating font/title drawing
-and proving a minimal `WM_NewWindow()` render probe before enabling the full
-window-manager/menu/cursor loop.
+before command consumption, so the next rung is proving a minimal
+`WM_NewWindow()` render probe before enabling the full window-manager/menu/cursor
+loop.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen

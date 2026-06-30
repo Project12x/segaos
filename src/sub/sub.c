@@ -155,12 +155,13 @@ void sub_main(void) {
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
 static void render_boot_safe_desktop(void) {
-#ifndef BOOT_SAFE_TITLE_PROBE
   Rect close;
-#endif
   Rect shadow;
   Rect body;
   Rect title;
+  int16_t titleTextW;
+  int16_t titleTextX;
+  int16_t titleTextY;
 
   shadow.left = 44;
   shadow.top = 45;
@@ -177,12 +178,14 @@ static void render_boot_safe_desktop(void) {
   body.right = 222;
   body.bottom = 148;
 
-#ifndef BOOT_SAFE_TITLE_PROBE
   close.left = 45;
   close.top = 43;
   close.right = 56;
   close.bottom = 54;
-#endif
+
+  titleTextW = SysFont_StringWidth("SegaOS");
+  titleTextX = (int16_t)(title.left + ((title.right - title.left - titleTextW) / 2));
+  titleTextY = (int16_t)(title.top + 4);
 
   BLT_ResetClip();
   WM_DrawDesktop();
@@ -190,15 +193,10 @@ static void render_boot_safe_desktop(void) {
   BLT_FillRect(&shadow, BLT_4_DARK_GRAY);
   BLT_FillRect(&body, BLT_GetWhite());
   BLT_DrawRect(&body, BLT_BLACK);
-#ifdef BOOT_SAFE_TITLE_PROBE
-  BLT_DrawTitleBar(&title, "SegaOS", 1, 1, SysFont_Get());
-#else
   BLT_FillRect(&title, BLT_GetWhite());
   BLT_DrawRect(&title, BLT_BLACK);
   BLT_DrawRect(&close, BLT_BLACK);
-  BLT_DrawHLine(70, 49, 122, BLT_BLACK);
-  BLT_DrawHLine(70, 51, 122, BLT_BLACK);
-#endif
+  SysFont_DrawString(titleTextX, titleTextY, "SegaOS", BLT_BLACK);
 #ifdef BOOT_SAFE_TEXT_PROBE
   SysFont_DrawString(body.left + 8, body.top + 14, "SegaOS", BLT_BLACK);
   SysFont_DrawString(body.left + 8, body.top + 28, "text probe", BLT_BLACK);

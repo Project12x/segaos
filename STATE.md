@@ -24,12 +24,11 @@ the real boot-safe desktop SP reaches the C command loop, completes a first
 `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM frame. The
 default build now displays a visible Mac-like boot-safe frame through BLT's
 word-safe framebuffer backend: checker desktop, menu separator, and a compact
-window-outline starter frame, captured at
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`. A
-title/text render attempt was captured at
-`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png`, but the
-text was visibly corrupted and has been backed out of the boot-safe frame until
-font/title drawing is isolated.
+window starter frame with a clean centered `SegaOS` title, captured at
+`C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`.
+The earlier striped title/body-text attempt at
+`C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
+known-bad visual reference; body text stays opt-in behind `BOOT_SAFE_TEXT_PROBE=1`.
 
 The active strategy is a bring-up ladder:
 
@@ -44,7 +43,7 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 7,498-byte SP binary observed locally after backing out corrupt title/text rendering; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 9,716-byte SP binary observed locally with the clean title label; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,708 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
@@ -69,13 +68,13 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 7,498 bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 9,716 bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
 - BOOT_PROBE SP usage: 930 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
-- Boot-safe desktop SP usage: 7,498 bytes observed locally with
+- Boot-safe desktop SP usage: 9,716 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
 - Boot-safe text probe SP usage: 9,730 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`

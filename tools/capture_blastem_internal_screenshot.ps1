@@ -10,6 +10,9 @@ param(
   [int]$ScreenshotPresses = 3,
   [int]$MillisecondsBetweenScreenshotPresses = 500,
   [int]$FocusTimeoutSeconds = 8,
+  [ValidateSet("PostMessage", "SendInputGuarded")]
+  [string]$InputMode = "PostMessage",
+  [switch]$ClickToFocus,
   [ValidateSet("P", "Enter", "Space", "All")]
   [string]$StartKey = "All"
 )
@@ -43,10 +46,56 @@ function Get-BlastEmWindowHandle([System.Diagnostics.Process]$Process) {
   return $Process.MainWindowHandle
 }
 
+function Set-BlastEmForeground([System.Diagnostics.Process]$Process, [IntPtr]$Handle) {
+  [NativeInput]::ShowWindow($Handle, 9) | Out-Null
+  [NativeInput]::SetForegroundWindow($Handle) | Out-Null
+
+  $shell = New-Object -ComObject WScript.Shell
+  $shell.AppActivate($Process.Id) | Out-Null
+
+  if ($ClickToFocus) {
+    $hwndTopMost = [IntPtr](-1)
+    $hwndNoTopMost = [IntPtr](-2)
+    [NativeInput]::SetWindowPos($Handle, $hwndTopMost, 0, 0, 0, 0, 0x0001 -bor 0x0002) | Out-Null
+    $rect = New-Object NativeInput+RECT
+    if (-not [NativeInput]::GetWindowRect($Handle, [ref]$rect)) {
+      throw "Failed to query BlastEm window rectangle"
+    }
+    $x = [int](($rect.Left + $rect.Right) / 2)
+    $y = [int](($rect.Top + $rect.Bottom) / 2)
+    [NativeInput]::SetCursorPos($x, $y) | Out-Null
+    [NativeInput]::mouse_event(0x0002, 0, 0, 0, [UIntPtr]::Zero)
+    Start-Sleep -Milliseconds 60
+    [NativeInput]::mouse_event(0x0004, 0, 0, 0, [UIntPtr]::Zero)
+    [NativeInput]::SetWindowPos($Handle, $hwndNoTopMost, 0, 0, 0, 0, 0x0001 -bor 0x0002) | Out-Null
+  }
+
+  $deadline = (Get-Date).AddSeconds($FocusTimeoutSeconds)
+  while ([NativeInput]::GetForegroundWindow() -ne $Handle -and (Get-Date) -lt $deadline) {
+    Start-Sleep -Milliseconds 100
+    [NativeInput]::ShowWindow($Handle, 9) | Out-Null
+    [NativeInput]::SetForegroundWindow($Handle) | Out-Null
+    $shell.AppActivate($Process.Id) | Out-Null
+  }
+}
+
 function Send-Key([System.Diagnostics.Process]$Process, [byte]$VirtualKey, [byte]$ScanCode) {
   $handle = Get-BlastEmWindowHandle $Process
-  [NativeInput]::ShowWindow($handle, 9) | Out-Null
-  [NativeInput]::SetForegroundWindow($handle) | Out-Null
+  Set-BlastEmForeground $Process $handle
+
+  if ($InputMode -eq "SendInputGuarded") {
+    Start-Sleep -Milliseconds 120
+    if ([NativeInput]::GetForegroundWindow() -ne $handle) {
+      throw "Refusing to send input because BlastEm is not the foreground window"
+    }
+    [NativeInput]::SendKeyboardInput($VirtualKey, $ScanCode, $false)
+    Start-Sleep -Milliseconds 80
+    if ([NativeInput]::GetForegroundWindow() -ne $handle) {
+      throw "Refusing to release input because BlastEm lost foreground focus"
+    }
+    [NativeInput]::SendKeyboardInput($VirtualKey, $ScanCode, $true)
+    return
+  }
 
   $keyDownLParam = [IntPtr](1 -bor ([int]$ScanCode -shl 16))
   $keyUpLParam = [IntPtr](1 -bor ([int]$ScanCode -shl 16) -bor 0xC0000000)
@@ -115,6 +164,14 @@ using System;
 using System.Runtime.InteropServices;
 
 public static class NativeInput {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct RECT {
+    public int Left;
+    public int Top;
+    public int Right;
+    public int Bottom;
+  }
+
   [DllImport("user32.dll")]
   public static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
@@ -123,6 +180,28 @@ public static class NativeInput {
 
   [DllImport("user32.dll")]
   public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+
+  [DllImport("user32.dll")]
+  public static extern bool GetWindowRect(IntPtr hWnd, ref RECT lpRect);
+
+  [DllImport("user32.dll")]
+  public static extern bool SetCursorPos(int X, int Y);
+
+  [DllImport("user32.dll")]
+  public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
+
+  [DllImport("user32.dll")]
+  public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+  [DllImport("user32.dll")]
+  public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, UIntPtr dwExtraInfo);
+
+  public static void SendKeyboardInput(byte virtualKey, byte scanCode, bool keyUp) {
+    keybd_event(virtualKey, scanCode, keyUp ? 0x0002u : 0u, UIntPtr.Zero);
+  }
 }
 "@
 

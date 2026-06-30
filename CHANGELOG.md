@@ -95,6 +95,13 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   RAM and VDP tile data when `BOOT_SAFE_TEXT_PROBE=1` is enabled.
 - Added `BOOT_SAFE_TITLE_PROBE=1` and DesktopInit assertions for the centered
   title-bar glyph row in both Word RAM and VDP tile data.
+- Added a guarded BlastEm screenshot input mode
+  (`-InputMode SendInputGuarded -ClickToFocus`) that verifies BlastEm foreground
+  focus before sending BIOS START or screenshot hotkeys.
+- Restored a clean centered `SegaOS` title to the default boot-safe desktop
+  while keeping body text behind the opt-in text probe.
+- Moved the title probe sample row to the clean title text and revalidated
+  `0xff00/0x0fff` in both Word RAM and VDP tile data.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -137,6 +144,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   title-bar stripe restoration.
 - Documented the title-bar composition probe as memory/VRAM-proven but still
   visually opt-in.
+- Documented the clean title default and the guarded BlastEm internal screenshot
+  workflow.
 
 ## [0.1.0] - 2026-02-10
 

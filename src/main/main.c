@@ -341,7 +341,7 @@ void segaos_runtime_smoke_halt(void) {
     FB_BYTES_PER_TILE) +                                                           \
    (DESKTOP_TEXT_PROBE_TILE_ROW * 4U))
 #define DESKTOP_TITLE_PROBE_X 113U
-#define DESKTOP_TITLE_PROBE_Y 42U
+#define DESKTOP_TITLE_PROBE_Y 44U
 #define DESKTOP_TITLE_PROBE_ROW 1U
 #define DESKTOP_TITLE_PROBE_BYTE_OFFSET                                          \
   (((DESKTOP_TITLE_PROBE_Y + DESKTOP_TITLE_PROBE_ROW) * FB_LINEAR_BPR) +       \

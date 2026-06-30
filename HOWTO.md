@@ -216,8 +216,8 @@ plan.
 
 Current local evidence:
 
-- normal `make all`: passes verifier with a 7,498-byte Sub SP observed after
-  backing corrupt title/text drawing out of the boot-safe frame
+- normal `make all`: passes verifier with a 9,716-byte Sub SP observed after
+  restoring a clean centered title label to the boot-safe frame
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
 - `DESKTOP_INIT_PROBE=1`: passes `-Probe DesktopInit`, proving the boot-safe C
@@ -225,18 +225,19 @@ Current local evidence:
   Word RAM for Main upload
 - `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`: proves plain body text reaches
   Word RAM and VDP tile data without using the striped title-bar renderer
-- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the striped title-bar
-  text composition reaches Word RAM and VDP tile data
-- normal boot-safe C desktop: visible as a checker desktop/menu/window-outline
-  frame in
-  `C:\tmp\segaos_screens_internal\segaos_internal_20260629_175032.png`;
-  title/text drawing is not currently trusted because the latest title/text
-  screenshot was visibly corrupted
+- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the clean centered
+  title text reaches Word RAM and VDP tile data
+- normal boot-safe C desktop: visible as a checker desktop/menu/window frame
+  with a centered `SegaOS` title in
+  `C:\tmp\segaos_screens_internal\segaos_default_title_clean_20260629_201104.png`;
+  body text remains opt-in because the earlier striped title/body-text screenshot
+  was visibly corrupted
 
-The internal screenshot helper now sends targeted window messages to BlastEm's
-own window handle instead of global host key events. For capture runs it remaps
-`p` to controller START and `f12` to `ui.screenshot`, waits longer after START,
-and restores the user's BlastEm config afterward.
+The internal screenshot helper defaults to targeted window messages. For reliable
+BIOS START automation under SDL, use `-InputMode SendInputGuarded -ClickToFocus`;
+this clicks the BlastEm window, verifies it owns foreground focus before each
+key event, remaps `p` to controller START and `f12` to `ui.screenshot`, waits
+longer after START, and restores the user's BlastEm config afterward.
 
 Do not advance the full desktop/app loop until the minimal `WM_NewWindow()`
 render rung and repeated-frame Word RAM policy are proven.
