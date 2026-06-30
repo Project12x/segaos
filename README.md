@@ -101,8 +101,10 @@ text without the striped title-bar renderer, and the combined
 RAM and VDP tile data. The visible title/body canary is now a block wordmark,
 with `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block
 title row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current
-visible text capture is
-`C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`.
+default capture is
+`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
+current opt-in sysfont text probe capture is
+`C:\tmp\segaos_screens_internal\segaos_text_probe_20260629_211127.png`.
 That block canary is diagnostic, not the final UI. After the 68k desktop
 prior-art pass, the next desktop gates are a clean fixed-font text proof, then
 a dirty-rectangle/clipping proof, then root desktop redraw, before returning to

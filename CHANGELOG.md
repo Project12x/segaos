@@ -98,10 +98,15 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Added a guarded BlastEm screenshot input mode
   (`-InputMode SendInputGuarded -ClickToFocus`) that verifies BlastEm foreground
   focus before sending BIOS START or screenshot hotkeys.
+- Added `-ScreenshotKey P/F12` to the BlastEm internal screenshot helper and
+  defaulted it to the working targeted `p ui.screenshot` binding while START is
+  sent through Enter/Space.
 - Added a coarse block `OS` visual canary to the default boot-safe desktop while
   keeping sysfont/body text behind opt-in probes.
 - Repointed the title probe at the block canary and revalidated
   `0x0fff/0xffff` in both Word RAM and VDP tile data.
+- Fixed the DesktopInit text probe sample coordinate so it samples the actual
+  sysfont body text at `y=86` instead of a stale white body row.
 
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
@@ -149,6 +154,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   visually opt-in.
 - Documented the block visual canary and the guarded BlastEm internal screenshot
   workflow.
+- Documented the latest default and sysfont text-probe screenshots.
 - Updated roadmap/current-state docs so the next desktop rungs are fixed-font
   text, dirty-rectangle/clipping, root desktop redraw, and minimal window
   furniture instead of immediately re-enabling broad `WM_NewWindow()` behavior.

@@ -326,7 +326,7 @@ void segaos_runtime_smoke_halt(void) {
 #ifdef DESKTOP_INIT_PROBE
 #define DESKTOP_PROBE_WAIT_LIMIT 0x00100000UL
 #define DESKTOP_TEXT_PROBE_X 48U
-#define DESKTOP_TEXT_PROBE_Y 72U
+#define DESKTOP_TEXT_PROBE_Y 86U
 #define DESKTOP_TEXT_PROBE_ROW 1U
 #define DESKTOP_TEXT_PROBE_BYTE_OFFSET                                           \
   (((DESKTOP_TEXT_PROBE_Y + DESKTOP_TEXT_PROBE_ROW) * FB_LINEAR_BPR) +          \

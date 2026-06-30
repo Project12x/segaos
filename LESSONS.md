@@ -50,6 +50,10 @@ same failures.
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
+- Probe sample coordinates must stay tied to the rendered primitive. A stale
+  text probe sampled the white body row at `y=73` after the sysfont probe text
+  moved to `y=86`; the corrected probe now samples the actual first "S" glyph
+  row and expects `0xf000/0xffff`.
 
 ## Word RAM Ownership
 
@@ -96,6 +100,10 @@ same failures.
 - The block title canary is memory-proven separately:
   `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies sampled block
   title bytes as `0x0fff/0xffff` in both Word RAM and VDP tile data.
+- Latest default internal screenshot:
+  `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
+- Latest opt-in sysfont text probe screenshot:
+  `C:\tmp\segaos_screens_internal\segaos_text_probe_20260629_211127.png`.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

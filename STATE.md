@@ -25,7 +25,9 @@ the real boot-safe desktop SP reaches the C command loop, completes a first
 default build now displays a visible Mac-like boot-safe frame through BLT's
 word-safe framebuffer backend: checker desktop, menu separator, and a compact
 window starter frame with a coarse block `OS` visual canary, captured at
-`C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`.
+`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
+An opt-in sysfont text probe capture is also available at
+`C:\tmp\segaos_screens_internal\segaos_text_probe_20260629_211127.png`.
 The earlier striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
 known-bad visual reference; body text stays opt-in behind `BOOT_SAFE_TEXT_PROBE=1`.
@@ -63,7 +65,7 @@ The active strategy is a bring-up ladder:
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
-| Text render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first "S" glyph row as `0xf000/0xffff` in both Word RAM and VDP tile data |
+| Text render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first "S" glyph row at the actual `y=86` body-text origin as `0xf000/0xffff` in both Word RAM and VDP tile data |
 | Title/block render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves the sampled block title row as `0x0fff/0xffff` in both Word RAM and VDP tile data |
 
 ## Toolchain

@@ -14,10 +14,16 @@ param(
   [string]$InputMode = "PostMessage",
   [switch]$ClickToFocus,
   [ValidateSet("P", "Enter", "Space", "All")]
-  [string]$StartKey = "All"
+  [string]$StartKey = "All",
+  [ValidateSet("P", "F12")]
+  [string]$ScreenshotKey = "P"
 )
 
 $ErrorActionPreference = "Stop"
+
+if ($ScreenshotKey -eq "P" -and $StartKey -eq "P") {
+  throw "ScreenshotKey P conflicts with StartKey P; use StartKey Enter, Space, or All"
+}
 
 function Resolve-ExistingPath([string]$Path, [string]$Label) {
   $resolved = Resolve-Path -LiteralPath $Path -ErrorAction SilentlyContinue
@@ -118,7 +124,7 @@ function Send-SpaceKey([System.Diagnostics.Process]$Process) {
 }
 
 function Send-StartKey([System.Diagnostics.Process]$Process) {
-  if ($StartKey -eq "P" -or $StartKey -eq "All") {
+  if (($StartKey -eq "P" -or $StartKey -eq "All") -and $ScreenshotKey -ne "P") {
     Send-Key $Process 0x50 0x19
   }
   if ($StartKey -eq "Enter" -or $StartKey -eq "All") {
@@ -130,7 +136,11 @@ function Send-StartKey([System.Diagnostics.Process]$Process) {
 }
 
 function Send-ScreenshotKey([System.Diagnostics.Process]$Process) {
-  Send-Key $Process 0x7B 0x58
+  if ($ScreenshotKey -eq "P") {
+    Send-Key $Process 0x50 0x19
+  } else {
+    Send-Key $Process 0x7B 0x58
+  }
 }
 
 $blastemExe = Resolve-ExistingPath (Join-Path $BlastEmDir "blastem.exe") "BlastEm executable"
@@ -155,7 +165,9 @@ try {
   $config = Get-Content -LiteralPath $defaultConfigPath -Raw
   $config = $config -replace "(?m)^(\s*)screenshot_path\s+.*$", "`$1screenshot_path $outputDirForConfig"
   $config = $config -replace "(?m)^(\s*)screenshot_template\s+.*$", "`$1screenshot_template $Template"
-  $config = $config -replace "(?m)^(\s*)p\s+ui\.screenshot\s*$", "`$1p gamepads.1.start`r`n`$1f12 ui.screenshot"
+  if ($ScreenshotKey -eq "F12") {
+    $config = $config -replace "(?m)^(\s*)p\s+ui\.screenshot\s*$", "`$1p gamepads.1.start`r`n`$1f12 ui.screenshot"
+  }
   $config = $config -replace "(?m)^(\s*)enter\s+gamepads\.1\.start\s*$", "`$1enter gamepads.1.start`r`n`$1space gamepads.1.start"
   Set-Content -LiteralPath $configPath -Value $config -Encoding ASCII
 

@@ -135,7 +135,7 @@ handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
 frame. The default build now displays a visible checker desktop/menu/window
 starter frame with a coarse block `OS` canary through BLT's word-safe
 framebuffer backend, captured at
-`C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`.
+`C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
 The captured striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
 known-bad visual reference, so body text and striped title styling stay opt-in.
