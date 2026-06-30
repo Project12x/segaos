@@ -97,7 +97,8 @@ reads back correctly from VDP VRAM. The visible probe build
 pattern and is captured by BlastEm's internal screenshotting. The default build
 now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
 uploads the returned Word RAM frame, and displays a visible checker
-desktop/menu/window starter frame with a coarse block `OS` canary in BlastEm. BLT framebuffer access and
+desktop/menu/window starter frame with real SGDK-font menu, title, and body
+text. BLT framebuffer access and
 Main framebuffer upload now use word-safe 16-bit Word RAM helpers, and
 `WM_DrawDesktop()` owns the boot-safe desktop/menu shell. `VDP_TEXT_PROBE=1` is
 now the Main-only text canary: it bypasses Sub CPU and Word RAM, uploads
@@ -116,21 +117,20 @@ transparent/backdrop and render opaque black framebuffer ink with palette index
 1. The system font is now converted
 from SGDK v2.11's MIT `font_default.png`; provenance and license are recorded
 in `src/sub/sysfont.c` and `third_party/sgdk_font/`. The visible title/body
-canary is now a block wordmark, with
-`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block title
-row as `0x1fff/0xffff` in both Word RAM and VDP tile data. The current default
-capture is
+canary now uses that font in the default boot-safe window, with
+`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving a sampled default body
+text row as `0xf11f/0x1f11` in both Word RAM and VDP tile data. The last accepted
+default visual capture is the older block-canary frame at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
 known-bad blank capture
 `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` and the
 pre-fix sparse/corrupt capture
 `C:\tmp\segaos_screens_internal\segaos_desktop_text_probe_20260630_182543.png`
 are diagnostic references, not current visual passes.
-That block canary is diagnostic, not the final UI. After the 68k desktop
-prior-art pass, the real-font correction, and the palette-index transparency
-fix, the next desktop gates are restoring text/title presentation into the
-default boot-safe path, then a dirty-rectangle/clipping proof, then root
-desktop redraw, before returning to
+That boot-safe window is diagnostic, not the final UI. After the 68k desktop
+prior-art pass, the real-font correction, the palette-index transparency fix,
+and default text restoration, the next desktop gates are a
+dirty-rectangle/clipping proof, then root desktop redraw, before returning to
 minimal window furniture and normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

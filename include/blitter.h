@@ -9,10 +9,10 @@
  *   - 80 bytes per row, 17,920 bytes per frame
  *   - Palette: Black, Dark Gray, Light Gray, White
  *
- * 4-bit mode (16 colors, Win 3.1 palette):
+ * 4-bit mode (Windows-like 16 colors):
  *   - 4 bits per pixel, 2 pixels per byte (high nibble = left)
  *   - 160 bytes per row, 35,840 bytes per frame
- *   - Palette: Standard Windows 3.1 16-color palette
+ *   - Palette: index 0 transparent/backdrop, index 1 opaque black ink
  *
  * The blitter runs on the Sub CPU (68000 @ 12.5MHz).
  */

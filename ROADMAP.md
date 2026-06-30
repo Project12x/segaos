@@ -133,8 +133,8 @@ normal C SP startup path without desktop modules. `DESKTOP_INIT_PROBE=1` +
 `-Probe DesktopInit` proves the real boot-safe desktop SP reaches `sub_main`,
 handles a first `CMD_RENDER_FRAME`, and lets Main upload the returned Word RAM
 frame. The default build now displays a visible checker desktop/menu/window
-starter frame with a coarse block `OS` canary through BLT's word-safe
-framebuffer backend, captured at
+starter frame with real SGDK-font menu, title, and body text through BLT's
+word-safe framebuffer backend. The older block-canary capture is retained at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
 The captured striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
@@ -188,7 +188,7 @@ that matches Genesis VDP constraints.
       direct SGDK 8x8 tile text
 - [x] Resolve the scaled-text transparency/corruption issue in the opt-in
       desktop compositor probe
-- [ ] Restore accepted text and title presentation to the default boot-safe
+- [x] Restore accepted text and title presentation to the default boot-safe
       desktop path
 - [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
       used by the boot-safe renderer

@@ -33,7 +33,7 @@ static uint8_t strip_buf[STRIP_BUF_SIZE];
  *
  * Fills Plane A name table with sequential tile indices so
  * tiles 0-1119 map directly to screen positions.
- * Loads the Win3.1 palette to CRAM palette line 0.
+ * Loads the Windows-like boot palette to CRAM palette line 0.
  * ============================================================ */
 void FB_Init(void) {
   uint16_t tile_idx;
@@ -63,7 +63,7 @@ void FB_Init(void) {
     }
   }
 
-  /* Load Windows 3.1 palette to CRAM palette 0 (16 colors) */
+  /* Load Windows-like palette to CRAM palette 0 (16 colors) */
   VDP_LoadPalette(FB_PALETTE_WIN31, 0, 16);
 
   /* Set background color to black (palette 0, color 0) */

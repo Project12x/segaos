@@ -109,7 +109,8 @@ same failures.
 
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
 - The current visible target is intentionally modest: checker desktop, menu
-  separator, and a clean window starter frame with a coarse block `OS` canary.
+  separator, and a clean window starter frame with real SGDK-font menu, title,
+  and body text.
 - Plain body text and striped title-bar composition are separate risks. The old
   hand-authored 6x10 placeholder sysfont was not a defensible target. It has
   been replaced with SGDK v2.11's real 8x8 font, and
@@ -126,10 +127,11 @@ same failures.
 - Keep text probes separate from title-bar stripes. Plain body text should be
   visually accepted before the active Mac-style striped title composition is
   restored.
-- The block title canary is memory-proven separately:
-  `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies sampled block
-  title bytes as `0x1fff/0xffff` in both Word RAM and VDP tile data.
-- Latest default internal screenshot:
+- The default boot-safe text/title canary is memory-proven separately:
+  `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies a sampled default
+  body text row as `0xf11f/0x1f11` in both Word RAM and VDP tile data.
+- Latest accepted default internal screenshot, from the older block-canary
+  frame:
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
 - Latest accepted opt-in desktop-composited SGDK-font text probe screenshot:
   `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png`.
