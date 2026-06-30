@@ -135,22 +135,25 @@ uses SGDK v2.11's MIT 8x8 font, proves direct VDP tile text through
 `VDP_TEXT_PROBE=1`, proves desktop-composited scaled text through
 `BOOT_SAFE_TEXT_PROBE=1`, and captures the restored default menu/title/body
 frame at
-`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`
+`C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`
 through debugger-backed BlastEm internal screenshotting.
+
+Status update, 2026-06-30 later pass: the dirty rectangle data-structure rung is
+also complete. `src/sub/dirty_rect.c` is clean-room SegaOS code, not a port from
+the GPL-family references. `make host-tests` covers half-open intersections,
+bounds clipping, deterministic subtraction strips, edge-touch merge,
+corner-touch separation, overflow collapse to a bounding rect, and 8x8
+tile-range rounding.
 
 The remaining implementation rungs are:
 
-1. Dirty rectangle and clipping proof:
-   - implement a static rectangle pool;
-   - implement intersection/subtraction/iteration tests on host first;
-   - map dirty rectangles to tile ranges for the Main CPU upload path.
-2. Root desktop redraw proof:
+1. Root desktop redraw proof:
    - redraw desktop fill/menu/root objects through the new contracts;
    - no application windows yet.
-3. Minimal window furniture proof:
+2. Minimal window furniture proof:
    - draw one window frame/title/furniture through the dirty-rect list;
    - no app content callbacks yet.
-4. Application content and event routing:
+3. Application content and event routing:
    - add app-owned content rectangles;
    - route mouse/key events only after visible ownership and redraw are stable.
 

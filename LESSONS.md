@@ -34,6 +34,11 @@ same failures.
 - Dirty rectangles and clip ownership need their own static pools and tests
   before broad window-manager redraw. EmuTOS/FreeMiNT history says redraw bugs
   are a primary failure mode, not polish.
+- `src/sub/dirty_rect.c` is the clean-room dirty-region contract. It clips to
+  screen bounds, rejects empty rects, merges overlapping or edge-touching
+  invalidations, keeps corner-only contact separate, subtracts one rect from
+  another into deterministic strips, collapses overflow to one bounding rect,
+  and maps dirty pixels to 8x8 tile ranges for the later VDP upload queue.
 - Root desktop redraw should be a separate contract from window furniture and
   app content callbacks.
 - No maintained native Mega Drive desktop OS reference was found in this pass;
@@ -138,7 +143,7 @@ same failures.
 - Latest accepted default internal screenshot, captured with
   `BOOT_SAFE_VISUAL_PROBE=1` and `-DebugAutoBoot` after GDB proved phase
   `0x76ff`:
-  `C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`.
+  `C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`.
   The older block-canary frame at
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is only a
   historical reference.
@@ -155,6 +160,6 @@ same failures.
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
   consumption before the first command was handled. Treat full WM allocation and
-  z-order traversal as later rungs. The next isolated rungs are fixed-font text,
-  dirty rectangles/clipping, root desktop redraw, and then minimal window
-  furniture.
+  z-order traversal as later rungs. Fixed-font text and the dirty rectangle pool
+  are now proven; the next isolated rungs are root desktop redraw and then
+  minimal window furniture.

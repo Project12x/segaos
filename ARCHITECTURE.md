@@ -71,13 +71,12 @@ return path now gives bank 0 back to Sub after Main uploads a frame. The
 boot-safe C desktop path now publishes ready, consumes the first render command,
 and displays a visible Mac-like starter frame in BlastEm. The current starter
 uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT rectangle
-primitives for the window outline, with a coarse block `OS` canary. The
-SGDK-derived fixed font and title canary are memory/VRAM-proven in opt-in
-probes but text is not yet visually accepted as default UI. The next
-architecture work is the VDI/AES/Desktop split: clean text presentation,
-dirty-rectangle/clipping proof, root desktop redraw, then minimal window
-furniture. The product goal is still a 68k Mac-like desktop on Sega CD; the
-bootstrap can change to make that goal reliable.
+primitives for the window outline, with real SGDK-derived menu/title/body text
+accepted through debugger-backed BlastEm internal screenshotting. A clean-room
+dirty rectangle module is now host-tested and wired into `WM_InvalidateRect()`.
+The next architecture work is root desktop redraw through that contract, then
+minimal window furniture. The product goal is still a 68k Mac-like desktop on
+Sega CD; the bootstrap can change to make that goal reliable.
 
 ## Memory Map
 
@@ -110,6 +109,13 @@ capability, but it should not be used for the displayed desktop until either a
 
 ### Window Manager (`src/sub/wm.c`)
 Mac OS-style window management with z-ordered window list, title bars, drag, resize, close buttons. Dispatches mouse events to the topmost window. Each window has a content rect drawn by its owning application.
+
+Dirty-region ownership is delegated to `src/sub/dirty_rect.c`, a clean-room
+static rectangle-list module with host tests. It clips invalidations to screen
+bounds, merges overlapping or edge-touching regions, keeps corner-only contact
+separate, subtracts cutouts into stable strips, collapses overflow to a single
+conservative bounding rect, and exposes 8x8 tile-range rounding for the later
+VDP dirty-upload queue.
 
 ### Framebuffer Pipeline (`src/main/framebuffer.c`)
 Converts the Sub CPU's linear 4bpp framebuffer to VDP 8x8 tile format using strip-based processing (5 KB buffer per strip, 7 strips per frame). Both formats use identical 4bpp nibble packing, so conversion is purely a memory rearrangement.

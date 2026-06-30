@@ -9,6 +9,7 @@
 # ============================================================
 SGDK_BIN  ?= C:/SDKS/SGDK/bin
 SGDK_LIB  ?= C:/SDKS/SGDK/lib
+HOST_CC   ?= C:/Qt/Tools/mingw1310_64/bin/gcc.exe
 CD_REGION ?= US
 BOOT_PROBE ?= 0
 BOOT_PROBE_FRAMEBUFFER ?= 0
@@ -110,6 +111,7 @@ SUB_C_SRCS   = $(SUB_DIR)/runtime_smoke.c
 else
 ifeq ($(BOOT_SAFE_DESKTOP),1)
 SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
+               $(SUB_DIR)/dirty_rect.c \
                $(SUB_DIR)/libc.c \
                $(SUB_DIR)/mem.c \
                $(SUB_DIR)/sub.c \
@@ -139,7 +141,7 @@ MAIN_OBJS     = $(MAIN_ASM_OBJS) $(MAIN_C_OBJS)
 # ============================================================
 # Targets
 # ============================================================
-.PHONY: all clean sub main iso dirs info
+.PHONY: all clean sub main iso dirs info host-tests
 
 all: iso
 
@@ -166,6 +168,7 @@ dirs:
 info:
 	@echo "SGDK_BIN: $(SGDK_BIN)"
 	@echo "CC:       $(CC)"
+	@echo "HOST_CC:  $(HOST_CC)"
 	@echo "PYTHON:   $(PYTHON)"
 	@echo "CD_REGION: $(CD_REGION)"
 	@echo "BOOT_PROBE: $(BOOT_PROBE)"
@@ -182,6 +185,10 @@ info:
 	@echo "Sub objects:  $(SUB_OBJS)"
 	@echo "Main sources: $(MAIN_C_SRCS)"
 	@echo "Main objects: $(MAIN_OBJS)"
+
+host-tests: dirs
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_dirty_rect.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_dirty_rect.exe
+	$(BUILD_DIR)/test_dirty_rect.exe
 
 # ============================================================
 # Sub CPU Build Rules

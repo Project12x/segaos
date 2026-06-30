@@ -27,7 +27,7 @@ word-safe framebuffer backend: checker desktop, menu separator, and a compact
 window starter frame. The starter frame now uses the real SGDK-derived font for
 menu, title, and body text instead of the old block `OS` visual canary. The
 latest accepted default internal screenshot is
-`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`,
+`C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`,
 captured from a `BOOT_SAFE_VISUAL_PROBE=1` build after GDB hit
 `segaos_visual_probe_halt` with phase `0x76ff` and BlastEm's own
 `ui.screenshot` binding wrote the PNG. The previous block-canary screenshot is
@@ -64,6 +64,10 @@ license sources, so they are pattern-only references: no copying or close ports.
 The active desktop strategy is now to split SegaOS into a VDI-like
 drawing/text/clipping layer, an AES-like window/event/redraw ownership layer,
 and a desktop shell above them.
+The first clipping/redraw data structure is now in place:
+`src/sub/dirty_rect.c` provides a host-tested static dirty rectangle list and
+rectangle primitive helpers, while `WM_InvalidateRect()` delegates to that
+contract.
 
 The active strategy is a bring-up ladder:
 
@@ -78,7 +82,7 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 10,588-byte SP binary observed locally with the SGDK-font starter window; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,350-byte SP binary observed locally with the SGDK-font starter window and dirty-rect module; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,752 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
@@ -93,6 +97,7 @@ The active strategy is a bring-up ladder:
 | Direct VDP text canary | Passing | `VDP_TEXT_PROBE=1` + `-Probe VdpText` proves SGDK-derived 8x8 glyph tile upload, VRAM readback `0x00ff/0xff00`, Plane A entries `0x0001/0x0002/0x0003`, and a readable internal screenshot |
 | Desktop scaled text isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff11`, full-glyph signature `0xd2dd`, Plane A entries `0x0198/0x0199/0x019a`, and readable desktop-compositor screenshot `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png` |
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
+| Dirty rectangle host tests | Passing | `make host-tests` covers clipping, half-open intersection, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, and 8x8 tile range mapping |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting |
 
 ## Toolchain
@@ -106,20 +111,20 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 10,588 bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 11,350 bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
 - BOOT_PROBE SP usage: 930 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
-- Boot-safe desktop SP usage: 10,588 bytes observed locally with
+- Boot-safe desktop SP usage: 11,350 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
 - Boot-safe text probe SP usage: 9,248 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
 - Boot-safe title/default-text probe SP usage: 10,636 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
 - Boot-safe visual-probe IP usage: 2,728 text bytes observed locally with
-  `BOOT_SAFE_VISUAL_PROBE=1`; SP remains the 10,588-byte boot-safe desktop
+  `BOOT_SAFE_VISUAL_PROBE=1`; SP remains the 11,350-byte boot-safe desktop
   payload
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
   `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
@@ -226,6 +231,7 @@ SGDK font source:
 |--------|-----|------|---------|
 | Blitter | Sub | `src/sub/blitter.c` | Software framebuffer renderer |
 | Window Manager | Sub | `src/sub/wm.c` | Mac-style window management |
+| Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, and tile-range mapping |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
 | Framebuffer | Main | `src/main/framebuffer.c` | Linear-to-tile + DMA pipeline |
@@ -263,10 +269,11 @@ High priority:
   debugger-backed BlastEm internal screenshot of the default frame, so a BIOS
   screen or old block-canary capture is no longer acceptable visual evidence.
   BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
-  helpers. The next risks are simpler and lower-level:
-  add dirty-rectangle/clipping ownership, route root desktop redraw through that
-  contract, then move to real `WM_NewWindow()`/menu/cursor rendering without
-  regressing command timing or Word RAM ownership.
+  helpers. The dirty-rectangle/clipping pool now has host tests and is wired
+  into `WM_InvalidateRect()`. The next risks are simpler and lower-level: route
+  root desktop redraw through that contract, then move to real
+  `WM_NewWindow()`/menu/cursor rendering without regressing command timing or
+  Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

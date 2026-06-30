@@ -14,6 +14,7 @@
 #ifndef WM_H
 #define WM_H
 
+#include "dirty_rect.h"
 #include "sega_os.h"
 
 /* ============================================================
@@ -119,15 +120,6 @@ typedef struct Window {
 } Window;
 
 /* ============================================================
- * DirtyRect - Global dirty rectangle for VDP transfer
- * ============================================================ */
-typedef struct {
-  Rect rect;
-  uint8_t valid; /* 1 = needs transfer           */
-  uint8_t _pad;
-} DirtyRect;
-
-/* ============================================================
  * WindowManager - Global state
  *
  * Single instance, lives in Sub CPU BSS.
@@ -147,7 +139,7 @@ typedef struct {
 
   /* Global dirty rect accumulator */
   DirtyRect dirtyRects[WM_MAX_DIRTY_RECTS];
-  uint8_t dirtyCount;
+  DirtyRectList dirtyList;
 
   /* Desktop state */
   uint8_t desktopPattern; /* 0=white, 1=gray, 2=checker  */

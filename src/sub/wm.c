@@ -21,26 +21,9 @@ static WindowManager wm;
  * Internal Helpers
  * ============================================================ */
 
-/* Rect utility functions */
-static inline int16_t rect_width(const Rect *r) { return r->right - r->left; }
-
-static inline int16_t rect_height(const Rect *r) { return r->bottom - r->top; }
-
 static inline Boolean rect_contains_point(const Rect *r, Point pt) {
   return (pt.x >= r->left && pt.x < r->right && pt.y >= r->top &&
           pt.y < r->bottom);
-}
-
-static inline Boolean rect_intersects(const Rect *a, const Rect *b) {
-  return !(a->right <= b->left || a->left >= b->right || a->bottom <= b->top ||
-           a->top >= b->bottom);
-}
-
-static void rect_union(const Rect *a, const Rect *b, Rect *out) {
-  out->left = (a->left < b->left) ? a->left : b->left;
-  out->top = (a->top < b->top) ? a->top : b->top;
-  out->right = (a->right > b->right) ? a->right : b->right;
-  out->bottom = (a->bottom > b->bottom) ? a->bottom : b->bottom;
 }
 
 static void rect_clip_to_screen(Rect *r) {
@@ -146,7 +129,14 @@ static void zorder_push_top(Window *win) {
  * ============================================================ */
 
 void WM_Init(void) {
+  Rect screen;
+
   memset(&wm, 0, sizeof(WindowManager));
+  screen.top = 0;
+  screen.left = 0;
+  screen.bottom = WM_SCREEN_H;
+  screen.right = WM_SCREEN_W;
+  DR_InitList(&wm.dirtyList, wm.dirtyRects, WM_MAX_DIRTY_RECTS, &screen);
   wm.desktopPattern = 1; /* Gray pattern by default */
   wm.cursorPos.x = WM_SCREEN_W / 2;
   wm.cursorPos.y = WM_SCREEN_H / 2;
@@ -435,38 +425,10 @@ WindowPart WM_FindWindow(Point pt, Window **outWin) {
  * ============================================================ */
 
 void WM_InvalidateRect(Rect *r) {
-  Rect clipped;
-  uint8_t i;
-
   if (!r)
     return;
 
-  clipped = *r;
-  rect_clip_to_screen(&clipped);
-
-  /* Check if this rect is empty */
-  if (clipped.left >= clipped.right || clipped.top >= clipped.bottom) {
-    return;
-  }
-
-  /* Try to merge with an existing dirty rect */
-  for (i = 0; i < wm.dirtyCount; i++) {
-    if (wm.dirtyRects[i].valid &&
-        rect_intersects(&wm.dirtyRects[i].rect, &clipped)) {
-      rect_union(&wm.dirtyRects[i].rect, &clipped, &wm.dirtyRects[i].rect);
-      return;
-    }
-  }
-
-  /* Add as new dirty rect */
-  if (wm.dirtyCount < WM_MAX_DIRTY_RECTS) {
-    wm.dirtyRects[wm.dirtyCount].rect = clipped;
-    wm.dirtyRects[wm.dirtyCount].valid = 1;
-    wm.dirtyCount++;
-  } else {
-    /* Overflow: merge with first rect (worst case) */
-    rect_union(&wm.dirtyRects[0].rect, &clipped, &wm.dirtyRects[0].rect);
-  }
+  DR_AddRect(&wm.dirtyList, r);
 }
 
 void WM_InvalidateWindow(Window *win) {
@@ -486,23 +448,15 @@ void WM_ValidateRect(Rect *r) {
 
 uint8_t WM_BeginUpdate(void) {
   /* Returns the number of dirty rects to process */
-  return wm.dirtyCount;
+  return DR_GetCount(&wm.dirtyList);
 }
 
 DirtyRect *WM_GetDirtyRect(uint8_t index) {
-  if (index < wm.dirtyCount) {
-    return &wm.dirtyRects[index];
-  }
-  return (DirtyRect *)0;
+  return DR_GetRect(&wm.dirtyList, index);
 }
 
 void WM_EndUpdate(void) {
-  /* Clear all dirty rects */
-  uint8_t i;
-  for (i = 0; i < WM_MAX_DIRTY_RECTS; i++) {
-    wm.dirtyRects[i].valid = 0;
-  }
-  wm.dirtyCount = 0;
+  DR_ClearList(&wm.dirtyList);
   wm.menuBarDirty = 0;
 }
 

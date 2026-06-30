@@ -26,6 +26,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   the MIT license for the converted system font data.
 - Added scaled text drawing helpers `BLT_DrawGlyphScaled()` and
   `BLT_DrawStringScaled()` for readable boot-safe text probes.
+- Added `src/sub/dirty_rect.c`, `include/dirty_rect.h`, and `make host-tests`
+  for clean-room dirty rectangle clipping, merging, subtraction, overflow, and
+  tile-range behavior.
 
 ### Changed
 - Replaced the `pycdlib` ISO path with a Python standard-library cooked
@@ -56,6 +59,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   normal C SP startup and boot-safe desktop init/render bring-up.
 - Implemented `WM_DrawDesktop()` so it paints the boot-safe checker desktop and
   menu shell instead of remaining a stub.
+- Moved global dirty-rectangle accumulation out of `wm.c` and into the
+  host-tested dirty rectangle module.
 
 ### Fixed
 - Fixed several UI border/cursor draw calls that passed ending coordinates to

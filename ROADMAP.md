@@ -137,7 +137,7 @@ starter frame with real SGDK-font menu, title, and body text through BLT's
 word-safe framebuffer backend. The older block-canary capture is retained at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
 current accepted default capture is
-`C:\tmp\segaos_screens_internal\segaos_debug_visual_p_20260630_192351.png`,
+`C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`,
 created by the `BOOT_SAFE_VISUAL_PROBE=1` / `-DebugAutoBoot` path after GDB
 proved `segaos_visual_probe_halt` phase `0x76ff`.
 The captured striped title/body-text attempt at
@@ -197,7 +197,7 @@ that matches Genesis VDP constraints.
 - [x] Capture and visually accept the restored default boot-safe desktop via
       debugger-backed BlastEm internal screenshotting, not BIOS/autoplay
       capture
-- [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
+- [x] Add a static dirty-rectangle/clipping pool with host tests before it is
       used by the boot-safe renderer
 - [ ] Route root desktop redraw through the dirty-rectangle/clipping contract
 - [ ] Prove minimal window furniture through the redraw list, without app
@@ -216,6 +216,9 @@ that matches Genesis VDP constraints.
 - [x] Prove title-bar text composition pixels in Word RAM and VDP tile data
 - [x] Visually accept restored default title presentation after the simpler
       fixed-font text proof passes
+- [x] Add host tests for dirty-rect clipping, half-open intersection,
+      deterministic subtraction strips, edge-touch merge, corner-touch
+      separation, overflow behavior, and 8x8 tile range rounding
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
       dirty-rectangle/root-redraw contracts pass
 - [ ] Validate mouse input -> window hit testing -> app callback flow
