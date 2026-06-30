@@ -15,6 +15,7 @@ SegaOS-specific probe/control logic unless a file says otherwise.
 
 ### Architecture & Design
 - [sega_cd_homebrew_2026.md](sega_cd_homebrew_2026.md) — June 2026 toolchain/homebrew update and SegaOS implications
+- [68k_desktop_prior_art.md](68k_desktop_prior_art.md) — GEM/TOS desktop architecture lessons for the SegaOS VDI/AES/Desktop split
 - [megadev_ip_sp.md](megadev_ip_sp.md) — SP header format, BIOS jump table requirements
 - [megadev_program_design.md](megadev_program_design.md) — Memory architecture overview (Work RAM, PRG-RAM, Word RAM)
 - [megadev_dev_in_c.md](megadev_dev_in_c.md) — C development caveats (no global init, no stdlib, stack warnings)
@@ -44,6 +45,9 @@ freestanding C headers. May be useful if the SGDK toolchain lacks these.
 - SGDK remains useful as the local m68k toolchain provider for SegaOS.
 - Megadev is now the primary permissive Sega CD framework reference for boot
   layout, IP/SP structure, CD-ROM access, modules, and ISO generation.
+- EmuTOS, FreeMiNT/XaAES, and OpenGEM are now recorded as GPL-family
+  desktop-architecture references only. They inform the VDI/AES/Desktop split,
+  clipping, redraw ownership, and event contracts; do not copy code from them.
 - A Megadev-derived dual-CPU control fixture is kept under
   `tools/controls/megadev_dualcpu` as the current boot/startup baseline.
 - The canonical data track format for the current SegaOS boot-disc work is a

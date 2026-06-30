@@ -33,6 +33,23 @@ uses Megadev as the maintained reference for boot-sector layout, IP/SP
 constraints, Sub CPU CD-ROM ownership, Word RAM caveats, and cooked ISO
 generation.
 
+Desktop GUI assumptions should be checked against 68k GEM/TOS prior art,
+recorded in `docs/reference/68k_desktop_prior_art.md`:
+
+- EmuTOS: `emutos/emutos@bc34e0b7e7850c5c45a909409d11f7c75ecdc881`,
+  GPL-family, reuse mode pattern-only / clean-room behavior specs.
+- FreeMiNT/XaAES:
+  `freemint/freemint@3172633539fb4281bc3b23c322892f565f303c16`,
+  mixed GPL/MiNT-family terms, reuse mode pattern-only.
+- OpenGEM:
+  `shanecoughlan/OpenGEM@ac06b1a3fec3f3e8defcaaf7ea0338c38c3cef46`,
+  GPL for GEM/FreeGEM/OpenGEM sections, reuse mode historical/API
+  pattern-only.
+
+These references are not code sources for SegaOS. They establish the clean-room
+architecture target: a VDI-like drawing/text/clipping layer, an AES-like
+window/event/redraw ownership layer, and a desktop shell on top.
+
 The current pre-alpha boot posture is deliberately flexible. A permanent
 Megadev-derived dual-CPU control image built through SegaOS's ISO builder
 reports from Sub-side code, and the SegaOS `BOOT_PROBE=1` assembly path now
@@ -46,11 +63,12 @@ return path now gives bank 0 back to Sub after Main uploads a frame. The
 boot-safe C desktop path now publishes ready, consumes the first render command,
 and displays a visible Mac-like starter frame in BlastEm. The current starter
 uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT rectangle
-primitives for the window outline. Title/text rendering is not yet trusted after
-a corrupted capture and must be isolated before returning to the boot frame;
-full `WM_NewWindow()`/menu/cursor rendering remains the next isolated rung. The
-product goal is still a 68k Mac-like desktop on Sega CD; the bootstrap can
-change to make that goal reliable.
+primitives for the window outline, with a coarse block `OS` canary. Sysfont and
+title text are memory/VRAM-proven in opt-in probes but not visually accepted as
+default UI. The next architecture work is the VDI/AES/Desktop split: fixed-font
+text proof, dirty-rectangle/clipping proof, root desktop redraw, then minimal
+window furniture. The product goal is still a 68k Mac-like desktop on Sega CD;
+the bootstrap can change to make that goal reliable.
 
 ## Memory Map
 
@@ -110,7 +128,7 @@ Gate Array comm flag + 4 command registers for Main->Sub commands. Protocol: Mai
 
 Bring-up should validate those steps one at a time: boot image, Main/Sub CPU
 heartbeat, Word RAM bank handoff, deterministic 4bpp test pattern, then the
-full window-manager render loop.
+text, dirty-rect, root desktop, and window-manager render contracts.
 
 ## Boot Disc Model
 
@@ -140,5 +158,6 @@ command/status, one-way Word RAM bank-0 return, deterministic 4bpp
 framebuffer-to-VDP tile readback, C runtime smoke, and boot-safe desktop first
 render are proven by the BlastEm/GDB probes. The default visible desktop frame
 is also confirmed by BlastEm internal screenshotting. Do not advance the full
-desktop/app loop until the minimal `WM_NewWindow()` render rung and the
-repeated-frame bank policy are explicit.
+desktop/app loop until the fixed-font text, dirty-rectangle/clipping, root
+desktop redraw, minimal window-furniture, and repeated-frame bank policies are
+explicit.

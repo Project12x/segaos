@@ -142,9 +142,9 @@ known-bad visual reference, so body text and striped title styling stay opt-in.
 `WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, while the
 starter window intentionally remains compact rectangle drawing. An attempt to
 move `WM_NewWindow()` into the boot render path regressed the Sub command loop
-before command consumption, so the next rung is proving a minimal
-`WM_NewWindow()` render probe before enabling the full window-manager/menu/cursor
-loop.
+before command consumption. The 68k desktop prior-art pass now moves the next
+work down one layer: prove fixed-font text, dirty rectangles/clipping, and root
+desktop redraw before returning to minimal window furniture.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen
@@ -167,6 +167,15 @@ that matches Genesis VDP constraints.
 - [x] Display a visible boot-safe desktop starter frame in BlastEm
 - [x] Re-enable BLT rectangle/pattern drawing on top of proven 4bpp output
 - [x] Implement the desktop fill pattern previously stubbed in `WM_DrawDesktop`
+- [x] Study GEM/TOS/EmuTOS/FreeMiNT/OpenGEM prior art and document the
+      reference-backed VDI/AES/Desktop architecture pivot
+- [ ] Prove a readable fixed-font text primitive visually and through
+      Word RAM/VDP tile probes
+- [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
+      used by the boot-safe renderer
+- [ ] Route root desktop redraw through the dirty-rectangle/clipping contract
+- [ ] Prove minimal window furniture through the redraw list, without app
+      content callbacks
 - [ ] Re-enable the minimal window-manager render loop on top of the word-safe BLT backend
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
@@ -174,8 +183,10 @@ that matches Genesis VDP constraints.
 - [x] Add an opt-in plain text render probe separate from title-bar stripes
 - [x] Prove plain text probe pixels in Word RAM and VDP tile data
 - [x] Prove title-bar text composition pixels in Word RAM and VDP tile data
-- [ ] Visually accept restored default title presentation
-- [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe
+- [ ] Visually accept restored default title presentation after the simpler
+      fixed-font text proof passes
+- [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
+      dirty-rectangle/root-redraw contracts pass
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 
 Acceptance: a full desktop session can be booted, rendered, and interacted

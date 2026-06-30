@@ -1,7 +1,7 @@
 # Project State
 
 ## Current Phase
-**Milestone C/D bridge: visible boot-safe desktop frame**
+**Milestone C/D/E bridge: VDI/AES desktop foundations**
 
 Phase 1 and Phase 2 are complete. The production Word RAM bank-sync code paths
 are present, but repeated-frame timing still needs validation. Milestone A is complete:
@@ -30,13 +30,22 @@ The earlier striped title/body-text attempt at
 `C:\tmp\segaos_screens_internal\segaos_internal_20260629_171815.png` remains the
 known-bad visual reference; body text stays opt-in behind `BOOT_SAFE_TEXT_PROBE=1`.
 
+A June 2026 68k desktop prior-art pass is now documented in
+`docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
+structure reference, FreeMiNT/XaAES is a redraw/event failure-mode reference,
+and OpenGEM is historical/API context. All three are GPL-family or mixed
+license sources, so they are pattern-only references: no copying or close ports.
+The active desktop strategy is now to split SegaOS into a VDI-like
+drawing/text/clipping layer, an AES-like window/event/redraw ownership layer,
+and a desktop shell above them.
+
 The active strategy is a bring-up ladder:
 
 1. Reproducible boot artifact
 2. Minimal dual-CPU probe
 3. 4bpp framebuffer probe
 4. VDP timing budget
-5. Desktop and app bring-up
+5. Desktop foundations: text, clipping, root redraw, then window furniture
 6. Storage and OS features
 7. Compatibility and release hardening
 
@@ -146,6 +155,24 @@ Key adopted assumptions:
   frame with the same alternating row pattern and has been captured through
   BlastEm's internal screenshotting.
 
+68k desktop prior art:
+
+- EmuTOS:
+  `emutos/emutos@bc34e0b7e7850c5c45a909409d11f7c75ecdc881`, GPL-family,
+  pattern-only. Inspected AES window/redraw/object code, VDI text/line code,
+  desktop code, and memory docs.
+- FreeMiNT/XaAES:
+  `freemint/freemint@3172633539fb4281bc3b23c322892f565f303c16`, mixed
+  GPL/MiNT-family terms, pattern-only. Inspected kernel init notes and XaAES
+  redraw/event change history.
+- OpenGEM:
+  `shanecoughlan/OpenGEM@ac06b1a3fec3f3e8defcaaf7ea0338c38c3cef46`, GPL for
+  GEM/FreeGEM/OpenGEM sections, historical/API pattern-only.
+- Adopted architectural assumption: prove a small VDI-like text/clipping layer,
+  then an AES-like dirty-rect/window ownership layer, then desktop/window/app
+  behavior. The current block `OS` canary is diagnostic evidence, not the final
+  text system.
+
 ## Key Classes / Modules
 | Module | CPU | File | Purpose |
 |--------|-----|------|---------|
@@ -176,10 +203,11 @@ High priority:
   text rendering is now GDB-proven at the Word RAM and VDP tile levels via
   `BOOT_SAFE_TEXT_PROBE=1`. Title-bar stripe/text composition is also
   GDB-proven via `BOOT_SAFE_TITLE_PROBE=1`, but remains opt-in until the visual
-  presentation is accepted. BLT framebuffer access uses 16-bit Word RAM helpers;
-  the next risks are restoring default title presentation and moving to real
-  `WM_NewWindow()`/menu/cursor rendering without regressing command timing or
-  Word RAM ownership.
+  presentation is accepted. BLT framebuffer access uses 16-bit Word RAM helpers.
+  The next risks are simpler and lower-level: produce readable fixed-font text,
+  add dirty-rectangle/clipping ownership, route root desktop redraw through that
+  contract, then move to real `WM_NewWindow()`/menu/cursor rendering without
+  regressing command timing or Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

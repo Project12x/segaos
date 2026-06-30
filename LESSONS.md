@@ -13,6 +13,27 @@ same failures.
 - When implementing boot, IP/SP layout, Gate Array, or BIOS-facing behavior,
   inspect the pinned upstream source before writing new code and record reuse
   mode in the implementation notes.
+- For desktop GUI architecture, use the pinned GEM/TOS-family references in
+  `docs/reference/68k_desktop_prior_art.md`: EmuTOS, FreeMiNT/XaAES, and
+  OpenGEM. They are GPL-family references, so the allowed reuse mode is
+  pattern-only / clean-room behavior specs.
+
+## Desktop Architecture
+
+- The SegaOS GUI should be split like GEM:
+  1. VDI-like drawing/text/clipping/tile-invalidation layer
+  2. AES-like window/event/redraw ownership layer
+  3. Desktop shell and apps on top
+- Do not treat readable text as a window-manager feature. Prove a small
+  fixed-font primitive first, then restore styled title composition.
+- Dirty rectangles and clip ownership need their own static pools and tests
+  before broad window-manager redraw. EmuTOS/FreeMiNT history says redraw bugs
+  are a primary failure mode, not polish.
+- Root desktop redraw should be a separate contract from window furniture and
+  app content callbacks.
+- No maintained native Mega Drive desktop OS reference was found in this pass;
+  that pushes SegaOS toward Sega CD hardware references plus 68k GEM/TOS
+  desktop architecture, not toward inventing a GUI stack from scratch.
 
 ## Bring-Up Discipline
 
@@ -79,5 +100,6 @@ same failures.
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
   consumption before the first command was handled. Treat full WM allocation and
-  z-order traversal as the next isolated rung, not as part of the proven
-  starter frame.
+  z-order traversal as later rungs. The next isolated rungs are fixed-font text,
+  dirty rectangles/clipping, root desktop redraw, and then minimal window
+  furniture.

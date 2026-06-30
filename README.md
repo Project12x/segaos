@@ -103,13 +103,17 @@ with `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block
 title row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current
 visible text capture is
 `C:\tmp\segaos_screens_internal\segaos_big_os_20260629_202714.png`.
-The next desktop gate is a minimal `WM_NewWindow()` render probe before enabling
-normal menu/cursor/app rendering.
+That block canary is diagnostic, not the final UI. After the 68k desktop
+prior-art pass, the next desktop gates are a clean fixed-font text proof, then
+a dirty-rectangle/clipping proof, then root desktop redraw, before returning to
+minimal window furniture and normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)
 before changing boot-disc code. See [LESSONS.md](LESSONS.md) before changing
 boot, Word RAM, framebuffer, or desktop bring-up code.
+See [docs/reference/68k_desktop_prior_art.md](docs/reference/68k_desktop_prior_art.md)
+before changing window-manager, text, redraw, or desktop-shell architecture.
 
 ## License
 

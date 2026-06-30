@@ -106,6 +106,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Documentation
 - Updated Sega CD reference docs around Megadev 1.2.0, pinned at
   `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`.
+- Added `docs/reference/68k_desktop_prior_art.md` with pinned EmuTOS,
+  FreeMiNT/XaAES, and OpenGEM desktop-architecture references and GPL-safe
+  pattern-only reuse guidance.
 - Added June 2026 homebrew/tooling update notes and boot-disc reconciliation
   risks.
 - Updated roadmap and state docs to put boot-disc/Megadev reconciliation at the
@@ -146,6 +149,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   visually opt-in.
 - Documented the block visual canary and the guarded BlastEm internal screenshot
   workflow.
+- Updated roadmap/current-state docs so the next desktop rungs are fixed-font
+  text, dirty-rectangle/clipping, root desktop redraw, and minimal window
+  furniture instead of immediately re-enabling broad `WM_NewWindow()` behavior.
 
 ## [0.1.0] - 2026-02-10
 
