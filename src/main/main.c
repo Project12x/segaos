@@ -30,8 +30,10 @@
  */
 
 /* Forward declarations */
+#ifndef VDP_TEXT_PROBE
 static void boot_sequence(void);
 static uint8_t wait_for_sub_ready(void);
+#endif
 void main_enable_interrupts(void);
 void probe_bios_clear_comm(void);
 #ifdef SUB_RUNTIME_SMOKE
@@ -90,8 +92,11 @@ volatile uint16_t segaos_desktop_title_wram_word1;
 volatile uint16_t segaos_desktop_title_vram_word0;
 volatile uint16_t segaos_desktop_title_vram_word1;
 #endif
+#ifdef VDP_TEXT_PROBE
+void segaos_vdp_text_probe(void);
+#endif
 #if !defined(BOOT_PROBE) && !defined(SUB_RUNTIME_SMOKE) &&                 \
-    !defined(DESKTOP_INIT_PROBE)
+    !defined(DESKTOP_INIT_PROBE) && !defined(VDP_TEXT_PROBE)
 static void main_loop(void);
 #endif
 #ifdef BOOT_PROBE
@@ -185,6 +190,9 @@ volatile uint16_t segaos_probe_vblank_counter;
 #define PROBE_SBRQ_ACK_LIMIT 4096U
 
 int main(void) {
+#ifdef VDP_TEXT_PROBE
+  segaos_vdp_text_probe();
+#else
   boot_sequence();
 #ifdef SUB_RUNTIME_SMOKE
   runtime_smoke_probe();
@@ -195,9 +203,11 @@ int main(void) {
 #else
   main_loop();
 #endif
+#endif
   return 0;
 }
 
+#ifndef VDP_TEXT_PROBE
 /*
  * Boot Sequence (BIOS has already loaded SP and started Sub CPU)
  *
@@ -572,6 +582,7 @@ static uint8_t wait_for_sub_ready(void) {
 
   return 0;
 }
+#endif
 
 #ifdef BOOT_PROBE
 static void boot_probe(void) {
@@ -793,7 +804,7 @@ void segaos_probe_halt(void) {
 #endif
 
 #if !defined(BOOT_PROBE) && !defined(SUB_RUNTIME_SMOKE) &&                 \
-    !defined(DESKTOP_INIT_PROBE)
+    !defined(DESKTOP_INIT_PROBE) && !defined(VDP_TEXT_PROBE)
 static void main_loop(void) {
   while (1) {
     /* Wait for VBlank */

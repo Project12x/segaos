@@ -34,6 +34,13 @@ known-bad visual reference; body text stays opt-in behind `BOOT_SAFE_TEXT_PROBE=
 The old hand-authored 6x10 placeholder sysfont has been replaced with SGDK
 v2.11's MIT 8x8 `font_default.png`, converted into SegaOS' 1bpp `Glyph` rows
 with attribution in `third_party/sgdk_font/`.
+The new `VDP_TEXT_PROBE=1` rung bypasses Sub CPU and Word RAM entirely: Main
+CPU uploads SGDK-derived 8x8 glyph tiles directly to VDP VRAM, maps Plane A to
+`SEGAOS` / `TEXT OK`, passes `tools/probe_blastem_boot.ps1 -Probe VdpText`,
+and has a readable BlastEm internal screenshot at
+`C:\tmp\segaos_screens_internal\segaos_vdp_text_direct_20260630_181733.png`.
+That proves basic VDP tile text is not the hard part; any remaining corrupted
+desktop text is in the scaled framebuffer/compositor path above it.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -58,7 +65,7 @@ The active strategy is a bring-up ladder:
 | Target | Status | Notes |
 |--------|--------|-------|
 | Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 7,904-byte SP binary observed locally with the block visual canary; full app SP is deferred |
-| Main CPU (`build/main_cpu.bin`) | Builds | 2,708 text bytes observed locally with US security block |
+| Main CPU (`build/main_cpu.bin`) | Builds | 2,752 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
@@ -69,7 +76,8 @@ The active strategy is a bring-up ladder:
 | Framebuffer probe | Passing | `-Probe Framebuffer` proves Sub 4bpp pattern, 1M RET clear, Main Word RAM readback, `FB_UpdateFrame()`, and VDP VRAM tile-0 readback; the visible probe is confirmed by BlastEm internal screenshot |
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
-| Text render isolation | Memory/plane passing, visual pending | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff00`, full-glyph signature `0xa429`, and Plane A entries `0x0198/0x0199/0x019a`; accepted readable internal screenshot is still pending |
+| Direct VDP text canary | Passing | `VDP_TEXT_PROBE=1` + `-Probe VdpText` proves SGDK-derived 8x8 glyph tile upload, VRAM readback `0x00ff/0xff00`, Plane A entries `0x0001/0x0002/0x0003`, and a readable internal screenshot |
+| Desktop scaled text isolation | Memory/plane passing, visual pending | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff00`, full-glyph signature `0xa429`, and Plane A entries `0x0198/0x0199/0x019a`; accepted readable desktop-compositor screenshot is still pending |
 | Title/block render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves the sampled block title row as `0x0fff/0xffff` in both Word RAM and VDP tile data |
 
 ## Toolchain
@@ -95,6 +103,9 @@ The active strategy is a bring-up ladder:
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
 - Boot-safe title probe SP usage: 10,284 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
+- Direct VDP text probe IP usage: 2,704 text bytes observed locally with
+  `VDP_TEXT_PROBE=1`; SP remains the boot-safe 7,904-byte payload but is not
+  part of the probe path
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
 - Framebuffer: 35,840 bytes @ 4bpp (320x224)
@@ -167,7 +178,8 @@ SGDK font source:
 - Commit: `ef9292c03fe33a2f8af3a2589ab856a53dcef35c` (`v2.11`)
 - License: MIT, copied to `third_party/sgdk_font/LICENSE.txt`
 - Reuse mode: direct-copy, format-converted from indexed PNG tiles to 1bpp
-  `Glyph` rows
+  `Glyph` rows in `src/sub/sysfont.c` and limited direct VDP canary rows in
+  `src/main/vdp_text_probe.c`
 - Inspected files: `license.txt`, `res/libres.res`,
   `res/image/font_default.png`, `inc/font.h`, `src/vdp.c`
 - Adopted assumption: SegaOS' current system font should come from this real
@@ -200,6 +212,7 @@ SGDK font source:
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
 | Framebuffer | Main | `src/main/framebuffer.c` | Linear-to-tile + DMA pipeline |
 | VDP | Main | `include/vdp.h` | Standalone VDP register interface |
+| VDP text probe | Main | `src/main/vdp_text_probe.c` | Main-only SGDK 8x8 tile text canary |
 
 ## Warnings (non-blocking)
 - `LOAD segment with RWX permissions` -- linker script refinement needed
@@ -218,16 +231,17 @@ High priority:
   render/upload sequence, and displays a visible Mac-like starter frame through
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
   starter window stays a compact boot-safe BLT rectangle renderer. Plain body
-  text rendering now uses a real SGDK-derived 8x8 font and is GDB-proven at
-  the Word RAM, VDP tile, and Plane A levels via `BOOT_SAFE_TEXT_PROBE=1`.
-  The normal BlastEm screenshot path still needs a readable text capture; do
-  not treat the blank text-probe captures as visual acceptance. Title-bar
-  stripe/text composition is also
+  text rendering now uses a real SGDK-derived 8x8 font. The Main-only direct
+  VDP tile path is visually accepted through `VDP_TEXT_PROBE=1` and
+  `-Probe VdpText`; the desktop scaled-text path is GDB-proven at the Word RAM,
+  VDP tile, and Plane A levels via `BOOT_SAFE_TEXT_PROBE=1` but still needs a
+  readable compositor screenshot. Do not treat the blank desktop text-probe
+  captures as visual acceptance. Title-bar stripe/text composition is also
   GDB-proven via `BOOT_SAFE_TITLE_PROBE=1`, but remains opt-in until the visual
   presentation is accepted. BLT framebuffer access and Main framebuffer upload
   both use 16-bit Word RAM helpers. The next risks are simpler and lower-level:
-  make the text probe produce an accepted internal screenshot, clean up the scaled-font stroke
-  presentation, add dirty-rectangle/clipping ownership, route root desktop
+  clean up the scaled-font stroke presentation in the desktop compositor, add
+  dirty-rectangle/clipping ownership, route root desktop
   redraw through that contract, then move to real `WM_NewWindow()`/menu/cursor
   rendering without regressing command timing or Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the

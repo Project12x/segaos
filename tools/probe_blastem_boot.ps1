@@ -6,7 +6,7 @@ param(
   [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "VdpText")]
   [string]$Probe = "Ip"
 )
 
@@ -282,6 +282,30 @@ try {
       "info registers pc sp"
     )
     foreach ($name in $desktopNames) {
+      $gdbCommands += "echo $name="
+      $gdbCommands += "p/x (unsigned short)$name"
+    }
+  } elseif ($Probe -eq "VdpText") {
+    $vdpTextNames = @(
+      "segaos_vdp_text_phase",
+      "segaos_vdp_text_tile_s_index",
+      "segaos_vdp_text_tile_t_index",
+      "segaos_vdp_text_row1_word0",
+      "segaos_vdp_text_row1_word1",
+      "segaos_vdp_text_row2_word0",
+      "segaos_vdp_text_row2_word1",
+      "segaos_vdp_text_plane_entry0",
+      "segaos_vdp_text_plane_entry1",
+      "segaos_vdp_text_plane_entry2",
+      "segaos_vdp_text_line1_entry0"
+    )
+
+    $gdbCommands += @(
+      "break segaos_vdp_text_halt",
+      "continue",
+      "info registers pc sp"
+    )
+    foreach ($name in $vdpTextNames) {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$name"
     }
@@ -618,6 +642,53 @@ try {
         $failed += "segaos_desktop_title_vram"
       }
     }
+    Write-Output "probe_gdb_exit=$gdbExit"
+    Write-Output "probe_breakpoint_hit=$hitBreakpoint"
+
+    if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
+      exit 1
+    }
+  } elseif ($Probe -eq "VdpText") {
+    $joined = $gdbOutput -join "`n"
+    $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_vdp_text_halt")
+    $vdpTextNames = @(
+      "segaos_vdp_text_phase",
+      "segaos_vdp_text_tile_s_index",
+      "segaos_vdp_text_tile_t_index",
+      "segaos_vdp_text_row1_word0",
+      "segaos_vdp_text_row1_word1",
+      "segaos_vdp_text_row2_word0",
+      "segaos_vdp_text_row2_word1",
+      "segaos_vdp_text_plane_entry0",
+      "segaos_vdp_text_plane_entry1",
+      "segaos_vdp_text_plane_entry2",
+      "segaos_vdp_text_line1_entry0"
+    )
+    $vdpTextValues = Get-NamedProbeValues $gdbOutput $vdpTextNames
+    $expectedValues = [ordered]@{
+      segaos_vdp_text_phase = "0x70ff"
+      segaos_vdp_text_tile_s_index = "0x0001"
+      segaos_vdp_text_tile_t_index = "0x0006"
+      segaos_vdp_text_row1_word0 = "0x00ff"
+      segaos_vdp_text_row1_word1 = "0xff00"
+      segaos_vdp_text_row2_word0 = "0x0ff0"
+      segaos_vdp_text_row2_word1 = "0x0000"
+      segaos_vdp_text_plane_entry0 = "0x0001"
+      segaos_vdp_text_plane_entry1 = "0x0002"
+      segaos_vdp_text_plane_entry2 = "0x0003"
+      segaos_vdp_text_line1_entry0 = "0x0006"
+    }
+
+    $failed = @()
+    foreach ($name in $expectedValues.Keys) {
+      $actualValue = $vdpTextValues[$name]
+      $ok = $actualValue -eq $expectedValues[$name]
+      Write-Output "vdp_text_check_$name=$ok expected=$($expectedValues[$name]) actual=$actualValue"
+      if (-not $ok) {
+        $failed += $name
+      }
+    }
+
     Write-Output "probe_gdb_exit=$gdbExit"
     Write-Output "probe_breakpoint_hit=$hitBreakpoint"
 

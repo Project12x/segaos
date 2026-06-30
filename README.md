@@ -52,6 +52,10 @@ C:\SDKS\SGDK\bin\make.exe -f Makefile all CD_REGION=EU
 C:\SDKS\SGDK\bin\make.exe -f Makefile sub
 C:\SDKS\SGDK\bin\make.exe -f Makefile main
 
+# Build the Main-only direct VDP text canary
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso VDP_TEXT_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe VdpText
+
 # Clean
 C:\SDKS\SGDK\bin\make.exe -f Makefile clean
 ```
@@ -95,12 +99,17 @@ now uses a boot-safe minimal desktop SP, consumes a first `CMD_RENDER_FRAME`,
 uploads the returned Word RAM frame, and displays a visible checker
 desktop/menu/window starter frame with a coarse block `OS` canary in BlastEm. BLT framebuffer access and
 Main framebuffer upload now use word-safe 16-bit Word RAM helpers, and
-`WM_DrawDesktop()` owns the boot-safe desktop/menu shell. `BOOT_SAFE_TEXT_PROBE=1`
-is now the opt-in build rung for plain body text without the striped title-bar
-renderer, and the combined `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path
-proves SGDK-derived 8x8 font pixels as a full first-glyph signature (`0xa429`)
-in Word RAM and VDP tile data, with Plane A entries `0x0198/0x0199/0x019a`.
-An accepted readable BlastEm internal screenshot for that text path is still
+`WM_DrawDesktop()` owns the boot-safe desktop/menu shell. `VDP_TEXT_PROBE=1` is
+now the Main-only text canary: it bypasses Sub CPU and Word RAM, uploads
+SGDK-derived 8x8 glyph tiles directly to VDP VRAM, passes `-Probe VdpText`, and
+has a readable BlastEm internal screenshot at
+`C:\tmp\segaos_screens_internal\segaos_vdp_text_direct_20260630_181733.png`.
+`BOOT_SAFE_TEXT_PROBE=1` remains the opt-in build rung for desktop-composited
+plain body text without the striped title-bar renderer, and the combined
+`DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves SGDK-derived 8x8 font
+pixels as a full first-glyph signature (`0xa429`) in Word RAM and VDP tile data,
+with Plane A entries `0x0198/0x0199/0x019a`. An accepted readable BlastEm
+internal screenshot for the desktop-composited scaled text path is still
 pending. The system font is now converted
 from SGDK v2.11's MIT `font_default.png`; provenance and license are recorded
 in `src/sub/sysfont.c` and `third_party/sgdk_font/`. The visible title/body
@@ -109,12 +118,14 @@ canary is now a block wordmark, with
 row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current default
 capture is
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
-latest opt-in SGDK-font text probe capture attempts are still diagnostic only;
-the blank capture `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png`
-is not a visual pass.
+latest opt-in desktop-composited SGDK-font text probe capture attempts are still
+diagnostic only; the blank capture
+`C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` is not a
+visual pass for the desktop compositor.
 That block canary is diagnostic, not the final UI. After the 68k desktop
 prior-art pass and the real-font correction, the next desktop gates are
-cleaning up the remaining scaled-text visual presentation, then a
+cleaning up the remaining scaled-text visual presentation above the now-proven
+direct VDP tile primitive, then a
 dirty-rectangle/clipping proof, then root desktop redraw, before returning to
 minimal window furniture and normal menu/cursor/app rendering.
 

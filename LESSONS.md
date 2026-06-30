@@ -51,7 +51,8 @@ same failures.
   4. Gate Array command/status
   5. Word RAM handoff
   6. Main framebuffer upload and VRAM readback
-  7. Visible BlastEm internal screenshot
+  7. Main-only direct VDP text canary
+  8. Visible BlastEm internal screenshot
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -85,6 +86,9 @@ same failures.
   small glyph strokes appear corrupt even when the source glyph data is real.
 - Source glyph/bitmap reads can remain normal byte reads because they come from
   PRG-RAM/rodata, not Word RAM.
+- If `VDP_TEXT_PROBE=1` displays readable text but desktop text is corrupted,
+  stop debugging the font. The remaining bug is in the scaled Word RAM
+  framebuffer/compositor/upload path above the VDP tile primitive.
 
 ## Command Loop
 
@@ -108,6 +112,11 @@ same failures.
 - The same text probe now reads Plane A entries under the first scaled "S" and
   expects `0x0198/0x0199/0x019a`, proving the visible plane points at the
   verified text tiles in the GDB-driven run.
+- A lower direct VDP canary now passes too: `VDP_TEXT_PROBE=1` draws `SEGAOS`
+  and `TEXT OK` from SGDK-derived 8x8 tiles, `-Probe VdpText` verifies tile row
+  `0x00ff/0xff00` and Plane A entries `0x0001/0x0002/0x0003`, and BlastEm
+  internal screenshotting captured readable text at
+  `C:\tmp\segaos_screens_internal\segaos_vdp_text_direct_20260630_181733.png`.
 - Keep text probes separate from title-bar stripes. Plain body text should be
   visually accepted before the active Mac-style striped title composition is
   restored.
@@ -116,12 +125,14 @@ same failures.
   title bytes as `0x0fff/0xffff` in both Word RAM and VDP tile data.
 - Latest default internal screenshot:
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
-- Latest opt-in SGDK-font text probe screenshot attempts did not yet produce
-  accepted readable text. Treat `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png`
-  as a failed/blank capture, not as proof of display.
-- Do not mark text visually accepted until a BlastEm internal screenshot shows
-  readable glyphs. GDB memory/VRAM/Plane A proof is necessary but not sufficient
-  for the visual milestone.
+- Latest opt-in desktop-composited SGDK-font text probe screenshot attempts did
+  not yet produce accepted readable text. Treat
+  `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` as a
+  failed/blank capture, not as proof of desktop text display.
+- Do not mark desktop-composited/scaled text visually accepted until a BlastEm
+  internal screenshot shows readable glyphs through that path. GDB
+  memory/VRAM/Plane A proof is necessary but not sufficient for that visual
+  milestone.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop

@@ -9,7 +9,11 @@ SegaOS uses SGDK's default bitmap font as its current system font source.
 - Source files inspected: `license.txt`, `res/libres.res`,
   `res/image/font_default.png`, `inc/font.h`, `src/vdp.c`
 - Reuse mode: direct-copy, format-converted from SGDK's indexed 8x8 font PNG
-  into SegaOS' 1bpp `Glyph` rows in `src/sub/sysfont.c`
+  into SegaOS' 1bpp `Glyph` rows in `src/sub/sysfont.c`, with a limited
+  direct VDP canary subset in `src/main/vdp_text_probe.c`
 
 The source bitmap is a 16x6 grid of 8x8 tiles covering ASCII 32-127. SegaOS
-currently exports ASCII 32-126 through `SysFont_Get()`.
+currently exports ASCII 32-126 through `SysFont_Get()`. The Main-only
+`VDP_TEXT_PROBE=1` canary uses the `S`, `E`, `G`, `A`, `O`, `T`, `X`, and `K`
+rows from the same source to prove direct VDP tile text separately from the
+desktop framebuffer compositor.

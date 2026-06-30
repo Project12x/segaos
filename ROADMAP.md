@@ -147,7 +147,12 @@ work down one layer: prove real fixed-font text, dirty rectangles/clipping, and
 root desktop redraw before returning to minimal window furniture. The fixed-font
 rung now uses SGDK v2.11's MIT `font_default.png`, converted into SegaOS'
 1bpp glyph format and proven through the DesktopInit text probe; its scaled
-visual presentation still needs polish before it becomes default UI.
+visual presentation still needs polish before it becomes default UI. A lower
+`VDP_TEXT_PROBE=1` rung now bypasses Sub CPU and Word RAM, uploads SGDK-derived
+8x8 glyph tiles directly to VDP VRAM, proves `SEGAOS` / `TEXT OK` through
+`tools/probe_blastem_boot.ps1 -Probe VdpText`, and has a readable BlastEm
+internal screenshot at
+`C:\tmp\segaos_screens_internal\segaos_vdp_text_direct_20260630_181733.png`.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, then remains stable under the chosen
@@ -175,7 +180,10 @@ that matches Genesis VDP constraints.
 - [x] Replace the placeholder sysfont with SGDK v2.11's MIT 8x8 font and
       record source/license provenance
 - [x] Prove a real fixed-font text primitive visually and through
-      Word RAM/VDP tile probes
+      direct VDP tile probes
+- [x] Add a Main-CPU-only direct VDP text canary separate from Sub/Word RAM
+- [x] Capture and visually accept a BlastEm internal screenshot with readable
+      direct SGDK 8x8 tile text
 - [ ] Clean up the remaining scaled-text stroke presentation before restoring
       text to the default boot-safe desktop
 - [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
@@ -192,7 +200,8 @@ that matches Genesis VDP constraints.
 - [x] Prove the first scaled SGDK glyph as a full `0xa429` signature and prove
       Plane A maps the visible tiles to `0x0198/0x0199/0x019a`
 - [ ] Capture and visually accept a BlastEm internal screenshot with readable
-      SGDK-font text, not a BIOS frame or blank transition frame
+      desktop-composited scaled SGDK-font text, not a BIOS frame or blank
+      transition frame
 - [x] Prove title-bar text composition pixels in Word RAM and VDP tile data
 - [ ] Visually accept restored default title presentation after the simpler
       fixed-font text proof passes
