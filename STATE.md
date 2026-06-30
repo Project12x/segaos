@@ -41,6 +41,13 @@ and has a readable BlastEm internal screenshot at
 `C:\tmp\segaos_screens_internal\segaos_vdp_text_direct_20260630_181733.png`.
 That proves basic VDP tile text is not the hard part; any remaining corrupted
 desktop text is in the scaled framebuffer/compositor path above it.
+That scaled path now has its own visual pass: `DESKTOP_INIT_PROBE=1
+BOOT_SAFE_TEXT_PROBE=1` renders readable SGDK-font text through the Sub
+framebuffer, Main tile conversion, and VDP plane upload at
+`C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png`.
+The corruption was caused by treating palette index 0 as opaque black ink; VDP
+background plane color 0 is transparent, so the 4bpp boot palette now reserves
+index 0 for backdrop/transparent and uses index 1 for opaque black text/lines.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -64,7 +71,7 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 7,904-byte SP binary observed locally with the block visual canary; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 8,044-byte SP binary observed locally with the block visual canary; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,752 text bytes observed locally with US security block |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
@@ -77,8 +84,8 @@ The active strategy is a bring-up ladder:
 | Runtime smoke probe | Passing | `SUB_RUNTIME_SMOKE=1` + `-Probe RuntimeSmoke` proves normal C SP startup and command handshake without desktop modules |
 | Boot-safe desktop render probe | Passing | `DESKTOP_INIT_PROBE=1` + `-Probe DesktopInit` proves real boot-safe C SP first render command and Main upload path |
 | Direct VDP text canary | Passing | `VDP_TEXT_PROBE=1` + `-Probe VdpText` proves SGDK-derived 8x8 glyph tile upload, VRAM readback `0x00ff/0xff00`, Plane A entries `0x0001/0x0002/0x0003`, and a readable internal screenshot |
-| Desktop scaled text isolation | Memory/plane passing, visual pending | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff00`, full-glyph signature `0xa429`, and Plane A entries `0x0198/0x0199/0x019a`; accepted readable desktop-compositor screenshot is still pending |
-| Title/block render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves the sampled block title row as `0x0fff/0xffff` in both Word RAM and VDP tile data |
+| Desktop scaled text isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff11`, full-glyph signature `0xd2dd`, Plane A entries `0x0198/0x0199/0x019a`, and readable desktop-compositor screenshot `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png` |
+| Title/block render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves the sampled block title row as `0x1fff/0xffff` in both Word RAM and VDP tile data |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -91,20 +98,20 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 7,904 bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 8,044 bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
 - BOOT_PROBE SP usage: 930 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
-- Boot-safe desktop SP usage: 7,904 bytes observed locally with
+- Boot-safe desktop SP usage: 8,044 bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
-- Boot-safe text probe SP usage: 10,268 bytes observed locally with
+- Boot-safe text probe SP usage: 9,248 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
-- Boot-safe title probe SP usage: 10,284 bytes observed locally with
+- Boot-safe title probe SP usage: 8,092 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
-  `VDP_TEXT_PROBE=1`; SP remains the boot-safe 7,904-byte payload but is not
+  `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
   part of the probe path
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
@@ -233,17 +240,18 @@ High priority:
   starter window stays a compact boot-safe BLT rectangle renderer. Plain body
   text rendering now uses a real SGDK-derived 8x8 font. The Main-only direct
   VDP tile path is visually accepted through `VDP_TEXT_PROBE=1` and
-  `-Probe VdpText`; the desktop scaled-text path is GDB-proven at the Word RAM,
-  VDP tile, and Plane A levels via `BOOT_SAFE_TEXT_PROBE=1` but still needs a
-  readable compositor screenshot. Do not treat the blank desktop text-probe
-  captures as visual acceptance. Title-bar stripe/text composition is also
-  GDB-proven via `BOOT_SAFE_TITLE_PROBE=1`, but remains opt-in until the visual
-  presentation is accepted. BLT framebuffer access and Main framebuffer upload
-  both use 16-bit Word RAM helpers. The next risks are simpler and lower-level:
-  clean up the scaled-font stroke presentation in the desktop compositor, add
-  dirty-rectangle/clipping ownership, route root desktop
-  redraw through that contract, then move to real `WM_NewWindow()`/menu/cursor
-  rendering without regressing command timing or Word RAM ownership.
+  `-Probe VdpText`; the desktop scaled-text path is also GDB-proven at the Word
+  RAM, VDP tile, and Plane A levels via `BOOT_SAFE_TEXT_PROBE=1` and visually
+  accepted through the readable `segaos_desktop_text_opaque_20260630_183441.png`
+  capture. The key lesson is that VDP background-plane color index 0 is
+  transparent, so framebuffer black ink must be a nonzero palette index.
+  Title-bar stripe/text composition is GDB-proven via `BOOT_SAFE_TITLE_PROBE=1`,
+  but remains opt-in until the default visual presentation is restored and
+  accepted. BLT framebuffer access and Main framebuffer upload both use 16-bit
+  Word RAM helpers. The next risks are simpler and lower-level: add
+  dirty-rectangle/clipping ownership, route root desktop redraw through that
+  contract, then move to real `WM_NewWindow()`/menu/cursor rendering without
+  regressing command timing or Word RAM ownership.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

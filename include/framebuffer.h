@@ -52,14 +52,17 @@
 #define WRAM_BANK1_MAIN ((const uint8_t *)0x220000)
 
 /* ============================================================
- * Windows 3.1 Palette (16 colors, Mega Drive 9-bit RGB format)
+ * Windows-like Palette (16 colors, Mega Drive 9-bit RGB format)
+ *
+ * Palette index 0 is transparent for VDP background planes. Keep it black as
+ * the backdrop, but use index 1 for opaque black framebuffer ink.
  *
  * MD format: ----BBB-GGG-RRR-  (3 bits each, shifted left 1)
  * Each component: 0-7 mapped to 9-bit (0=0x0, 7=0xE)
  * ============================================================ */
 static const uint16_t FB_PALETTE_WIN31[16] = {
-    0x0000, /* 0: Black         (0,0,0)     */
-    0x0400, /* 1: Dark Red      (128,0,0)   */
+    0x0000, /* 0: Transparent/backdrop black */
+    0x0000, /* 1: Opaque black ink */
     0x0040, /* 2: Dark Green    (0,128,0)   */
     0x0440, /* 3: Dark Yellow   (128,128,0) */
     0x0004, /* 4: Dark Blue     (0,0,128)   */

@@ -45,7 +45,7 @@
  * ============================================================ */
 typedef enum {
   BLT_MODE_2BIT = 0, /* 4 grayscale shades */
-  BLT_MODE_4BIT = 1  /* 16 colors (Win 3.1 palette) */
+  BLT_MODE_4BIT = 1  /* 16 colors, with index 0 reserved by VDP */
 } BlitMode;
 
 /* ============================================================
@@ -64,12 +64,12 @@ typedef enum {
 #define BLT_2_WHITE 3
 
 /* ============================================================
- * 4-Bit Palette (Windows 3.1 Standard 16 Colors)
+ * 4-Bit Palette (Windows-like 16 Colors)
  *
  * Index | Color         | RGB (8-bit)  | Genesis CRAM
  * ------+---------------+--------------+------------
- *   0   | Black         | 000,000,000  | 0x000
- *   1   | Dark Red      | 128,000,000  | 0x004
+ *   0   | Transparent   | backdrop     | 0x000
+ *   1   | Black ink     | 000,000,000  | 0x000
  *   2   | Dark Green    | 000,128,000  | 0x040
  *   3   | Dark Yellow   | 128,128,000  | 0x044
  *   4   | Dark Blue     | 000,000,128  | 0x400
@@ -87,8 +87,10 @@ typedef enum {
  *
  * Note: Genesis CRAM is 0x0BBB GGG0 RRR0 (9-bit, BGR order).
  * ============================================================ */
-#define BLT_4_BLACK 0
-#define BLT_4_DARK_RED 1
+#define BLT_4_TRANSPARENT 0
+#define BLT_4_BLACK 1
+/* Index 1 is reserved for opaque black ink in the boot palette. */
+#define BLT_4_DARK_RED BLT_4_BLACK
 #define BLT_4_DARK_GREEN 2
 #define BLT_4_DARK_YELLOW 3
 #define BLT_4_DARK_BLUE 4
@@ -110,9 +112,10 @@ typedef enum {
  * BLT_BLACK and BLT_WHITE resolve to the correct palette index
  * for the current mode. Safe to use in all rendering code.
  * ============================================================ */
-#define BLT_BLACK 0
+#define BLT_BLACK BLT_GetBlack()
 #define BLT_WHITE BLT_GetWhite()
 
+uint8_t BLT_GetBlack(void);    /* Returns 0 (2-bit) or 1 (4-bit opaque ink) */
 uint8_t BLT_GetWhite(void);    /* Returns 3 (2-bit) or 15 (4-bit) */
 uint8_t BLT_GetMaxColor(void); /* Same as GetWhite */
 

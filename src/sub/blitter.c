@@ -123,6 +123,10 @@ static void fb_fill_bytes(uint32_t offset, uint8_t value, uint32_t count) {
  * Mode Management
  * ============================================================ */
 
+uint8_t BLT_GetBlack(void) {
+  return (curMode == BLT_MODE_2BIT) ? BLT_2_BLACK : BLT_4_BLACK;
+}
+
 uint8_t BLT_GetWhite(void) {
   return (curMode == BLT_MODE_2BIT) ? BLT_2_WHITE : BLT_4_WHITE;
 }

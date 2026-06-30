@@ -14,7 +14,7 @@
 - [x] Tilemap setup (40x28 sequential tiles)
 - [x] Strip-based linear-to-tile conversion
 - [x] DMA pipeline (5KB strip buffer)
-- [x] Win3.1 palette in MD 9-bit RGB
+- [x] Windows-like palette in MD 9-bit RGB, with VDP index 0 reserved
 
 ## Phase 3: Word RAM Bank Sync -- IMPLEMENTED, NEEDS VALIDATION
 - [x] 1M mode bank swap helpers (DMNA/RET bits)
@@ -147,7 +147,9 @@ work down one layer: prove real fixed-font text, dirty rectangles/clipping, and
 root desktop redraw before returning to minimal window furniture. The fixed-font
 rung now uses SGDK v2.11's MIT `font_default.png`, converted into SegaOS'
 1bpp glyph format and proven through the DesktopInit text probe; its scaled
-visual presentation still needs polish before it becomes default UI. A lower
+visual presentation is now readable in the opt-in compositor probe after
+reserving VDP palette index 0 for transparency/backdrop and using index 1 for
+opaque black ink. A lower
 `VDP_TEXT_PROBE=1` rung now bypasses Sub CPU and Word RAM, uploads SGDK-derived
 8x8 glyph tiles directly to VDP VRAM, proves `SEGAOS` / `TEXT OK` through
 `tools/probe_blastem_boot.ps1 -Probe VdpText`, and has a readable BlastEm
@@ -184,8 +186,10 @@ that matches Genesis VDP constraints.
 - [x] Add a Main-CPU-only direct VDP text canary separate from Sub/Word RAM
 - [x] Capture and visually accept a BlastEm internal screenshot with readable
       direct SGDK 8x8 tile text
-- [ ] Clean up the remaining scaled-text stroke presentation before restoring
-      text to the default boot-safe desktop
+- [x] Resolve the scaled-text transparency/corruption issue in the opt-in
+      desktop compositor probe
+- [ ] Restore accepted text and title presentation to the default boot-safe
+      desktop path
 - [ ] Add a static dirty-rectangle/clipping pool with host tests before it is
       used by the boot-safe renderer
 - [ ] Route root desktop redraw through the dirty-rectangle/clipping contract
@@ -197,9 +201,9 @@ that matches Genesis VDP constraints.
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
 - [x] Add an opt-in plain text render probe separate from title-bar stripes
 - [x] Prove plain text probe pixels in Word RAM and VDP tile data
-- [x] Prove the first scaled SGDK glyph as a full `0xa429` signature and prove
+- [x] Prove the first scaled SGDK glyph as a full `0xd2dd` signature and prove
       Plane A maps the visible tiles to `0x0198/0x0199/0x019a`
-- [ ] Capture and visually accept a BlastEm internal screenshot with readable
+- [x] Capture and visually accept a BlastEm internal screenshot with readable
       desktop-composited scaled SGDK-font text, not a BIOS frame or blank
       transition frame
 - [x] Prove title-bar text composition pixels in Word RAM and VDP tile data

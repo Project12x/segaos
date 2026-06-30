@@ -6,7 +6,7 @@ A Mac OS-inspired desktop operating system for the Sega CD (Mega CD), featuring 
 
 - **Windowed GUI** -- Mac/Win3.1-style window manager with drag, resize, close
 - **Mouse Support** -- Sega Mega Mouse driver with full cursor tracking
-- **Software Blitter** -- 2bpp (4 grayscale) and 4bpp (16-color Win3.1 palette) modes
+- **Software Blitter** -- 2bpp (4 grayscale) and 4bpp Windows-like palette modes
 - **Applications** -- Notepad, Calculator, Virtual Keyboard, Paint
 - **Dual-CPU Architecture** -- Sub CPU renders framebuffer, Main CPU handles VDP display
 - **Sega CD Boot Disc Work** -- IP/SP packaging, regional security bytes, and
@@ -107,26 +107,30 @@ has a readable BlastEm internal screenshot at
 `BOOT_SAFE_TEXT_PROBE=1` remains the opt-in build rung for desktop-composited
 plain body text without the striped title-bar renderer, and the combined
 `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` path proves SGDK-derived 8x8 font
-pixels as a full first-glyph signature (`0xa429`) in Word RAM and VDP tile data,
-with Plane A entries `0x0198/0x0199/0x019a`. An accepted readable BlastEm
-internal screenshot for the desktop-composited scaled text path is still
-pending. The system font is now converted
+pixels as a full first-glyph signature (`0xd2dd`) in Word RAM and VDP tile data,
+with Plane A entries `0x0198/0x0199/0x019a`. The desktop-composited scaled text
+path now has an accepted readable BlastEm internal screenshot at
+`C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png`.
+The fix was to reserve VDP background-plane palette index 0 for
+transparent/backdrop and render opaque black framebuffer ink with palette index
+1. The system font is now converted
 from SGDK v2.11's MIT `font_default.png`; provenance and license are recorded
 in `src/sub/sysfont.c` and `third_party/sgdk_font/`. The visible title/body
 canary is now a block wordmark, with
 `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proving the sampled block title
-row as `0x0fff/0xffff` in both Word RAM and VDP tile data. The current default
+row as `0x1fff/0xffff` in both Word RAM and VDP tile data. The current default
 capture is
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
-latest opt-in desktop-composited SGDK-font text probe capture attempts are still
-diagnostic only; the blank capture
-`C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` is not a
-visual pass for the desktop compositor.
+known-bad blank capture
+`C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` and the
+pre-fix sparse/corrupt capture
+`C:\tmp\segaos_screens_internal\segaos_desktop_text_probe_20260630_182543.png`
+are diagnostic references, not current visual passes.
 That block canary is diagnostic, not the final UI. After the 68k desktop
-prior-art pass and the real-font correction, the next desktop gates are
-cleaning up the remaining scaled-text visual presentation above the now-proven
-direct VDP tile primitive, then a
-dirty-rectangle/clipping proof, then root desktop redraw, before returning to
+prior-art pass, the real-font correction, and the palette-index transparency
+fix, the next desktop gates are restoring text/title presentation into the
+default boot-safe path, then a dirty-rectangle/clipping proof, then root
+desktop redraw, before returning to
 minimal window furniture and normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

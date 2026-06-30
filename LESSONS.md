@@ -59,8 +59,8 @@ same failures.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
   moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"
-  row at `x=64`, `y=83` (`0xffff/0xff00`) and the full 24x24 scaled first
-  glyph signature (`0xa429`) in Word RAM and VDP tile data.
+  row at `x=64`, `y=83` (`0xffff/0xff11`) and the full 24x24 scaled first
+  glyph signature (`0xd2dd`) in Word RAM and VDP tile data.
 
 ## Word RAM Ownership
 
@@ -89,6 +89,12 @@ same failures.
 - If `VDP_TEXT_PROBE=1` displays readable text but desktop text is corrupted,
   stop debugging the font. The remaining bug is in the scaled Word RAM
   framebuffer/compositor/upload path above the VDP tile primitive.
+- VDP background-plane palette index 0 is transparent. Do not use color index 0
+  as opaque framebuffer ink in a visible 4bpp desktop layer. Keep index 0 as
+  transparent/backdrop black and use a nonzero black entry, currently palette
+  index 1, for text strokes, borders, and other opaque black pixels. The
+  symptom was GDB-proven correct Word RAM/VRAM bytes that still looked sparse
+  or corrupted on screen because black glyph pixels were transparent.
 
 ## Command Loop
 
@@ -108,7 +114,7 @@ same failures.
   hand-authored 6x10 placeholder sysfont was not a defensible target. It has
   been replaced with SGDK v2.11's real 8x8 font, and
   `BOOT_SAFE_TEXT_PROBE=1` + `DESKTOP_INIT_PROBE=1` proves the first scaled "S"
-  as a full-glyph signature (`0xa429`) in both Word RAM and VDP tile data.
+  as a full-glyph signature (`0xd2dd`) in both Word RAM and VDP tile data.
 - The same text probe now reads Plane A entries under the first scaled "S" and
   expects `0x0198/0x0199/0x019a`, proving the visible plane points at the
   verified text tiles in the GDB-driven run.
@@ -122,17 +128,17 @@ same failures.
   restored.
 - The block title canary is memory-proven separately:
   `BOOT_SAFE_TITLE_PROBE=1` + `DESKTOP_INIT_PROBE=1` verifies sampled block
-  title bytes as `0x0fff/0xffff` in both Word RAM and VDP tile data.
+  title bytes as `0x1fff/0xffff` in both Word RAM and VDP tile data.
 - Latest default internal screenshot:
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`.
-- Latest opt-in desktop-composited SGDK-font text probe screenshot attempts did
-  not yet produce accepted readable text. Treat
-  `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png` as a
-  failed/blank capture, not as proof of desktop text display.
-- Do not mark desktop-composited/scaled text visually accepted until a BlastEm
-  internal screenshot shows readable glyphs through that path. GDB
-  memory/VRAM/Plane A proof is necessary but not sufficient for that visual
-  milestone.
+- Latest accepted opt-in desktop-composited SGDK-font text probe screenshot:
+  `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png`.
+  The earlier `C:\tmp\segaos_screens_internal\segaos_text_probe_20260630_114924.png`
+  and `C:\tmp\segaos_screens_internal\segaos_desktop_text_probe_20260630_182543.png`
+  captures are known-bad references from before index-0 transparency was fixed.
+- A default autoplay capture can still stop at the Sega CD BIOS screen if START
+  is not delivered to BlastEm. Treat that as capture automation evidence, not a
+  rendering regression.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
