@@ -190,3 +190,14 @@ reference, while this helper applies the measured Genesis VDP budget constraint
 to SegaOS dirty regions. `make host-tests` proves a small 2x2-tile dirty range
 is 4 tiles / 128 bytes and fits a 7,524-byte NTSC VBlank budget, while a full
 40x28 tile frame is 1,120 tiles / 35,840 bytes and does not.
+
+Dirty-queue update on 2026-07-01: `DR_QueueTileRange()` and
+`DR_BuildTileQueueFromDirtyList()` now turn those dirty ranges into explicit
+upload spans using caller-owned static storage. The queue planner splits
+partial-width dirty ranges by row, treats full-width ranges as contiguous tile
+spans, slices oversized spans to the caller's byte budget, and reports
+budget-exceeded separately from queue-storage overflow. Reference-code-first
+record: SGDK repo `https://github.com/Stephane-D/SGDK`, commit
+`ef9292c03fe33a2f8af3a2589ab856a53dcef35c`, MIT license, inspected files
+`inc/dma.h`, `src/dma.c`, and `src/sys.c`, reuse mode pattern-only /
+clean-room. No SGDK queue source was copied or closely ported.

@@ -27,6 +27,13 @@ same failures.
   MIT 8x8 `font_default.png`, pinned at
   `Stephane-D/SGDK@ef9292c03fe33a2f8af3a2589ab856a53dcef35c` and converted
   into SegaOS' 1bpp glyph format with attribution in `third_party/sgdk_font/`.
+- For VDP upload queue behavior, SGDK v2.11's MIT DMA queue is the current
+  permissive pattern reference:
+  `Stephane-D/SGDK@ef9292c03fe33a2f8af3a2589ab856a53dcef35c`, inspected files
+  `inc/dma.h`, `src/dma.c`, and `src/sys.c`. SegaOS' `DirtyTileQueue` uses
+  pattern-only / clean-room reuse: caller-owned static storage, explicit
+  byte-budget and capacity checks, and a later flush point. No SGDK queue code
+  is copied or closely ported.
 
 ## Freestanding C Runtime
 
@@ -56,8 +63,8 @@ same failures.
   invalidations, keeps corner-only contact separate, subtracts one rect from
   another into deterministic strips, collapses overflow to one bounding rect,
   maps dirty pixels to 8x8 tile ranges, and now computes first-tile,
-  tile-count, byte-count, row-span, and budget-fit data for the later VDP
-  upload queue.
+  tile-count, byte-count, row-span, budget-fit data, and bounded upload spans
+  for the later VDP upload queue.
 - Root desktop redraw is now a separate tested contract from window furniture
   and app content callbacks. `DR_PlanRootRedraw()` splits a dirty region at the
   menu boundary, and `WM_DrawDesktopInRect()` redraws menu, root desktop,
@@ -196,15 +203,21 @@ same failures.
   clear after each strip. This does not yet prove a production VBlank-only
   dirty-tile queue, acceptable active-display artifacts, or alternating
   double-buffer timing.
-- `DR_TileRangeBudget()` is the first clean-room bridge from the
-  GEM/TOS-style dirty-region model to Genesis VDP transfer limits. It does not
-  copy or closely port GEOS, GEM/TOS, CP/M-68K, or Megadev code. It turns a
-  dirty tile range into first tile, tile count, byte count, row-span count, and
-  caller-supplied budget fit.
+- `DR_TileRangeBudget()` and `DR_QueueTileRange()` are the first clean-room
+  bridge from the GEM/TOS-style dirty-region model to Genesis VDP transfer
+  limits. They do not copy or closely port GEOS, GEM/TOS, CP/M-68K, Megadev, or
+  SGDK queue code. They turn dirty tile ranges into first-tile/tile-count/
+  byte-count facts and explicit upload spans.
+- The dirty tile queue is still a planner, not a hardware backend. Partial
+  width ranges become one upload span per tile row; full-width ranges become a
+  contiguous span; `maxBytes` slices a span to the caller's frame budget; and
+  `budgetExceeded` is kept separate from queue-storage `overflow`.
 - The concrete frame-policy warning is now host-tested: a full 40x28 tile
   4bpp frame is 1,120 tiles / 35,840 bytes, so it cannot fit the 7,524-byte
-  NTSC VBlank budget recorded in the Mega Drive development notes. A small
-  2x2-tile dirty range is 4 tiles / 128 bytes and fits that budget.
+  NTSC VBlank budget recorded in the Mega Drive development notes. The queue
+  planner slices that full-frame request to one 235-tile / 7,520-byte upload
+  for a single budgeted pass, while a small 2x2-tile dirty range is 4 tiles /
+  128 bytes and fits that budget.
 
 ## Visual Target
 

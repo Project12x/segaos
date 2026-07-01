@@ -96,9 +96,12 @@ and a desktop shell above them.
 The first clipping/redraw data structure is now in place:
 `src/sub/dirty_rect.c` provides a host-tested static dirty rectangle list and
 rectangle primitive helpers, while `WM_InvalidateRect()` delegates to that
-contract. The same module now includes the first dirty-to-VDP planning helper:
+contract. The same module now includes the first dirty-to-VDP planning helpers:
 `DR_TileRangeBudget()` turns an 8x8 tile range into first tile, tile count,
-byte count, row-span count, and caller-supplied budget fit.
+byte count, row-span count, and caller-supplied budget fit, while
+`DR_QueueTileRange()` and `DR_BuildTileQueueFromDirtyList()` turn dirty ranges
+into explicit upload spans with separate budget-exceeded and storage-overflow
+flags.
 
 The active strategy is a bring-up ladder:
 
@@ -133,7 +136,7 @@ The active strategy is a bring-up ladder:
 | Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xeb95`, final VDP status `0x3208`, masks `0x007f/0x007f`, and `probe_gdb_timeout=False` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
-| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -183,7 +186,9 @@ The active strategy is a bring-up ladder:
 - Framebuffer: 35,840 bytes @ 4bpp (320x224)
 - Dirty tile budget baseline: full 40x28 tile frame = 1,120 tiles / 35,840
   bytes, which exceeds the 7,524-byte NTSC VBlank reference budget; a 2x2-tile
-  dirty range = 4 tiles / 128 bytes and fits that same budget
+  dirty range = 4 tiles / 128 bytes and fits that same budget; the queue
+  planner slices a full-frame request to 235 tiles / 7,520 bytes for one NTSC
+  VBlank-budgeted pass
 - Sub CPU blitter default: 4bpp, matching the Main CPU tile conversion path
 - Disc image: 150 cooked sectors, `MODE1/2048`, 32KB boot/system area
 
@@ -276,6 +281,19 @@ SGDK font source:
 - Adopted assumption: SegaOS' current system font should come from this real
   8x8 tile font until a deliberate, licensed Mac-like bitmap font is selected.
 
+SGDK DMA queue source:
+
+- Repo: https://github.com/Stephane-D/SGDK
+- Commit: `ef9292c03fe33a2f8af3a2589ab856a53dcef35c` (`v2.11`)
+- License: MIT
+- Reuse mode: pattern-only / clean-room. No SGDK DMA queue source is copied or
+  closely ported into SegaOS.
+- Inspected files: `inc/dma.h`, `src/dma.c`, `src/sys.c`
+- Adopted assumption: SegaOS' VDP update path should use caller-owned static
+  queue storage, explicit capacity and byte-budget checks, and a later VBlank
+  flush point. The current `DirtyTileQueue` is only the host-tested planner for
+  those upload spans.
+
 68k desktop prior art:
 
 - EmuTOS:
@@ -307,7 +325,7 @@ SGDK font source:
 |--------|-----|------|---------|
 | Blitter | Sub | `src/sub/blitter.c` | Software framebuffer renderer |
 | Window Manager | Sub | `src/sub/wm.c` | Mac-style window management |
-| Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, and transfer-budget planning |
+| Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
 | Framebuffer | Main | `src/main/framebuffer.c` | Linear-to-tile + DMA pipeline |
@@ -348,8 +366,9 @@ High priority:
   screen or old block-canary capture is no longer acceptable visual evidence.
   BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
   helpers. The dirty-rectangle/clipping pool now has host tests for both root
-  and window redraw planning, 8x8 tile-range mapping, and tile transfer
-  budgeting; it is wired into `WM_InvalidateRect()` and is used by the
+  and window redraw planning, 8x8 tile-range mapping, tile transfer budgeting,
+  and dirty upload queue span generation; it is wired into `WM_InvalidateRect()`
+  and is used by the
   boot-safe direct renderer's dirty loop. The narrow real
   `WM_NewWindow()` allocation/z-order render probe and its debugger-backed
   visual screenshot are now green, and the short single-bank render/upload loop
@@ -371,9 +390,9 @@ Runtime validation:
 - Full-frame conversion/DMA is acceptable for bring-up, but needs a VDP timing
   policy before the desktop loop can be considered stable. The first timing
   probe measures the current full-frame upload shape; `DR_TileRangeBudget()`
-  now proves the dirty-region side can report tile/byte/span costs, but it does
-  not yet define the VBlank queue, active-display policy, or double-buffer
-  policy.
+  and `DR_QueueTileRange()` now prove the dirty-region side can report
+  tile/byte/span costs and build bounded upload spans, but they do not yet
+  define the live VBlank flush, active-display policy, or double-buffer policy.
 - The `DesktopTiming` probe script now has a bounded failure path around the
   GDB `continue` phase. `tools/probe_blastem_boot.ps1` accepts
   `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` on timeout, and

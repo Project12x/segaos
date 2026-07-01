@@ -67,6 +67,14 @@ Concrete font data currently comes from SGDK v2.11:
 - reuse mode: direct-copy, format-converted from `res/image/font_default.png`
   into SegaOS' 1bpp `Glyph` rows
 
+VDP queue planning has also been checked against SGDK v2.11:
+
+- repo: https://github.com/Stephane-D/SGDK
+- commit: `ef9292c03fe33a2f8af3a2589ab856a53dcef35c`
+- license: MIT
+- reuse mode: pattern-only / clean-room from SGDK's DMA queue structure
+- inspected files: `inc/dma.h`, `src/dma.c`, `src/sys.c`
+
 The current pre-alpha boot posture is deliberately flexible. A permanent
 Megadev-derived dual-CPU control image built through SegaOS's ISO builder
 reports from Sub-side code, and the SegaOS `BOOT_PROBE=1` assembly path now
@@ -83,7 +91,8 @@ uses `WM_DrawDesktop()` for the desktop/menu shell and compact BLT rectangle
 primitives for the window outline, with real SGDK-derived menu/title/body text
 accepted through debugger-backed BlastEm internal screenshotting. A clean-room
 dirty rectangle module is now host-tested and wired into `WM_InvalidateRect()`.
-It also computes dirty tile transfer budgets for the future VDP upload queue.
+It also computes dirty tile transfer budgets and explicit upload spans for the
+future VDP upload queue.
 The next architecture work is a measured frame-transfer policy before the full
 desktop/app loop returns. The product goal is still a 68k Mac-like desktop on
 Sega CD; the bootstrap can change to make that goal reliable.
@@ -125,8 +134,8 @@ static rectangle-list module with host tests. It clips invalidations to screen
 bounds, merges overlapping or edge-touching regions, keeps corner-only contact
 separate, subtracts cutouts into stable strips, collapses overflow to a single
 conservative bounding rect, exposes 8x8 tile-range rounding, and computes
-first-tile/tile-count/byte-count/row-span budget data for the later VDP
-dirty-upload queue.
+first-tile/tile-count/byte-count/row-span budget data plus bounded tile-upload
+span queues for the later VDP dirty-upload path.
 
 ### Framebuffer Pipeline (`src/main/framebuffer.c`)
 Converts the Sub CPU's linear 4bpp framebuffer to VDP 8x8 tile format using strip-based processing (5 KB buffer per strip, 7 strips per frame). Both formats use identical 4bpp nibble packing, so conversion is purely a memory rearrangement.
@@ -136,7 +145,9 @@ as stable, the project needs a measured VDP transfer policy: VBlank-only dirty
 tiles, accepted active-display transfer artifacts, or display-off/full redraws
 for transitions. The current clean-room dirty planner can already prove that a
 full 40x28 tile frame is 1,120 tiles / 35,840 bytes and does not fit a
-7,524-byte NTSC VBlank budget, while small dirty regions can fit.
+7,524-byte NTSC VBlank budget, while small dirty regions can fit; it can also
+slice a full-frame request to a 235-tile / 7,520-byte upload span for one
+budgeted pass. The hardware VBlank flush for those spans is still pending.
 
 ### VDP Interface (`include/vdp.h`)
 Standalone hardware interface for the Genesis VDP. Direct register writes, DMA transfers, palette loading, VSync wait. No SGDK dependency.
@@ -156,8 +167,8 @@ Gate Array comm flag + 4 command registers for Main->Sub commands. Protocol: Mai
 
 Bring-up should validate those steps one at a time: boot image, Main/Sub CPU
 heartbeat, Word RAM bank handoff, deterministic 4bpp test pattern, then the
-text, dirty-rect, dirty-transfer budget, root desktop, and window-manager
-render contracts.
+text, dirty-rect, dirty-transfer queue, root desktop, and window-manager render
+contracts.
 
 ## Boot Disc Model
 

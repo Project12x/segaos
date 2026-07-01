@@ -169,6 +169,198 @@ Boolean DR_TileRangeBudget(const DirtyTileRange *range, uint16_t planeTilesX,
   return 1;
 }
 
+static void dr_clear_upload(DirtyTileUpload *upload) {
+  if (!upload)
+    return;
+
+  upload->firstTile = 0;
+  upload->tileCount = 0;
+  upload->byteCount = 0;
+}
+
+void DR_InitTileQueue(DirtyTileQueue *queue, DirtyTileUpload *storage,
+                      uint8_t capacity, uint16_t maxBytes) {
+  if (!queue)
+    return;
+
+  queue->items = storage;
+  queue->capacity = capacity;
+  queue->maxBytes = maxBytes;
+  DR_ClearTileQueue(queue);
+}
+
+void DR_ClearTileQueue(DirtyTileQueue *queue) {
+  uint8_t i;
+
+  if (!queue)
+    return;
+
+  queue->count = 0;
+  queue->byteCount = 0;
+  queue->budgetExceeded = 0;
+  queue->overflow = 0;
+
+  if (!queue->items)
+    return;
+
+  for (i = 0; i < queue->capacity; i++) {
+    dr_clear_upload(&queue->items[i]);
+  }
+}
+
+static Boolean dr_queue_tile_span(DirtyTileQueue *queue, uint32_t firstTile,
+                                  uint32_t tileCount,
+                                  uint16_t bytesPerTile) {
+  uint32_t remainingBytes;
+  uint32_t fitTiles;
+  uint32_t maxFieldTiles;
+  uint32_t chunkTiles;
+  uint32_t chunkBytes;
+  Boolean budgetLimited;
+
+  if (!queue || !queue->items || queue->capacity == 0 || bytesPerTile == 0)
+    return 0;
+  if (tileCount == 0)
+    return 1;
+
+  while (tileCount > 0) {
+    if (firstTile > 0xffffU)
+      return 0;
+
+    if (queue->maxBytes != 0) {
+      if (queue->byteCount >= queue->maxBytes) {
+        queue->budgetExceeded = 1;
+        return 0;
+      }
+
+      remainingBytes = (uint32_t)(queue->maxBytes - queue->byteCount);
+      fitTiles = remainingBytes / bytesPerTile;
+      if (fitTiles == 0) {
+        queue->budgetExceeded = 1;
+        return 0;
+      }
+    } else {
+      remainingBytes = (uint32_t)(0xffffU - queue->byteCount);
+      fitTiles = remainingBytes / bytesPerTile;
+      if (fitTiles == 0) {
+        queue->budgetExceeded = 1;
+        return 0;
+      }
+    }
+
+    budgetLimited = (queue->maxBytes != 0 && fitTiles < tileCount) ? 1 : 0;
+    maxFieldTiles = 0xffffU / bytesPerTile;
+    chunkTiles = tileCount;
+    if (chunkTiles > fitTiles)
+      chunkTiles = fitTiles;
+    if (chunkTiles > maxFieldTiles)
+      chunkTiles = maxFieldTiles;
+    if (chunkTiles == 0) {
+      queue->budgetExceeded = 1;
+      return 0;
+    }
+
+    chunkBytes = chunkTiles * bytesPerTile;
+    if (chunkBytes > (uint32_t)(0xffffU - queue->byteCount)) {
+      queue->budgetExceeded = 1;
+      return 0;
+    }
+
+    if (queue->count >= queue->capacity) {
+      queue->overflow = 1;
+      return 0;
+    }
+
+    queue->items[queue->count].firstTile = (uint16_t)firstTile;
+    queue->items[queue->count].tileCount = (uint16_t)chunkTiles;
+    queue->items[queue->count].byteCount = (uint16_t)chunkBytes;
+    queue->count++;
+    queue->byteCount = (uint16_t)(queue->byteCount + chunkBytes);
+
+    firstTile += chunkTiles;
+    tileCount -= chunkTiles;
+
+    if (budgetLimited && tileCount > 0 && chunkTiles == fitTiles) {
+      queue->budgetExceeded = 1;
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
+Boolean DR_QueueTileRange(DirtyTileQueue *queue, const DirtyTileRange *range,
+                          uint16_t planeTilesX, uint16_t bytesPerTile) {
+  uint32_t width;
+  uint32_t height;
+  uint32_t row;
+  uint32_t firstTile;
+  uint32_t tileCount;
+
+  if (!queue || !range || planeTilesX == 0 || bytesPerTile == 0)
+    return 0;
+  if (range->x0 >= range->x1 || range->y0 >= range->y1)
+    return 0;
+  if (range->x1 > planeTilesX)
+    return 0;
+
+  width = (uint32_t)(range->x1 - range->x0);
+  height = (uint32_t)(range->y1 - range->y0);
+
+  if (range->x0 == 0 && width == planeTilesX) {
+    firstTile = ((uint32_t)range->y0 * planeTilesX);
+    tileCount = width * height;
+    return dr_queue_tile_span(queue, firstTile, tileCount, bytesPerTile);
+  }
+
+  for (row = range->y0; row < range->y1; row++) {
+    firstTile = (row * planeTilesX) + range->x0;
+    if (!dr_queue_tile_span(queue, firstTile, width, bytesPerTile))
+      return 0;
+  }
+
+  return 1;
+}
+
+Boolean DR_BuildTileQueueFromDirtyList(const DirtyRectList *list,
+                                       DirtyTileQueue *queue, uint8_t tileW,
+                                       uint8_t tileH, uint16_t planeTilesX,
+                                       uint16_t bytesPerTile) {
+  DirtyTileRange range;
+  DirtyRect *dirty;
+  uint8_t i;
+
+  if (!queue)
+    return 0;
+
+  DR_ClearTileQueue(queue);
+
+  if (!list || !list->items || tileW == 0 || tileH == 0 || planeTilesX == 0 ||
+      bytesPerTile == 0) {
+    return 0;
+  }
+
+  for (i = 0; i < list->count; i++) {
+    dirty = &list->items[i];
+    if (!dirty->valid)
+      continue;
+
+    if (!DR_RectToTileRange(&dirty->rect, tileW, tileH, &range))
+      continue;
+
+    if (!DR_QueueTileRange(queue, &range, planeTilesX, bytesPerTile))
+      return 0;
+  }
+
+  return 1;
+}
+
+DirtyTileUpload *DR_GetTileUpload(DirtyTileQueue *queue, uint8_t index) {
+  if (!queue || !queue->items || index >= queue->count)
+    return (DirtyTileUpload *)0;
+  return &queue->items[index];
+}
+
 void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
                        DirtyRootRedraw *out) {
   Rect part;

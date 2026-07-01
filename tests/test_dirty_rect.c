@@ -55,6 +55,20 @@ static void expect_dirty_rect(DirtyRectList *list, uint8_t index, Rect expected,
   expect_rect(dirty->rect, expected, name);
 }
 
+static void expect_tile_upload(DirtyTileQueue *queue, uint8_t index,
+                               uint16_t firstTile, uint16_t tileCount,
+                               uint16_t byteCount, const char *name) {
+  DirtyTileUpload *upload = DR_GetTileUpload(queue, index);
+  if (!upload) {
+    printf("FAIL: %s missing tile upload %u\n", name, index);
+    failures++;
+    return;
+  }
+  expect_u16(upload->firstTile, firstTile, name);
+  expect_u16(upload->tileCount, tileCount, name);
+  expect_u16(upload->byteCount, byteCount, name);
+}
+
 static void clips_to_bounds_and_rejects_empty(void) {
   Rect bounds = rect_make(0, 0, 224, 320);
   Rect r = rect_make(-5, -10, 20, 30);
@@ -199,6 +213,92 @@ static void dirty_tile_budget_rejects_empty_ranges(void) {
                "empty tile budget rejected");
 }
 
+static void dirty_tile_queue_splits_partial_width_rows(void) {
+  DirtyTileUpload uploads[4];
+  DirtyTileQueue queue;
+  DirtyTileRange range = {2, 2, 4, 4};
+
+  DR_InitTileQueue(&queue, uploads, 4, 7524);
+
+  expect_true(DR_QueueTileRange(&queue, &range, 40, 32),
+              "queue partial-width range");
+  expect_u16(queue.count, 2, "partial queue count");
+  expect_u16(queue.byteCount, 128, "partial queue bytes");
+  expect_false(queue.budgetExceeded, "partial queue budget flag");
+  expect_false(queue.overflow, "partial queue overflow flag");
+  expect_tile_upload(&queue, 0, 82, 2, 64, "partial queue row 0");
+  expect_tile_upload(&queue, 1, 122, 2, 64, "partial queue row 1");
+}
+
+static void dirty_tile_queue_slices_full_frame_to_vblank_budget(void) {
+  DirtyTileUpload uploads[4];
+  DirtyTileQueue queue;
+  DirtyTileRange range = {0, 0, 40, 28};
+
+  DR_InitTileQueue(&queue, uploads, 4, 7524);
+
+  expect_false(DR_QueueTileRange(&queue, &range, 40, 32),
+               "full-frame queue exceeds budget");
+  expect_u16(queue.count, 1, "full-frame queue count");
+  expect_u16(queue.byteCount, 7520, "full-frame queued bytes");
+  expect_true(queue.budgetExceeded, "full-frame queue budget flag");
+  expect_false(queue.overflow, "full-frame queue overflow flag");
+  expect_tile_upload(&queue, 0, 0, 235, 7520, "full-frame queue slice");
+}
+
+static void dirty_tile_queue_stops_when_row_budget_runs_out(void) {
+  DirtyTileUpload uploads[4];
+  DirtyTileQueue queue;
+  DirtyTileRange range = {2, 2, 4, 5};
+
+  DR_InitTileQueue(&queue, uploads, 4, 128);
+
+  expect_false(DR_QueueTileRange(&queue, &range, 40, 32),
+               "partial queue exceeds small budget");
+  expect_u16(queue.count, 2, "small-budget queue count");
+  expect_u16(queue.byteCount, 128, "small-budget queue bytes");
+  expect_true(queue.budgetExceeded, "small-budget queue flag");
+  expect_false(queue.overflow, "small-budget overflow flag");
+  expect_tile_upload(&queue, 0, 82, 2, 64, "small-budget row 0");
+  expect_tile_upload(&queue, 1, 122, 2, 64, "small-budget row 1");
+}
+
+static void dirty_tile_queue_reports_storage_overflow(void) {
+  DirtyTileUpload upload;
+  DirtyTileQueue queue;
+  DirtyTileRange range = {2, 2, 4, 4};
+
+  DR_InitTileQueue(&queue, &upload, 1, 7524);
+
+  expect_false(DR_QueueTileRange(&queue, &range, 40, 32),
+               "partial queue exceeds storage");
+  expect_u16(queue.count, 1, "overflow queue count");
+  expect_u16(queue.byteCount, 64, "overflow queue bytes");
+  expect_false(queue.budgetExceeded, "overflow budget flag");
+  expect_true(queue.overflow, "overflow flag");
+  expect_tile_upload(&queue, 0, 82, 2, 64, "overflow kept first row");
+}
+
+static void dirty_tile_queue_builds_from_dirty_rect_list(void) {
+  Rect bounds = rect_make(0, 0, 224, 320);
+  DirtyRect dirtyStorage[2];
+  DirtyRectList list;
+  DirtyTileUpload uploads[4];
+  DirtyTileQueue queue;
+
+  DR_InitList(&list, dirtyStorage, 2, &bounds);
+  expect_true(DR_AddRect(&list, &((Rect){16, 16, 32, 32})),
+              "add queue source dirty rect");
+  DR_InitTileQueue(&queue, uploads, 4, 7524);
+
+  expect_true(DR_BuildTileQueueFromDirtyList(&list, &queue, 8, 8, 40, 32),
+              "build queue from dirty list");
+  expect_u16(queue.count, 2, "dirty-list queue count");
+  expect_u16(queue.byteCount, 128, "dirty-list queue bytes");
+  expect_tile_upload(&queue, 0, 82, 2, 64, "dirty-list queue row 0");
+  expect_tile_upload(&queue, 1, 122, 2, 64, "dirty-list queue row 1");
+}
+
 static void root_redraw_splits_menu_and_desktop(void) {
   DirtyRootRedraw plan;
   Rect dirty = rect_make(10, 5, 30, 50);
@@ -285,6 +385,11 @@ int main(void) {
   dirty_tile_budget_counts_full_width_as_contiguous_span();
   dirty_tile_budget_rejects_full_frame_ntsc_vblank_budget();
   dirty_tile_budget_rejects_empty_ranges();
+  dirty_tile_queue_splits_partial_width_rows();
+  dirty_tile_queue_slices_full_frame_to_vblank_budget();
+  dirty_tile_queue_stops_when_row_budget_runs_out();
+  dirty_tile_queue_reports_storage_overflow();
+  dirty_tile_queue_builds_from_dirty_rect_list();
   root_redraw_splits_menu_and_desktop();
   root_redraw_keeps_single_owner_regions();
   root_redraw_rejects_empty_dirty_rects();

@@ -34,6 +34,22 @@ typedef struct {
 } DirtyTransferBudget;
 
 typedef struct {
+  uint16_t firstTile;
+  uint16_t tileCount;
+  uint16_t byteCount;
+} DirtyTileUpload;
+
+typedef struct {
+  DirtyTileUpload *items;
+  uint8_t capacity;
+  uint8_t count;
+  uint16_t maxBytes;
+  uint16_t byteCount;
+  uint8_t budgetExceeded;
+  uint8_t overflow;
+} DirtyTileQueue;
+
+typedef struct {
   DirtyRect *items;
   uint8_t capacity;
   uint8_t count;
@@ -64,6 +80,16 @@ Boolean DR_RectToTileRange(const Rect *r, uint8_t tileW, uint8_t tileH,
 Boolean DR_TileRangeBudget(const DirtyTileRange *range, uint16_t planeTilesX,
                            uint16_t bytesPerTile, uint16_t maxBytes,
                            DirtyTransferBudget *out);
+void DR_InitTileQueue(DirtyTileQueue *queue, DirtyTileUpload *storage,
+                      uint8_t capacity, uint16_t maxBytes);
+void DR_ClearTileQueue(DirtyTileQueue *queue);
+Boolean DR_QueueTileRange(DirtyTileQueue *queue, const DirtyTileRange *range,
+                          uint16_t planeTilesX, uint16_t bytesPerTile);
+Boolean DR_BuildTileQueueFromDirtyList(const DirtyRectList *list,
+                                       DirtyTileQueue *queue, uint8_t tileW,
+                                       uint8_t tileH, uint16_t planeTilesX,
+                                       uint16_t bytesPerTile);
+DirtyTileUpload *DR_GetTileUpload(DirtyTileQueue *queue, uint8_t index);
 void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
                        DirtyRootRedraw *out);
 void DR_PlanWindowRedraw(const Rect *dirty, const Rect *windowBounds,

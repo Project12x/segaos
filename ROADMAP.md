@@ -208,6 +208,9 @@ remains a later production policy.
       failures return a bounded failure instead of hanging the harness
 - [ ] Decide the production update policy:
   - [ ] VBlank-only dirty-tile queue
+    - [x] Host-tested queue planner with static storage, byte-budget slicing,
+          and separate budget/overflow flags
+    - [ ] Live VBlank flush of queued tile spans to VRAM
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
 - [x] Tie dirty rectangles to tile-strip transfer ranges
@@ -215,6 +218,10 @@ remains a later production policy.
         `DR_TileRangeBudget()` reports first tile, tile count, byte count,
         row-span count, and whether a range fits a caller-supplied frame
         budget
+  - [x] Add host-tested dirty tile upload span planning:
+        `DR_QueueTileRange()` and `DR_BuildTileQueueFromDirtyList()` split
+        dirty ranges into row/full-width spans and stop cleanly at the caller's
+        byte budget or storage capacity
 
 Acceptance: the project has a documented frame budget and a transfer policy
 that matches Genesis VDP constraints.
@@ -271,7 +278,7 @@ that matches Genesis VDP constraints.
 - [x] Add host tests for dirty-rect clipping, half-open intersection,
       deterministic subtraction strips, edge-touch merge, corner-touch
       separation, overflow behavior, 8x8 tile range rounding, and dirty tile
-      transfer budgeting
+      transfer budgeting/upload queue planning
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy
