@@ -247,11 +247,19 @@ of caller-owned storage, and decode for later `LIST`/desktop UI work.
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input
 through the shell, callback-based `LIST` output in sorted program order, `NEW`
-clearing program storage, and explicit rejection of `RUN` until statement
-execution exists.
+clearing program storage, and the command dispatch shape that later hosts
+`RUN`.
 
 BASIC-expression update on 2026-07-01: `BAS_EvaluateExpression()` now adds the
 first value evaluator seam. It supports signed 16-bit integer literals with
 left-to-right `+`/`-` arithmetic and quoted string literals, rejects empty,
 unterminated, mixed, or overflowing expressions, and remains independent of
-`RUN`, variables, desktop I/O, and storage.
+variables, desktop I/O, and storage.
+
+BASIC-runner update on 2026-07-01: `BAS_RunProgram()` now adds the first
+statement execution seam. It runs stored program lines sequentially, supports
+`PRINT` of the current integer/string expression values, stops on `END`, routes
+output through the same callback shape as `LIST`, and reports unsupported
+statements or bad expressions with source line numbers. It is still clean-room
+SegaOS code and does not implement variables, `INPUT`, `GOTO`, desktop I/O,
+`LOAD`, or `SAVE`.

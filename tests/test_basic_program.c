@@ -5,6 +5,8 @@
 static int failures;
 static char listedLines[4][48];
 static uint8_t listedLineCount;
+static char runOutputLines[4][48];
+static uint8_t runOutputLineCount;
 
 static void expect_true(uint8_t value, const char *name) {
   if (!value) {
@@ -67,6 +69,27 @@ static void clear_list_capture(void) {
   listedLineCount = 0;
   for (uint8_t y = 0; y < 4; y++) {
     listedLines[y][0] = 0;
+  }
+}
+
+static uint8_t capture_run_output(const char *line, void *user) {
+  (void)user;
+  if (runOutputLineCount >= 4)
+    return 0;
+  for (uint8_t i = 0; i < sizeof(runOutputLines[0]); i++) {
+    runOutputLines[runOutputLineCount][i] = line[i];
+    if (!line[i])
+      break;
+  }
+  runOutputLines[runOutputLineCount][sizeof(runOutputLines[0]) - 1U] = 0;
+  runOutputLineCount++;
+  return 1;
+}
+
+static void clear_run_capture(void) {
+  runOutputLineCount = 0;
+  for (uint8_t y = 0; y < 4; y++) {
+    runOutputLines[y][0] = 0;
   }
 }
 
@@ -206,19 +229,31 @@ static void shell_new_clears_program(void) {
   expect_u16(program.storageUsed, 0, "NEW clears storage");
 }
 
-static void shell_rejects_unsupported_commands(void) {
+static void shell_run_executes_print_program(void) {
   BasicLine lines[4];
   uint8_t storage[64];
   BasicProgram program;
   BasicCommandResult result;
-  char lineBuffer[32];
+  char lineBuffer[48];
 
   BAS_InitProgram(&program, lines, 4, storage, sizeof(storage));
-  expect_false(BAS_SubmitConsoleLine(&program, "RUN", capture_list_line, 0,
-                                     lineBuffer, sizeof(lineBuffer), &result),
-               "shell rejects RUN before evaluator exists");
-  expect_u8(result.kind, BAS_CMD_UNSUPPORTED, "unsupported command kind");
-  expect_u8(program.lineCount, 0, "unsupported leaves program empty");
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT \"HELLO\""),
+              "store string print before RUN");
+  expect_true(BAS_StoreSourceLine(&program, "20 PRINT 12 + 5"),
+              "store integer print before RUN");
+  expect_true(BAS_StoreSourceLine(&program, "30 END"),
+              "store end before RUN");
+
+  expect_true(BAS_SubmitConsoleLine(&program, "RUN", capture_run_output, 0,
+                                    lineBuffer, sizeof(lineBuffer), &result),
+              "shell RUN command");
+  expect_u8(result.kind, BAS_CMD_RUN, "run command kind");
+  expect_u8(result.linesEmitted, 2, "run command output count");
+  expect_u8(runOutputLineCount, 2, "captured run output count");
+  expect_str(runOutputLines[0], "HELLO", "first run output line");
+  expect_str(runOutputLines[1], "17", "second run output line");
 }
 
 static void evaluates_integer_expressions(void) {
@@ -257,6 +292,43 @@ static void rejects_bad_expressions(void) {
                "reject integer overflow");
 }
 
+static void runner_reports_unsupported_statement_line(void) {
+  BasicLine lines[2];
+  uint8_t storage[64];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 2, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 GOTO 10"),
+              "store unsupported runner line");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects unsupported statement");
+  expect_u8(result.status, BAS_RUN_UNSUPPORTED_STATEMENT,
+            "unsupported statement status");
+  expect_u16(result.errorLine, 10, "unsupported statement line");
+}
+
+static void runner_reports_bad_print_expression_line(void) {
+  BasicLine lines[2];
+  uint8_t storage[64];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 2, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT 1 + \"X\""),
+              "store bad print expression line");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects bad print expression");
+  expect_u8(result.status, BAS_RUN_BAD_EXPRESSION, "bad expression status");
+  expect_u16(result.errorLine, 10, "bad expression line");
+}
+
 int main(void) {
   parse_print_line_tokenizes_keyword();
   program_stores_lines_sorted();
@@ -266,10 +338,12 @@ int main(void) {
   rejects_invalid_or_oversized_source();
   shell_stores_lines_and_lists_program();
   shell_new_clears_program();
-  shell_rejects_unsupported_commands();
+  shell_run_executes_print_program();
   evaluates_integer_expressions();
   evaluates_string_literals();
   rejects_bad_expressions();
+  runner_reports_unsupported_statement_line();
+  runner_reports_bad_print_expression_line();
 
   if (failures) {
     printf("basic program tests failed: %d\n", failures);

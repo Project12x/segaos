@@ -327,7 +327,11 @@ with in at least one emulator.
         callback-based listing output
   - [x] Expression/value evaluator with signed 16-bit integer `+`/`-`
         arithmetic and quoted string literals
-  - [ ] `RUN`, `LOAD`, and `SAVE` command shell behavior
+  - [x] Minimal sequential `RUN` behavior for stored `PRINT`/`END` programs
+        with callback-based output and structured line-numbered errors
+  - [ ] Variables, `INPUT`, branches such as `GOTO`, and broader statement
+        execution
+  - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
         BRAM/external-cart drivers

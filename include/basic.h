@@ -3,8 +3,8 @@
  *
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, and simple expression values. It does not execute statements or
- * touch display/storage hardware yet.
+ * decode, simple expression values, and a tiny PRINT/END runner. It does not
+ * handle variables, input, branching, or display/storage hardware yet.
  */
 
 #ifndef BASIC_H
@@ -62,8 +62,9 @@ typedef enum {
   BAS_CMD_PROGRAM_LINE = 1,
   BAS_CMD_LIST = 2,
   BAS_CMD_NEW = 3,
-  BAS_CMD_UNSUPPORTED = 4,
-  BAS_CMD_ERROR = 5
+  BAS_CMD_RUN = 4,
+  BAS_CMD_UNSUPPORTED = 5,
+  BAS_CMD_ERROR = 6
 } BasicCommandKind;
 
 typedef uint8_t (*BasicLineSink)(const char *line, void *user);
@@ -87,6 +88,22 @@ typedef struct {
   uint16_t stringLength;
 } BasicValue;
 
+typedef enum {
+  BAS_RUN_COMPLETE = 0,
+  BAS_RUN_HALTED = 1,
+  BAS_RUN_BAD_EXPRESSION = 2,
+  BAS_RUN_UNSUPPORTED_STATEMENT = 3,
+  BAS_RUN_OUTPUT_REJECTED = 4,
+  BAS_RUN_BUFFER_TOO_SMALL = 5
+} BasicRunStatus;
+
+typedef struct {
+  BasicRunStatus status;
+  uint8_t statementsExecuted;
+  uint8_t linesEmitted;
+  uint16_t errorLine;
+} BasicRunResult;
+
 void BAS_InitProgram(BasicProgram *program, BasicLine *lines,
                      uint8_t lineCapacity, uint8_t *storage,
                      uint16_t storageCapacity);
@@ -107,5 +124,8 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
                               char *lineBuffer, uint16_t lineBufferBytes,
                               BasicCommandResult *result);
 uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out);
+uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
+                       void *user, char *lineBuffer,
+                       uint16_t lineBufferBytes, BasicRunResult *result);
 
 #endif /* BASIC_H */

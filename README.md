@@ -242,9 +242,10 @@ source lines, tokenizes a small keyword set, stores lines in sorted order,
 replaces or deletes existing lines, compacts caller-owned storage, decodes
 stored lines, accepts shell line entry, lists programs through a caller-supplied
 sink, clears programs with `NEW`, and evaluates the first simple values:
-signed 16-bit integer `+`/`-` expressions and quoted string literals. It is not
-a `RUN` implementation, statement executor, display binding, or persistence
-layer yet.
+signed 16-bit integer `+`/`-` expressions and quoted string literals. The
+first `RUN` path executes stored lines sequentially for `PRINT` and `END`,
+emitting printed values through the same caller-supplied sink. It does not yet
+handle variables, `GOTO`, `INPUT`, desktop display binding, or persistence.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

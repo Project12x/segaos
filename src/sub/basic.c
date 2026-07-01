@@ -142,6 +142,17 @@ static void bas_set_command_result(BasicCommandResult *result,
   result->linesEmitted = linesEmitted;
 }
 
+static void bas_set_run_result(BasicRunResult *result, BasicRunStatus status,
+                               uint8_t statementsExecuted,
+                               uint8_t linesEmitted, uint16_t errorLine) {
+  if (!result)
+    return;
+  result->status = status;
+  result->statementsExecuted = statementsExecuted;
+  result->linesEmitted = linesEmitted;
+  result->errorLine = errorLine;
+}
+
 static void bas_clear_value(BasicValue *value) {
   if (!value)
     return;
@@ -243,6 +254,84 @@ static uint8_t bas_eval_string_literal(const char *source, BasicValue *out) {
   out->stringLength = len;
   out->kind = BAS_VALUE_STRING;
   return 1;
+}
+
+static uint8_t bas_write_int16(char *out, uint16_t outBytes, int16_t value) {
+  uint16_t pos = 0;
+  uint16_t divisor = 10000U;
+  uint8_t started = 0;
+  int32_t wideValue = value;
+  uint32_t magnitude;
+
+  if (!out || outBytes == 0)
+    return 0;
+  out[0] = 0;
+
+#define BAS_WRITE_OUT_CHAR(ch)                                                 \
+  do {                                                                         \
+    if (pos + 1U >= outBytes)                                                  \
+      return 0;                                                                \
+    out[pos++] = (char)(ch);                                                   \
+    out[pos] = 0;                                                              \
+  } while (0)
+
+  if (wideValue < 0) {
+    BAS_WRITE_OUT_CHAR('-');
+    magnitude = (uint32_t)(-wideValue);
+  } else {
+    magnitude = (uint32_t)wideValue;
+  }
+
+  while (divisor > 0) {
+    uint8_t digit = (uint8_t)(magnitude / divisor);
+    if (digit || started || divisor == 1U) {
+      BAS_WRITE_OUT_CHAR((char)('0' + digit));
+      started = 1;
+    }
+    magnitude = magnitude % divisor;
+    divisor = (uint16_t)(divisor / 10U);
+  }
+
+#undef BAS_WRITE_OUT_CHAR
+  return 1;
+}
+
+static uint8_t bas_copy_payload_to_buffer(const uint8_t *bytes,
+                                          uint16_t lineLength, char *out,
+                                          uint16_t outBytes) {
+  uint16_t payloadLength;
+
+  if (!bytes || !out || outBytes == 0 || lineLength == 0)
+    return 0;
+
+  payloadLength = (uint16_t)(lineLength - 1U);
+  if (payloadLength + 1U > outBytes)
+    return 0;
+  for (uint16_t i = 0; i < payloadLength; i++) {
+    out[i] = (char)bytes[1U + i];
+  }
+  out[payloadLength] = 0;
+  return 1;
+}
+
+static uint8_t bas_value_to_line(const BasicValue *value, char *out,
+                                 uint16_t outBytes) {
+  if (!value || !out || outBytes == 0)
+    return 0;
+
+  if (value->kind == BAS_VALUE_INTEGER)
+    return bas_write_int16(out, outBytes, value->integer);
+
+  if (value->kind == BAS_VALUE_STRING) {
+    if (value->stringLength + 1U > outBytes)
+      return 0;
+    for (uint16_t i = 0; i <= value->stringLength; i++) {
+      out[i] = value->string[i];
+    }
+    return 1;
+  }
+
+  return 0;
 }
 
 static uint8_t bas_line_payload_length(const BasicParsedLine *parsed) {
@@ -602,6 +691,15 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
     return 1;
   }
 
+  if (bas_command_equals(p, "RUN")) {
+    BasicRunResult runResult;
+
+    ok = BAS_RunProgram(program, sink, user, lineBuffer, lineBufferBytes,
+                        &runResult);
+    bas_set_command_result(result, BAS_CMD_RUN, ok, runResult.linesEmitted);
+    return ok;
+  }
+
   bas_set_command_result(result, BAS_CMD_UNSUPPORTED, 0, 0);
   return 0;
 }
@@ -621,4 +719,74 @@ uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out) {
     return bas_eval_string_literal(p, out);
 
   return bas_eval_integer_expression(p, out);
+}
+
+uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
+                       void *user, char *lineBuffer,
+                       uint16_t lineBufferBytes, BasicRunResult *result) {
+  uint8_t statementsExecuted = 0;
+  uint8_t linesEmitted = 0;
+
+  bas_set_run_result(result, BAS_RUN_COMPLETE, 0, 0, 0);
+  if (!program || !lineBuffer || lineBufferBytes == 0) {
+    bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL, 0, 0, 0);
+    return 0;
+  }
+
+  for (uint8_t i = 0; i < program->lineCount; i++) {
+    const BasicLine *line = BAS_GetLine(program, i);
+    const uint8_t *bytes = BAS_GetLineBytes(program, line);
+    BasicToken token;
+
+    if (!line || !bytes || line->length == 0) {
+      bas_set_run_result(result, BAS_RUN_UNSUPPORTED_STATEMENT,
+                         statementsExecuted, linesEmitted, 0);
+      return 0;
+    }
+
+    token = (BasicToken)bytes[0];
+    statementsExecuted++;
+
+    if (token == BAS_TOK_END) {
+      bas_set_run_result(result, BAS_RUN_HALTED, statementsExecuted,
+                         linesEmitted, 0);
+      return 1;
+    }
+
+    if (token == BAS_TOK_PRINT) {
+      BasicValue value;
+
+      if (!bas_copy_payload_to_buffer(bytes, line->length, lineBuffer,
+                                      lineBufferBytes)) {
+        bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      if (!BAS_EvaluateExpression(lineBuffer, &value)) {
+        bas_set_run_result(result, BAS_RUN_BAD_EXPRESSION, statementsExecuted,
+                           linesEmitted, line->number);
+        return 0;
+      }
+      if (!bas_value_to_line(&value, lineBuffer, lineBufferBytes)) {
+        bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      if (sink && !sink(lineBuffer, user)) {
+        bas_set_run_result(result, BAS_RUN_OUTPUT_REJECTED,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      linesEmitted++;
+      continue;
+    }
+
+    bas_set_run_result(result, BAS_RUN_UNSUPPORTED_STATEMENT,
+                       statementsExecuted, linesEmitted, line->number);
+    return 0;
+  }
+
+  bas_set_run_result(result, BAS_RUN_COMPLETE, statementsExecuted,
+                     linesEmitted, 0);
+  return 1;
 }
