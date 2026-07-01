@@ -65,6 +65,7 @@ same failures.
   6. Main framebuffer upload and VRAM readback
   7. Main-only direct VDP text canary
   8. Visible BlastEm internal screenshot
+  9. Repeated-frame Word RAM return/reacquire probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -77,7 +78,7 @@ same failures.
   first. The current Makefile reuses shared object paths, so a plain
   `make iso` after `BOOT_SAFE_VISUAL_PROBE=1` can keep probe-compiled Main CPU
   objects. The normal default Main CPU size observed after a forced rebuild is
-  `2752` bytes.
+  `2776` bytes.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
   moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"
@@ -90,9 +91,18 @@ same failures.
   and Sub can write its `$0C0000` bank.
 - Clearing RET from Sub exposes that same bank to Main at `$200000`; this is the
   proven first-frame handoff.
-- Setting RET from Main returns bank 0 to Sub for the next render attempt.
-- Do not assume full alternating 1M double buffering is solved. Only the first
-  Sub `$0C0000` to Main `$200000` handoff is proven.
+- Main releases the displayed bank by writing RET from the Main side. In
+  BlastEm, the released/repeated-frame state observed by the probe is
+  `MEM_MODE=0x2a06` (DMNA set, RET clear), not the initial `0x2a05` state.
+- Because the initial BIOS/Sub-owned state and the Main-released state present
+  differently, Sub-side "can write Word RAM" checks in the boot-safe 1M path
+  must accept either RET or DMNA.
+- `DESKTOP_REPEAT_PROBE=1` proves a two-frame single-bank ping-pong: first
+  render, Main upload, Main release, second render, Main upload, second title
+  row still visible in VDP as `0xf11f/0x1f11`, with terminal trace `0x7404`.
+- Do not assume full alternating 1M double buffering is solved. The proven path
+  is still the boot-safe single-bank `$0C0000`/`$200000` handoff, not a
+  production long-running frame scheduler.
 
 ## Framebuffer Writes
 
@@ -127,7 +137,8 @@ same failures.
   CFM to `COMM_MAIN_PENDING` (`0x02`). `CMD_BOOT_PROBE` in the assembly SP and
   normal C commands both follow that rule.
 - The default boot-safe command wait loop should stay aligned with the
-  probe-proven polling path until repeated-frame behavior is understood.
+  probe-proven polling path until the full long-running frame policy is
+  understood.
 - Keep command breadcrumbs in COMSTAT registers while debugging, but avoid
   overwriting the trace value that a probe is asserting.
 - After `sub_done()`, do not let the idle loop overwrite terminal command
@@ -162,7 +173,7 @@ same failures.
 - Latest accepted default internal screenshot, captured with
   `BOOT_SAFE_VISUAL_PROBE=1` and `-DebugAutoBoot` after GDB proved phase
   `0x76ff`:
-  `C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`.
+  `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`.
   The older block-canary frame at
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is only a
   historical reference.
@@ -187,6 +198,6 @@ same failures.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
   consumption before the first command was handled. Treat full WM allocation and
   z-order traversal as later rungs. Fixed-font text, dirty rectangles, root
-  redraw, and direct boot-safe window furniture are now proven; the next
-  isolated rung is repeated-frame behavior, then a minimal `WM_NewWindow()`
-  render probe.
+  redraw, direct boot-safe window furniture, and two-frame single-bank
+  repeated rendering are now proven; the next isolated rung is a minimal
+  `WM_NewWindow()` render probe.

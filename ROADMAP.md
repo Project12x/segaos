@@ -20,6 +20,7 @@
 - [x] 1M mode bank swap helpers (DMNA/RET bits)
 - [x] Double-buffer handshake path between Main and Sub CPU
 - [x] Verify one-way Sub bank-0 return timing in emulator
+- [x] Verify two-frame single-bank return/reacquire timing in emulator
 - [ ] Confirm which Main CPU Word RAM window should be displayed after each swap
 - [ ] DMA timing refinement (VBlank vs active display)
 
@@ -86,7 +87,7 @@ Current evidence:
   SP load.
 - `BOOT_PROBE=1` now uses an assembly-only SP path for the probe. The latest
   visible framebuffer probe build places `sp_init` at `$602A`, `sp_main` at
-  `$607E`, and `_TEXT_LENGTH = $03a2` (930 bytes).
+  `$607E`, and `_TEXT_LENGTH = $0412` (1,042 bytes).
 - `tools/probe_blastem_boot.ps1 -Probe DualCpuStatus` now passes in BlastEm:
   Main magic `0x4d50`, Sub ready `0x0002/0x5244`, command status `0x0003`,
   result words `0x444e/0xa55a/0x5aa5`, and trace `0x52fe`.
@@ -115,6 +116,8 @@ Sub boot, inter-CPU flags, and Word RAM bank ownership.
 - [ ] Decide whether `WRAM_BANK0_MAIN`, `WRAM_BANK1_MAIN`, or an alternating
       pointer is correct after each swap
 - [x] Add a conservative single-bank return path after Main uploads a frame
+- [x] Prove the conservative single-bank path can complete two boot-safe
+      render/upload cycles
 - [x] Prove the boot-safe C desktop SP publishes Sub-ready in emulator
 - [x] Prove boot-safe C desktop first `CMD_RENDER_FRAME` completes in emulator
 
@@ -137,7 +140,7 @@ starter frame with real SGDK-font menu, title, and body text through BLT's
 word-safe framebuffer backend. The older block-canary capture is retained at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
 current accepted default capture is
-`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`,
+`C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`,
 created by the `BOOT_SAFE_VISUAL_PROBE=1` / `-DebugAutoBoot` path after GDB
 proved `segaos_visual_probe_halt` phase `0x76ff`.
 The captured striped title/body-text attempt at
@@ -159,10 +162,15 @@ opaque black ink. A lower
 `tools/probe_blastem_boot.ps1 -Probe VdpText`, and has a readable BlastEm
 internal screenshot at
 `C:\tmp\segaos_screens_internal\segaos_vdp_text_direct_20260630_181733.png`.
+`DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` now proves the conservative
+single-bank repeat path: after the first upload and Main release, the Sub CPU
+consumes a second `CMD_RENDER_FRAME`, returns status `0x0003` and trace
+`0x7404`, Main observes the released MEM_MODE state as `0x2a06`, and the
+repeated title row reads back from VDP as `0xf11f/0x1f11`.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
-Main CPU tile conversion and DMA, then remains stable under the chosen
-repeated-frame bank policy.
+Main CPU tile conversion and DMA, and the boot-safe single-bank repeat path is
+proven. Full alternating double buffering remains a later production policy.
 
 ### Milestone D: VDP Timing Budget
 - [ ] Treat full-frame conversion as a bring-up path, not the final frame loop
@@ -222,6 +230,8 @@ that matches Genesis VDP constraints.
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
       dirty-rectangle/root-redraw contracts pass
+- [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
+      alternating 1M double buffering, or a different transfer policy
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 
 Acceptance: a full desktop session can be booted, rendered, and interacted

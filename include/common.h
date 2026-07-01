@@ -144,8 +144,9 @@ static inline void main_send_opcode(uint8_t cmd) {
 
 /* ---- Word RAM Bank Swap (Main CPU side) ---- */
 
-/* Check if Main CPU currently has the bank exposed at WRAM_BANK0_MAIN.
- * In 1M mode, RET=0 exposes Sub bank 0 to Main at $200000. */
+/* Check if Main CPU can read the bank exposed at WRAM_BANK0_MAIN.
+ * In the observed 1M handoff states, RET=0 exposes bank 0 at Main $200000.
+ */
 static inline uint8_t main_has_wram(void) {
   uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
@@ -165,7 +166,9 @@ static inline void main_request_swap(void) {
 }
 
 /* Return Main's currently displayed Word RAM bank to the Sub CPU.
- * In 1M mode, setting RET gives bank 0 back to Sub at $0C0000.
+ * In 1M mode, Main releases bank 0 by writing RET; BlastEm reports the
+ * resulting Main-released state as DMNA=1, RET=0. The initial BIOS/Sub-owned
+ * state can also appear as RET=1, so ownership checks accept either bit.
  */
 static inline void main_return_wram_to_sub(void) {
   uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
@@ -250,7 +253,7 @@ static inline void sub_return_wram(void) {
 static inline uint8_t sub_has_wram(void) {
   uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    return (mem & MEM_MODE_RET) != 0;
+    return (mem & (MEM_MODE_RET | MEM_MODE_DMNA)) != 0;
   }
   return !(mem & MEM_MODE_RET);
 }

@@ -6,7 +6,7 @@ param(
   [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "VdpText")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "VdpText")]
   [string]$Probe = "Ip"
 )
 
@@ -237,7 +237,7 @@ try {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$name"
     }
-  } elseif ($Probe -eq "DesktopInit") {
+  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat") {
     $desktopNames = @(
       "segaos_desktop_main_phase",
       "segaos_desktop_sub_flag",
@@ -275,6 +275,20 @@ try {
       "segaos_desktop_title_vram_word0",
       "segaos_desktop_title_vram_word1"
     )
+    if ($Probe -eq "DesktopRepeat") {
+      $desktopNames += @(
+        "segaos_desktop_repeat_status",
+        "segaos_desktop_repeat_trace",
+        "segaos_desktop_repeat_stat0",
+        "segaos_desktop_repeat_sub_flag",
+        "segaos_desktop_repeat_wait_polls",
+        "segaos_desktop_repeat_mem_before",
+        "segaos_desktop_repeat_mem_after_done",
+        "segaos_desktop_repeat_mem_after_return",
+        "segaos_desktop_repeat_title_vram_word0",
+        "segaos_desktop_repeat_title_vram_word1"
+      )
+    }
 
     $gdbCommands += @(
       "break segaos_desktop_init_halt",
@@ -501,7 +515,7 @@ try {
     if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
       exit 1
     }
-  } elseif ($Probe -eq "DesktopInit") {
+  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat") {
     $joined = $gdbOutput -join "`n"
     $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_desktop_init_halt")
     $desktopNames = @(
@@ -541,6 +555,20 @@ try {
       "segaos_desktop_title_vram_word0",
       "segaos_desktop_title_vram_word1"
     )
+    if ($Probe -eq "DesktopRepeat") {
+      $desktopNames += @(
+        "segaos_desktop_repeat_status",
+        "segaos_desktop_repeat_trace",
+        "segaos_desktop_repeat_stat0",
+        "segaos_desktop_repeat_sub_flag",
+        "segaos_desktop_repeat_wait_polls",
+        "segaos_desktop_repeat_mem_before",
+        "segaos_desktop_repeat_mem_after_done",
+        "segaos_desktop_repeat_mem_after_return",
+        "segaos_desktop_repeat_title_vram_word0",
+        "segaos_desktop_repeat_title_vram_word1"
+      )
+    }
     $desktopValues = Get-NamedProbeValues $gdbOutput $desktopNames
     $expectedValues = [ordered]@{
       segaos_desktop_main_phase = "0x81ff"
@@ -550,6 +578,18 @@ try {
       segaos_desktop_done_status = "0x0003"
       segaos_desktop_render_status = "0x0003"
       segaos_desktop_render_trace = "0x7404"
+    }
+    if ($Probe -eq "DesktopRepeat") {
+      $expectedValues["segaos_desktop_main_phase"] = "0x82ff"
+      $expectedValues["segaos_desktop_repeat_status"] = "0x0003"
+      $expectedValues["segaos_desktop_repeat_trace"] = "0x7404"
+      $expectedValues["segaos_desktop_repeat_stat0"] = "0x0002"
+      $expectedValues["segaos_desktop_repeat_sub_flag"] = "0x0000"
+      $expectedValues["segaos_desktop_repeat_mem_before"] = "0x2a06"
+      $expectedValues["segaos_desktop_repeat_mem_after_done"] = "0x2a06"
+      $expectedValues["segaos_desktop_repeat_mem_after_return"] = "0x2a06"
+      $expectedValues["segaos_desktop_repeat_title_vram_word0"] = "0xf11f"
+      $expectedValues["segaos_desktop_repeat_title_vram_word1"] = "0x1f11"
     }
 
     $failed = @()
@@ -585,6 +625,15 @@ try {
     Write-Output "desktop_title_probe_enabled=$($desktopValues["segaos_desktop_title_probe_enabled"])"
     Write-Output "desktop_title_wram=$($desktopValues["segaos_desktop_title_wram_word0"]),$($desktopValues["segaos_desktop_title_wram_word1"])"
     Write-Output "desktop_title_vram=$($desktopValues["segaos_desktop_title_vram_word0"]),$($desktopValues["segaos_desktop_title_vram_word1"])"
+    if ($Probe -eq "DesktopRepeat") {
+      Write-Output "desktop_repeat_status=$($desktopValues["segaos_desktop_repeat_status"])"
+      Write-Output "desktop_repeat_trace=$($desktopValues["segaos_desktop_repeat_trace"])"
+      Write-Output "desktop_repeat_stat0=$($desktopValues["segaos_desktop_repeat_stat0"])"
+      Write-Output "desktop_repeat_sub_flag=$($desktopValues["segaos_desktop_repeat_sub_flag"])"
+      Write-Output "desktop_repeat_wait_polls=$($desktopValues["segaos_desktop_repeat_wait_polls"])"
+      Write-Output "desktop_repeat_mem before=$($desktopValues["segaos_desktop_repeat_mem_before"]) after_done=$($desktopValues["segaos_desktop_repeat_mem_after_done"]) after_return=$($desktopValues["segaos_desktop_repeat_mem_after_return"])"
+      Write-Output "desktop_repeat_title_vram=$($desktopValues["segaos_desktop_repeat_title_vram_word0"]),$($desktopValues["segaos_desktop_repeat_title_vram_word1"])"
+    }
 
     if ($desktopValues["segaos_desktop_text_probe_enabled"] -eq "0x0001") {
       $textWramOk = (

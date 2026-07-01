@@ -155,7 +155,7 @@ Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
    `sp_init`, Sub `sp_main`, and Gate Array command/status exchange.
 6. **Current SP layout evidence**: the SegaOS SP linker uses Megadev-style
    `SUBALIGN(2)`; in the current framebuffer probe map, `sp_init` is at `$602A`,
-   `sp_main` is at `$607E`, and `_TEXT_LENGTH` is `$03a2` (930 bytes) for the
+   `sp_main` is at `$607E`, and `_TEXT_LENGTH` is `$0412` (1,042 bytes) for the
    visible framebuffer probe.
 7. **Current Word RAM evidence**: in the observed 1M boot state, MEM_MODE is
    `0x2a05`, meaning RET is set and Sub owns the `$0C0000` bank. Clearing RET
@@ -166,3 +166,9 @@ Primary source: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
    `$200000`, runs `FB_UpdateFrame()`, reads the expected tile row words back
    from VDP VRAM, and has visible full-screen output confirmed by BlastEm
    internal screenshotting.
+9. **Current repeated-frame evidence**: `DESKTOP_REPEAT_PROBE=1` proves the
+   boot-safe single-bank path can return Word RAM to Sub and complete a second
+   render. In BlastEm, the Main-released state is observed as MEM_MODE
+   `0x2a06`, and the repeated title row reads back from VDP as
+   `0xf11f/0x1f11`. Treat this as a single-bank bring-up proof, not as the
+   final alternating 1M double-buffer policy.

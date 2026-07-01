@@ -44,8 +44,8 @@ SP module header first, then a relative jump table for `sp_init`, `sp_main`,
 
 `src/sub/sub.ld` also uses Megadev-style `SUBALIGN(2)` for the SP text/data/bss
 sections. In the current framebuffer probe map, the SP header is at `$6000`,
-`sp_init` is at `$602A`, `sp_main` is at `$607E`, and `_TEXT_LENGTH` is `$03a2`
-(930 bytes) for the visible framebuffer probe.
+`sp_init` is at `$602A`, `sp_main` is at `$607E`, and `_TEXT_LENGTH` is `$0412`
+(1,042 bytes) for the visible framebuffer probe.
 
 Current Milestone B note: the first C-runtime `BOOT_PROBE=1` experiments proved
 SP bytes were loaded but produced no Sub breadcrumbs. A dedicated
@@ -61,7 +61,9 @@ handoff is now proven for the first bank-0 return: `-Probe DualCpu` writes
 the same words at `$200000`. `-Probe Framebuffer` then proves a deterministic
 4bpp pattern can pass through the same handoff and Main's VDP tile upload path,
 and the visible framebuffer variant is confirmed by BlastEm internal
-screenshotting. Keep the assembly SP probe as the known-good startup reference
-while designing the repeated-frame double-buffer policy, then decide whether
-the production bootstrap remains a tiny assembly IP/SP stub that enters larger
-C kernels or a tightened C runtime with the same invariants.
+screenshotting. `DESKTOP_REPEAT_PROBE=1` then proves two boot-safe
+render/upload cycles through the conservative single-bank path. Keep the
+assembly SP probe as the known-good startup reference while designing the
+long-running frame and double-buffer policy, then decide whether the production
+bootstrap remains a tiny assembly IP/SP stub that enters larger C kernels or a
+tightened C runtime with the same invariants.

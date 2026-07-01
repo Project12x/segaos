@@ -34,6 +34,13 @@ Sub could write/read `$0C0000`, and clearing RET changed MEM_MODE to `0x2a04`;
 Main then read the same words at `$200000`. Setting RET and waiting was wrong
 for this initial bank-0 return because RET was already set.
 
+Follow-up `DESKTOP_REPEAT_PROBE=1` evidence: Main releases the displayed
+single-bank frame by writing RET, but BlastEm reports the released/repeated
+state as `0x2a06` (DMNA set, RET clear). The boot-safe Sub ownership predicate
+therefore accepts either RET or DMNA in 1M mode. This proves a two-frame
+single-bank render/upload loop in BlastEm, not a full alternating double-buffer
+policy.
+
 ## GA Reg 02 — CDC Mode
 Sub CPU address: $FF8004
 

@@ -131,7 +131,7 @@ As of the June 2026 Megadev reconciliation pass:
   jump table format for `sp_init`, `sp_main`, `sp_int2`, and `sp_user`.
 - `src/sub/sub.ld` uses Megadev-style `SUBALIGN(2)` for SP sections. The
   current assembly probe SP places `sp_init` at `$602A`, `sp_main` at `$607E`,
-  and reports `_TEXT_LENGTH = $03a2` (930 bytes) for the visible framebuffer
+  and reports `_TEXT_LENGTH = $0412` (1,042 bytes) for the visible framebuffer
   probe.
 - Earlier `BOOT_PROBE=1` experiments confirmed the BIOS-loaded SP payload bytes
   are visible in PRG-RAM bank 0 at the Main CPU alias `$020000 + $006000`.

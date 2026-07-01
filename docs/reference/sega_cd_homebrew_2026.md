@@ -95,8 +95,8 @@ inserted into `boot.bin`.
   `make iso`.
 - SegaOS's SP header/linker layout now follows the Megadev SP module contract
   and uses 2-byte section subalignment. The current assembly-only probe SP is
-  930 text bytes in the visible framebuffer probe, with `sp_init` at `$602A`,
-  `sp_main` at `$607E`, and `_TEXT_LENGTH = $03a2`.
+  1,042 text bytes in the visible framebuffer probe, with `sp_init` at `$602A`,
+  `sp_main` at `$607E`, and `_TEXT_LENGTH = $0412`.
 - Raw `MODE1/2352` output can be generated later if a target emulator, ODE, or
   burning workflow needs it.
 
@@ -153,11 +153,11 @@ magic `0x4d50`, Sub ready `0x0002/0x5244`, command status `0x0003`, result
 words `0x444e/0xa55a/0x5aa5`, and trace `0x52fe`. The strict Word RAM rung
 also passes now: `-Probe DualCpu` proves Sub writes `0xa55a/0x5aa5` at
 `$0C0000`, clears RET in 1M mode, and Main reads the pattern at `$200000`
-with MEM_MODE moving from `0x2a05` to `0x2a04`. Treat the remaining issue as a
-repeated-frame double-buffer policy problem, not disc recognition, Sub startup,
-first Word RAM return, or first visible framebuffer display. The framebuffer
-rung now also has BlastEm internal screenshot proof for the deterministic
-full-screen 4bpp pattern.
+with MEM_MODE moving from `0x2a05` to `0x2a04`. Treat the remaining low-level
+issue as a production double-buffer/frame-scheduler problem, not disc
+recognition, Sub startup, first Word RAM return, or first visible framebuffer
+display. The framebuffer rung now also has BlastEm internal screenshot proof
+for the deterministic full-screen 4bpp pattern.
 
 Follow-up display evidence on 2026-06-30: the default boot-safe desktop frame is
 now captured with `BOOT_SAFE_VISUAL_PROBE=1` and
@@ -171,6 +171,14 @@ Later 2026-06-30 update: the current command protocol uses CFM only as a pending
 signal and carries the opcode in `CMD0`. This matches the now-passing
 `BOOT_PROBE=1` assembly path and the C desktop path. The latest accepted
 boot-safe desktop screenshot is
-`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`, which
+`C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`, which
 shows the dirty-list root redraw plus direct startup window furniture with real
 SGDK-font title/body text.
+
+Repeated-frame update: `DESKTOP_REPEAT_PROBE=1` now proves the boot-safe
+single-bank desktop path can complete two render/upload cycles in one run.
+After Main releases the first returned frame, BlastEm reports MEM_MODE
+`0x2a06`; the Sub CPU accepts that as writable ownership, completes the second
+`CMD_RENDER_FRAME` with status `0x0003` and trace `0x7404`, and Main reads the
+repeated title row from VDP as `0xf11f/0x1f11`. This is still a bring-up
+single-bank proof; full alternating 1M double buffering is separate work.

@@ -4,7 +4,9 @@
 **Milestone C/D/E bridge: VDI/AES desktop foundations**
 
 Phase 1 and Phase 2 are complete. The production Word RAM bank-sync code paths
-are present, but repeated-frame timing still needs validation. Milestone A is complete:
+are present; the boot-safe single-bank path now has a two-frame repeat probe,
+while full alternating 1M double buffering still needs a runtime policy.
+Milestone A is complete:
 the repeatable boot-disc artifact builds, verifies, includes regional security
 bytes in the Main CPU IP, and reaches the SegaOS IP in BlastEm. Milestone B is
 complete: the assembly-only `BOOT_PROBE=1` SP reports from `sp_init`, waits in
@@ -27,7 +29,7 @@ word-safe framebuffer backend: checker desktop, menu separator, and a compact
 window starter frame. The starter frame now uses the real SGDK-derived font for
 menu, title, and body text instead of the old block `OS` visual canary. The
 latest accepted default internal screenshot is
-`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`,
+`C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`,
 captured from a `BOOT_SAFE_VISUAL_PROBE=1` build after GDB hit
 `segaos_visual_probe_halt` with phase `0x76ff` and BlastEm's own
 `ui.screenshot` binding wrote the PNG. The previous block-canary screenshot is
@@ -55,6 +57,10 @@ framebuffer, Main tile conversion, and VDP plane upload at
 The corruption was caused by treating palette index 0 as opaque black ink; VDP
 background plane color 0 is transparent, so the 4bpp boot palette now reserves
 index 0 for backdrop/transparent and uses index 1 for opaque black text/lines.
+`DESKTOP_REPEAT_PROBE=1` now proves a second boot-safe render in one run:
+after Main uploads and releases the first returned frame, the Sub CPU consumes
+a second `CMD_RENDER_FRAME`, returns status `0x0003` with trace `0x7404`, and
+Main reads the repeated title-row VRAM words as `0xf11f/0x1f11`.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -82,8 +88,8 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,880 text bytes observed locally with the SGDK-font starter window and dirty-rect module; full app SP is deferred |
-| Main CPU (`build/main_cpu.bin`) | Builds | 2,752 text bytes observed locally with US security block in the visual probe build |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,926 text bytes observed locally with the SGDK-font starter window and dirty-rect module; full app SP is deferred |
+| Main CPU (`build/main_cpu.bin`) | Builds | 2,776 text bytes observed locally with US security block in the forced normal default build |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
@@ -97,8 +103,9 @@ The active strategy is a bring-up ladder:
 | Direct VDP text canary | Passing | `VDP_TEXT_PROBE=1` + `-Probe VdpText` proves SGDK-derived 8x8 glyph tile upload, VRAM readback `0x00ff/0xff00`, Plane A entries `0x0001/0x0002/0x0003`, and a readable internal screenshot |
 | Desktop scaled text isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff11`, full-glyph signature `0xd2dd`, Plane A entries `0x0198/0x0199/0x019a`, and readable desktop-compositor screenshot `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png` |
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
+| Desktop repeated-frame probe | Passing | `DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` proves a second boot-safe `CMD_RENDER_FRAME` after Main returns Word RAM; terminal phase `0x82ff`, repeat status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, repeated title VRAM `0xf11f/0x1f11` |
 | Dirty rectangle host tests | Passing | `make host-tests` covers clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, and 8x8 tile range mapping |
-| Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png` |
+| Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -111,20 +118,22 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 11,880 text bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 11,926 text bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
-- BOOT_PROBE SP usage: 940 text bytes, intentionally below Megadev's 16KB
+- BOOT_PROBE SP usage: 1,042 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
-  `sp_main` at `$607E`, `_TEXT_LENGTH = $03a2`
-- Boot-safe desktop SP usage: 11,880 text bytes observed locally with
+  `sp_main` at `$607E`, `_TEXT_LENGTH = $0412`
+- Boot-safe desktop SP usage: 11,926 text bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
 - Boot-safe text probe SP usage: 9,248 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
-- Boot-safe title/default-text probe SP usage: 11,908 text bytes observed locally with
+- Boot-safe title/default-text probe SP usage: 11,954 text bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
-- Boot-safe visual-probe IP usage: 2,752 text bytes observed locally with
-  `BOOT_SAFE_VISUAL_PROBE=1`; SP remains the 11,880-byte boot-safe desktop
+- Boot-safe repeated-frame probe usage: Main IP 3,568 bytes / SP 11,954 text
+  bytes observed locally with `DESKTOP_REPEAT_PROBE=1`
+- Boot-safe visual-probe IP usage: 2,752 text bytes last observed with
+  `BOOT_SAFE_VISUAL_PROBE=1`; SP now follows the 11,926-byte boot-safe desktop
   payload
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
   `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
@@ -188,6 +197,11 @@ Key adopted assumptions:
 - In the observed 1M boot state, MEM_MODE starts at `0x2a05`: RET is set and
   Sub owns the `$0C0000` bank. Clearing RET from Sub exposes that bank at Main
   `$200000`; setting RET and waiting was the wrong operation for this handoff.
+- The repeated desktop probe shows a different Main-released 1M state:
+  after Main writes RET to release the displayed bank, BlastEm reports
+  `MEM_MODE=0x2a06` (DMNA set, RET clear). The boot-safe Sub-side ownership
+  check now accepts either RET or DMNA, and `DESKTOP_REPEAT_PROBE=1` proves two
+  render/upload cycles through the same single-bank path.
 - The framebuffer probe uses that handoff for a deterministic 4bpp tile:
   Sub writes `$1234/$5678` to linear row 0 and `$9abc/$def0` to row 1, Main
   reads those words through `$200000`, runs `FB_UpdateFrame()`, and reads the
@@ -253,8 +267,9 @@ High priority:
   this is still not a substitute for emulator and hardware/ODE validation.
 - The current dual-CPU probes prove Main boot, Sub `sp_init`/`sp_main`, Gate
   Array command/status, one-way Sub bank-0 Word RAM return, framebuffer-to-VDP
-  tile readback, and a visible deterministic framebuffer display. They do not
-  yet prove the full alternating double-buffer policy for repeated frames.
+  tile readback, a visible deterministic framebuffer display, and the
+  boot-safe desktop's second single-bank render. They do not yet prove the full
+  alternating double-buffer policy or long-running frame scheduler.
 - The boot-safe C desktop path now reaches Sub-ready, completes a first
   render/upload sequence, and displays a visible Mac-like starter frame through
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
@@ -275,9 +290,9 @@ High priority:
   BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
   helpers. The dirty-rectangle/clipping pool now has host tests for both root
   and window redraw planning, is wired into `WM_InvalidateRect()`, and is used
-  by the boot-safe direct renderer's first-frame dirty loop. The next risks are
-  repeated-frame Word RAM ownership/timing, then a narrow real
-  `WM_NewWindow()` render probe before menu/cursor/app rendering.
+  by the boot-safe direct renderer's dirty loop. The next risk is a narrow real
+  `WM_NewWindow()` render probe, while alternating double buffering and VDP
+  timing remain separate stability work before menu/cursor/app rendering.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command
@@ -286,8 +301,9 @@ High priority:
 Runtime validation:
 
 - Word RAM bank ownership is proven for the first Sub `$0C0000` to Main
-  `$200000` handoff. Alternating 1M double buffering is still unresolved:
-  after RET is cleared, Sub must not keep rendering blindly to `$0C0000`.
+  `$200000` handoff and for a second boot-safe render after Main releases the
+  same bank. Alternating 1M double buffering is still unresolved: the proven
+  path is a single-bank bring-up loop, not the final frame scheduler.
 - Full-frame conversion/DMA is acceptable for bring-up, but needs a VDP timing
   policy before the desktop loop can be considered stable.
 

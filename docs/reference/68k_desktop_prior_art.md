@@ -161,16 +161,24 @@ first frame draws a compact window frame/title/body under the dirty-list clip
 without app callbacks or `WM_NewWindow()` allocation. DesktopInit proves the
 first render/upload path with terminal trace `0x7404`; the accepted visual frame
 is
-`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`.
+`C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`.
+
+Status update, 2026-06-30 repeated-frame pass: `DESKTOP_REPEAT_PROBE=1` proves
+the same direct startup renderer can return Word RAM to Sub and complete a
+second render/upload cycle. The second command reaches status `0x0003`, trace
+`0x7404`, terminal phase `0x82ff`, and repeated title-row VRAM
+`0xf11f/0x1f11`. This does not make the full window-manager/app loop safe; it
+removes the repeated-frame handoff as the next immediate blocker.
 
 The remaining implementation rungs are:
 
-1. Repeated-frame proof:
-   - verify Word RAM ownership/timing after the first returned frame;
-   - keep full-frame upload as bring-up until the VDP timing policy is measured.
-2. Real window-manager render proof:
+1. Real window-manager render proof:
    - isolate a minimal `WM_NewWindow()`/z-order render probe;
    - keep app callbacks disabled until the allocation/traversal path is stable.
+2. Long-running frame policy:
+   - keep full-frame upload as bring-up until the VDP timing policy is measured;
+   - decide whether production uses single-bank bring-up, alternating 1M
+     double buffering, or another transfer strategy.
 3. Application content and event routing:
    - add app-owned content rectangles;
    - route mouse/key events only after visible ownership and redraw are stable.

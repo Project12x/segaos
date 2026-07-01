@@ -171,7 +171,7 @@ Expected passing evidence adds:
 
 Important current diagnostics:
 
-- The current visible framebuffer probe SP is 930 text bytes; `src/sub/sub.ld` uses Megadev-style
+- The current visible framebuffer probe SP is 1,042 text bytes; `src/sub/sub.ld` uses Megadev-style
   `SUBALIGN(2)`, placing probe `sp_init` at `$602A` and `sp_main` at `$607E`.
 - The probe now proves Sub `sp_init`, Sub `sp_main`, and Gate Array
   command/status exchange.
@@ -204,7 +204,10 @@ hotkey (`p` by default). Configure BlastEm's `screenshot_path` if the output
 directory needs to be controlled. The current passing internal screenshot shows
 the expected full-screen alternating 4bpp stripe pattern.
 
-That narrows the next work to an explicit repeated-frame double-buffer policy.
+The later desktop repeat probe now proves the current single-bank boot-safe
+frame path can return Word RAM to Sub and complete a second render. The full
+alternating 1M double-buffer policy is still separate VDP/runtime stability
+work.
 
 ## Boot-Safe Desktop Status
 
@@ -216,7 +219,7 @@ plan.
 
 Current local evidence:
 
-- normal forced boot-safe desktop build: passes verifier with an 11,880 text-byte
+- normal forced boot-safe desktop build: passes verifier with an 11,926 text-byte
   Sub SP observed with the real SGDK-font starter window and dirty-rect module
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
@@ -226,11 +229,14 @@ Current local evidence:
 - `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`: proves SGDK-derived 8x8 body
   text reaches Word RAM and VDP tile data without using the striped title-bar
   renderer
-- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the sampled block title
-  row reaches Word RAM and VDP tile data
+- `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the sampled default
+  SGDK-font body row reaches Word RAM and VDP tile data
+- `DESKTOP_REPEAT_PROBE=1`: passes `-Probe DesktopRepeat`, proving two
+  boot-safe `CMD_RENDER_FRAME` commands in one run, with the second return
+  still showing title-row VRAM words `0xf11f/0x1f11`
 - normal boot-safe C desktop: visible as a checker desktop/menu/window frame
   with readable SGDK-font menu, title, and body text in
-  `C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`
+  `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`
 
 The internal screenshot helper defaults to targeted window messages. For reliable
 BIOS START automation without injecting global keypresses into other programs,
@@ -240,8 +246,10 @@ BlastEm window, verifies it owns foreground focus before each key event, remaps
 `p` to controller START and `f12` to `ui.screenshot`, waits longer after START,
 and restores the user's BlastEm config afterward.
 
-Do not advance the full desktop/app loop until repeated-frame Word RAM policy
-and a minimal `WM_NewWindow()` render probe are proven.
+Do not advance the full desktop/app loop until a minimal `WM_NewWindow()`
+render probe is proven. The two-frame single-bank handoff is proven, but
+alternating double buffering and VDP timing still need their own policy before
+the long-running desktop loop is treated as stable.
 
 Additional diagnostic modes:
 
@@ -263,6 +271,12 @@ C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
 
 powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
   -Probe DesktopInit
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_REPEAT_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
+  -Probe DesktopRepeat
 ```
 
 ## Megadev Dual-CPU Control
