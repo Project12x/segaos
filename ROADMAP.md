@@ -325,7 +325,8 @@ with in at least one emulator.
         decode
   - [x] Host-tested shell-facing line entry, `LIST`, and `NEW` commands with
         callback-based listing output
-  - [ ] Expression/value evaluator with integer/string basics
+  - [x] Expression/value evaluator with signed 16-bit integer `+`/`-`
+        arithmetic and quoted string literals
   - [ ] `RUN`, `LOAD`, and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later

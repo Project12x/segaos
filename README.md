@@ -241,8 +241,10 @@ clean-room, fixed-storage program buffer and tiny shell: it parses numbered
 source lines, tokenizes a small keyword set, stores lines in sorted order,
 replaces or deletes existing lines, compacts caller-owned storage, decodes
 stored lines, accepts shell line entry, lists programs through a caller-supplied
-sink, and clears programs with `NEW`. It is not an evaluator, `RUN`
-implementation, display binding, or persistence layer yet.
+sink, clears programs with `NEW`, and evaluates the first simple values:
+signed 16-bit integer `+`/`-` expressions and quoted string literals. It is not
+a `RUN` implementation, statement executor, display binding, or persistence
+layer yet.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

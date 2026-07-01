@@ -142,6 +142,109 @@ static void bas_set_command_result(BasicCommandResult *result,
   result->linesEmitted = linesEmitted;
 }
 
+static void bas_clear_value(BasicValue *value) {
+  if (!value)
+    return;
+  value->kind = BAS_VALUE_NONE;
+  value->integer = 0;
+  value->string[0] = 0;
+  value->stringLength = 0;
+}
+
+static uint8_t bas_parse_integer_term(const char **cursor, int16_t *out) {
+  const char *p;
+  uint8_t negative = 0;
+  uint8_t digitSeen = 0;
+  uint32_t magnitude = 0;
+  uint32_t limit;
+
+  if (!cursor || !*cursor || !out)
+    return 0;
+
+  p = bas_skip_spaces(*cursor);
+  if (*p == '+' || *p == '-') {
+    negative = (uint8_t)(*p == '-');
+    p++;
+  }
+
+  limit = negative ? 32768UL : 32767UL;
+  while (*p >= '0' && *p <= '9') {
+    digitSeen = 1;
+    magnitude = (magnitude * 10UL) + (uint32_t)(*p - '0');
+    if (magnitude > limit)
+      return 0;
+    p++;
+  }
+
+  if (!digitSeen)
+    return 0;
+
+  *out = negative ? (int16_t)(-((int32_t)magnitude)) : (int16_t)magnitude;
+  *cursor = p;
+  return 1;
+}
+
+static uint8_t bas_eval_integer_expression(const char *source,
+                                           BasicValue *out) {
+  const char *p = source;
+  int16_t term;
+  int32_t total;
+
+  if (!bas_parse_integer_term(&p, &term))
+    return 0;
+  total = term;
+
+  while (1) {
+    char op;
+
+    p = bas_skip_spaces(p);
+    if (*p == 0)
+      break;
+    if (*p != '+' && *p != '-')
+      return 0;
+    op = *p++;
+
+    if (!bas_parse_integer_term(&p, &term))
+      return 0;
+    if (op == '+')
+      total += term;
+    else
+      total -= term;
+    if (total < -32768L || total > 32767L)
+      return 0;
+  }
+
+  out->kind = BAS_VALUE_INTEGER;
+  out->integer = (int16_t)total;
+  return 1;
+}
+
+static uint8_t bas_eval_string_literal(const char *source, BasicValue *out) {
+  const char *p = bas_skip_spaces(source);
+  uint16_t len = 0;
+
+  if (*p != '"')
+    return 0;
+  p++;
+
+  while (*p && *p != '"') {
+    if (len >= BAS_MAX_STRING_VALUE)
+      return 0;
+    out->string[len++] = *p++;
+  }
+  if (*p != '"')
+    return 0;
+  p++;
+  p = bas_skip_spaces(p);
+  if (*p != 0)
+    return 0;
+
+  out->string[len] = 0;
+  out->stringLength = len;
+  out->kind = BAS_VALUE_STRING;
+  return 1;
+}
+
 static uint8_t bas_line_payload_length(const BasicParsedLine *parsed) {
   return (uint8_t)(1U + parsed->payloadLength);
 }
@@ -501,4 +604,21 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
 
   bas_set_command_result(result, BAS_CMD_UNSUPPORTED, 0, 0);
   return 0;
+}
+
+uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out) {
+  const char *p;
+
+  if (!source || !out)
+    return 0;
+
+  bas_clear_value(out);
+  p = bas_skip_spaces(source);
+  if (*p == 0)
+    return 0;
+
+  if (*p == '"')
+    return bas_eval_string_literal(p, out);
+
+  return bas_eval_integer_expression(p, out);
 }

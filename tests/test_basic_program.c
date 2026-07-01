@@ -34,6 +34,13 @@ static void expect_u16(uint16_t actual, uint16_t expected, const char *name) {
   }
 }
 
+static void expect_i16(int16_t actual, int16_t expected, const char *name) {
+  if (actual != expected) {
+    printf("FAIL: %s expected %d got %d\n", name, expected, actual);
+    failures++;
+  }
+}
+
 static void expect_str(const char *actual, const char *expected,
                        const char *name) {
   if (strcmp(actual, expected) != 0) {
@@ -214,6 +221,42 @@ static void shell_rejects_unsupported_commands(void) {
   expect_u8(program.lineCount, 0, "unsupported leaves program empty");
 }
 
+static void evaluates_integer_expressions(void) {
+  BasicValue value;
+
+  expect_true(BAS_EvaluateExpression("12 + 5 - 3", &value),
+              "evaluate integer arithmetic");
+  expect_u8(value.kind, BAS_VALUE_INTEGER, "integer expression kind");
+  expect_i16(value.integer, 14, "integer expression result");
+
+  expect_true(BAS_EvaluateExpression("-4 + +7", &value),
+              "evaluate signed integer arithmetic");
+  expect_u8(value.kind, BAS_VALUE_INTEGER, "signed integer expression kind");
+  expect_i16(value.integer, 3, "signed integer expression result");
+}
+
+static void evaluates_string_literals(void) {
+  BasicValue value;
+
+  expect_true(BAS_EvaluateExpression("\"HELLO\"", &value),
+              "evaluate string literal");
+  expect_u8(value.kind, BAS_VALUE_STRING, "string expression kind");
+  expect_str(value.string, "HELLO", "string expression value");
+  expect_u16(value.stringLength, 5, "string expression length");
+}
+
+static void rejects_bad_expressions(void) {
+  BasicValue value;
+
+  expect_false(BAS_EvaluateExpression("", &value), "reject empty expression");
+  expect_false(BAS_EvaluateExpression("\"NO END", &value),
+               "reject unterminated string");
+  expect_false(BAS_EvaluateExpression("1 + \"X\"", &value),
+               "reject mixed integer and string expression");
+  expect_false(BAS_EvaluateExpression("40000", &value),
+               "reject integer overflow");
+}
+
 int main(void) {
   parse_print_line_tokenizes_keyword();
   program_stores_lines_sorted();
@@ -224,6 +267,9 @@ int main(void) {
   shell_stores_lines_and_lists_program();
   shell_new_clears_program();
   shell_rejects_unsupported_commands();
+  evaluates_integer_expressions();
+  evaluates_string_literals();
+  rejects_bad_expressions();
 
   if (failures) {
     printf("basic program tests failed: %d\n", failures);

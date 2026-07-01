@@ -2,9 +2,9 @@
  * basic.h - Clean-room SegaOS BASIC program buffer.
  *
  * This is the first interpreter seam: line-number parsing, small keyword
- * tokenization, sorted storage, replace/delete, LIST/NEW shell commands, and
- * decode. It does not evaluate expressions or touch display/storage hardware
- * yet.
+ * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
+ * decode, and simple expression values. It does not execute statements or
+ * touch display/storage hardware yet.
  */
 
 #ifndef BASIC_H
@@ -14,6 +14,7 @@
 
 #define BAS_MAX_LINE_NUMBER 63999U
 #define BAS_MAX_PAYLOAD_TEXT 96U
+#define BAS_MAX_STRING_VALUE 96U
 #define BAS_MAX_PROGRAM_LINES 64U
 #define BAS_MAX_PROGRAM_STORAGE 2048U
 
@@ -73,6 +74,19 @@ typedef struct {
   uint8_t linesEmitted;
 } BasicCommandResult;
 
+typedef enum {
+  BAS_VALUE_NONE = 0,
+  BAS_VALUE_INTEGER = 1,
+  BAS_VALUE_STRING = 2
+} BasicValueKind;
+
+typedef struct {
+  BasicValueKind kind;
+  int16_t integer;
+  char string[BAS_MAX_STRING_VALUE + 1U];
+  uint16_t stringLength;
+} BasicValue;
+
 void BAS_InitProgram(BasicProgram *program, BasicLine *lines,
                      uint8_t lineCapacity, uint8_t *storage,
                      uint16_t storageCapacity);
@@ -92,5 +106,6 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
                               BasicLineSink sink, void *user,
                               char *lineBuffer, uint16_t lineBufferBytes,
                               BasicCommandResult *result);
+uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out);
 
 #endif /* BASIC_H */

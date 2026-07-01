@@ -247,5 +247,11 @@ of caller-owned storage, and decode for later `LIST`/desktop UI work.
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input
 through the shell, callback-based `LIST` output in sorted program order, `NEW`
-clearing program storage, and explicit rejection of `RUN` until an evaluator
-exists.
+clearing program storage, and explicit rejection of `RUN` until statement
+execution exists.
+
+BASIC-expression update on 2026-07-01: `BAS_EvaluateExpression()` now adds the
+first value evaluator seam. It supports signed 16-bit integer literals with
+left-to-right `+`/`-` arithmetic and quoted string literals, rejects empty,
+unterminated, mixed, or overflowing expressions, and remains independent of
+`RUN`, variables, desktop I/O, and storage.
