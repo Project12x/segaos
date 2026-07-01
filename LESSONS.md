@@ -257,6 +257,12 @@ same failures.
   host-tested policy prefers external cart storage, allows internal BRAM only
   for preferences and tiny text/BASIC fallback saves, reserves free space on
   both targets, and rejects image saves without the external cart path.
+- Build BASIC as an OS tool in narrow stages: program buffer and LIST decode
+  first, evaluator second, command shell third, desktop I/O and storage last.
+  The current BASIC core is clean-room SegaOS code. No GEOS, GEM/TOS,
+  CP/M-68K, Megadev, or SGDK interpreter source is copied or closely ported;
+  this first primitive is small enough that a direct interpreter reference
+  would add licensing/runtime mismatch before it adds value.
 - The current visible target is intentionally modest: checker desktop, menu
   separator, and a clean window starter frame with real SGDK-font menu, title,
   and body text.

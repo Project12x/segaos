@@ -236,3 +236,10 @@ a BRAM hardware driver and not copied from Megadev: CD-ROM remains read-only,
 external Backup RAM cart storage is preferred for user documents/BASIC/text,
 internal BRAM is allowed only for preferences and tiny text/BASIC fallback
 saves, and image documents require the external cart path.
+
+BASIC-buffer update on 2026-07-01: `BAS_StoreSourceLine()` now gives the first
+host-tested BASIC tooling seam. It is clean-room SegaOS code with no copied or
+closely ported GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source.
+The implemented scope is deliberately below an interpreter: numbered-line
+parsing, small keyword tokenization, sorted insert/replace/delete, compaction
+of caller-owned storage, and decode for later `LIST`/desktop UI work.

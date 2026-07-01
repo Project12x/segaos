@@ -319,6 +319,15 @@ with in at least one emulator.
   - [ ] Hardware-facing BRAM BIOS wrappers for directory/free-space/read/write
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
       blocks before designing the user-facing file manager
+- [ ] Add a BASIC interpreter/tooling rung:
+  - [x] Host-tested fixed-storage program buffer for numbered lines, small
+        keyword tokenization, sorted insert/replace/delete, compaction, and
+        decode
+  - [ ] Expression/value evaluator with integer/string basics
+  - [ ] `LIST`, `RUN`, `NEW`, `LOAD`, and `SAVE` command shell
+  - [ ] Desktop text output/input binding through the VDI/AES-style layers
+  - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
+        BRAM/external-cart drivers
 - [ ] Decide app/resource packaging format on ISO9660
 - [ ] Add CD audio or PCM strategy only after storage ownership is clear
 

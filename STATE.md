@@ -117,13 +117,14 @@ The active strategy is a bring-up ladder:
 4. VDP timing budget
 5. Desktop foundations: text, clipping, root redraw, then window furniture
 6. Storage and OS features, planned around external Backup RAM cartridge-class
-   writable persistence with internal BRAM as fallback
+   writable persistence with internal BRAM as fallback, plus a staged BASIC
+   tooling path
 7. Compatibility and release hardening
 
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,808 text bytes observed locally with the SGDK-font starter window and dirty-rect module; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,808 text bytes / 2,292 BSS bytes observed locally with the SGDK-font starter window, dirty-rect module, and target-compiled but unreferenced BASIC buffer core; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,856 text bytes observed locally with US security block in the forced normal default build |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
@@ -144,7 +145,7 @@ The active strategy is a bring-up ladder:
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BASIC program-buffer parsing/token storage/replacement/deletion/decoding, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -160,14 +161,15 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 11,808 text bytes / ~488 KB observed locally for the default
-  boot-safe Sub CPU SP binary
+- PRG-RAM usage: 11,808 text bytes / 2,292 BSS bytes observed locally for the
+  default boot-safe Sub CPU SP binary; the unreferenced BASIC buffer core is
+  compiled for target but dead-stripped from the boot path
 - BOOT_PROBE SP usage: 1,042 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $0412`
-- Boot-safe desktop SP usage: 11,808 text bytes observed locally with
-  `BOOT_SAFE_DESKTOP=1`
+- Boot-safe desktop SP usage: 11,808 text bytes / 2,292 BSS bytes observed
+  locally with `BOOT_SAFE_DESKTOP=1`
 - Boot-safe text probe SP usage: 9,248 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
 - Boot-safe title/default-text probe SP usage: 11,836 text bytes observed locally with
@@ -216,6 +218,11 @@ The active strategy is a bring-up ladder:
   saves, enforces reserve space, and rejects image documents without the
   external cart path. Hardware BRAM BIOS wrappers and real capacity probes are
   still pending.
+- BASIC program-buffer seam: `BAS_StoreSourceLine()` is host-tested as a
+  clean-room fixed-storage line store. It parses numbered lines, tokenizes the
+  first keyword, keeps program lines sorted, replaces/deletes by line number,
+  compacts caller-owned storage, and decodes stored lines. It is not an
+  evaluator, command shell, desktop I/O binding, or persistence layer yet.
 
 ## Current Reference Baseline
 
@@ -353,6 +360,7 @@ SGDK DMA queue source:
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Storage Policy | Sub/host | `src/sub/storage.c` | Host-tested save-target policy for external Backup RAM cart preference and internal BRAM fallback limits |
+| BASIC Core | Sub/host | `src/sub/basic.c` | Clean-room fixed-storage BASIC program buffer with numbered-line parsing, keyword tokenization, sorted insert/replace/delete, compaction, and decode |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
 | Framebuffer | Main/host | `src/main/framebuffer.c` | Linear-to-tile conversion seam, dirty queue upload consumer, and Main-side DMA pipeline |
 | VDP | Main | `include/vdp.h` | Standalone VDP register interface |

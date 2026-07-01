@@ -87,7 +87,8 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
-# Run host-side redraw, dirty-transfer queue, storage-policy, framebuffer, and probe-timeout tests
+# Run host-side redraw, dirty-transfer queue, BASIC-buffer, storage-policy,
+# framebuffer, and probe-timeout tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
@@ -234,6 +235,13 @@ The first code-level storage contract is now `STG_PlanSave()`: host tests prove
 external cart preference for BASIC/text saves, internal BRAM fallback for tiny
 text/BASIC documents, reserve-space enforcement, and rejection of image saves
 without the external cart path.
+
+The first BASIC code seam is also now in place. `src/sub/basic.c` is a
+clean-room, fixed-storage program buffer: it parses numbered source lines,
+tokenizes a small keyword set, stores lines in sorted order, replaces or
+deletes existing lines, compacts caller-owned storage, and decodes stored lines
+for later LIST/UI work. It is not an evaluator, command shell, display binding,
+or persistence layer yet.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)
