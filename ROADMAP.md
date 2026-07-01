@@ -194,6 +194,13 @@ explicitly freestanding with `-ffreestanding -fno-builtin`. The combined
 `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` image also has an accepted
 debugger-backed BlastEm internal screenshot at
 `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`.
+`DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` now proves the first
+hardware-backed dirty upload rung. The Main diagnostic path poisons the sampled
+title tile row in VRAM, constructs a one-entry public `DirtyTileQueue` for tile
+`0x0147`, calls `FB_UpdateTileQueue()`, reaches phase `0x85ff`, and reads
+`0xf11f/0x1f11` back from VRAM matching the rendered Word RAM source. The probe
+is deliberately narrow and size-trimmed; it does not yet define the production
+VBlank scheduler.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, and the boot-safe single-bank repeat path is
@@ -214,7 +221,9 @@ remains a later production policy.
           spans from linear 4bpp framebuffer layout into VDP tile bytes
     - [x] Host-tested queue consumer that chunks planned spans through a
           caller-provided upload sink and exposes `FB_UpdateTileQueue()`
-    - [ ] Emulator-proven VBlank flush of queued tile spans to VRAM
+    - [x] Emulator-proven narrow `FB_UpdateTileQueue()` flush of one queued
+          tile span to VRAM
+    - [ ] Production VBlank-scheduled flush of queued tile spans to VRAM
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
 - [x] Tie dirty rectangles to tile-strip transfer ranges

@@ -217,4 +217,11 @@ converts each chunk through `FB_ConvertTileSpan()`, and emits VRAM address /
 word-count metadata to an upload sink. Host tests prove the 7,520-byte
 NTSC-budgeted full-frame slice becomes two uploads through the 5,120-byte strip
 buffer: 160 tiles then 75 tiles. `FB_UpdateTileQueue()` is the Main-side DMA
-wrapper, but it is not yet wired into an emulator-proven VBlank frame policy.
+wrapper.
+
+Dirty-upload emulator update on 2026-07-01: `DESKTOP_DIRTY_QUEUE_PROBE=1` now
+proves the wrapper in BlastEm/GDB. The diagnostic Main path poisons the sampled
+title tile row in VRAM, builds one public `DirtyTileQueue` entry for tile
+`0x0147`, calls `FB_UpdateTileQueue()`, reaches phase `0x85ff`, and reads
+`0xf11f/0x1f11` back from VRAM matching Word RAM. This is a narrow hardware
+proof of the queue-to-DMA path, not a final VBlank scheduling policy.

@@ -231,6 +231,14 @@ frame is 1,120 tiles / 35,840 bytes and does not. The implementation is
 clean-room SegaOS code; no GEM/TOS/GEOS/CP/M or Megadev code was copied or
 closely ported for this helper.
 
+Status update, 2026-07-01 dirty-upload emulator pass: the VDI/AES-style dirty
+ownership model now has one hardware-backed upload proof. `DESKTOP_DIRTY_QUEUE_PROBE=1`
+poisons a sampled title tile row in VRAM, calls `FB_UpdateTileQueue()` on a
+one-entry queue for tile `0x0147`, and verifies VRAM `0xf11f/0x1f11` matches
+the rendered Word RAM source. This keeps the prior-art split intact: GEM/TOS
+and related systems guide clean redraw ownership, while Sega CD/Genesis VDP
+evidence decides transfer timing and scheduling.
+
 The remaining implementation rungs are:
 
 1. Long-running frame policy:

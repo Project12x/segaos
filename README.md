@@ -76,6 +76,10 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopWm
 
+# Prove the Main dirty tile queue upload restores one title tile in VRAM
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_DIRTY_QUEUE_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopDirtyQueue
+
 # Capture that WM-backed boot frame through BlastEm's internal screenshot path
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P -Template segaos_wm_probe_%Y%m%d_%H%M%S.png
@@ -208,11 +212,16 @@ budget. The Main framebuffer module now exposes a host-tested
 4bpp Word RAM layout into VDP tile bytes. The same module now has a
 host-tested queue consumer that chunks `DirtyTileQueue` spans through a
 caller-provided upload sink and a Main-side `FB_UpdateTileQueue()` wrapper for
-DMA. This is still not wired into the desktop frame loop; the live
-emulator-visible VBlank policy is pending. The next desktop gate is still a
-measured long-running frame policy; the full alternating double-buffer and
-dirty-tile VBlank policies remain later stability work before returning to
-normal menu/cursor/app rendering.
+DMA. `DESKTOP_DIRTY_QUEUE_PROBE=1` now proves that wrapper in BlastEm/GDB: the
+diagnostic build poisons the title tile row in VRAM, uploads one 32-byte dirty
+tile span for tile `0x0147` through `FB_UpdateTileQueue()`, reaches phase
+`0x85ff`, and reads `0xf11f/0x1f11` back from VRAM matching Word RAM. This is
+a narrow hardware proof, not the production VBlank scheduler yet; the probe
+uses `-Os` and skips mouse init/boot checker fill to fit the real 3,584-byte
+IP boot-sector limit. The next desktop gate is still a measured long-running
+frame policy; the full alternating double-buffer and dirty-tile VBlank
+policies remain later stability work before returning to normal menu/cursor/app
+rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

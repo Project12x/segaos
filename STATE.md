@@ -84,6 +84,12 @@ then captures the accepted WM-backed frame at
 cause of the earlier WM probe timeout was freestanding-toolchain related: the
 local `memset()` compiled into a recursive self-call until the build added
 `-ffreestanding -fno-builtin`.
+`DESKTOP_DIRTY_QUEUE_PROBE=1` now proves the first hardware-backed dirty tile
+upload through the Main queue wrapper. The diagnostic path poisons the sampled
+title tile row in VRAM, constructs a one-entry `DirtyTileQueue` for tile
+`0x0147`, calls `FB_UpdateTileQueue()`, reaches phase `0x85ff`, and reads
+`0xf11f/0x1f11` from VRAM matching the rendered Word RAM source. This is a
+narrow dirty-upload proof, not a production VBlank scheduler yet.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -136,6 +142,7 @@ The active strategy is a bring-up ladder:
 | Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xfdb2`, final VDP status `0x320c`, masks `0x007f/0x007f`, and `probe_gdb_timeout=False` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
+| Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
 | Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, framebuffer tile-span conversion, dirty-queue upload chunking, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
@@ -175,6 +182,11 @@ The active strategy is a bring-up ladder:
 - Boot-safe WM visual probe usage: Main IP 3,320 bytes / SP 13,118 text bytes,
   2,298 BSS bytes observed locally with
   `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1`
+- Boot-safe dirty queue probe usage: Main IP 3,556 bytes / SP 11,836 text
+  bytes observed locally with `DESKTOP_DIRTY_QUEUE_PROBE=1`; this diagnostic
+  Main build uses `-Os` and skips mouse init plus boot checker fill to stay
+  under the 3,584-byte IP boot-sector limit while preserving the
+  `FB_UpdateTileQueue()` call path
 - Boot-safe visual-probe IP usage: 2,752 text bytes last observed with
   `BOOT_SAFE_VISUAL_PROBE=1`; SP now follows the 11,808-byte boot-safe desktop
   payload

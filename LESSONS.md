@@ -46,6 +46,10 @@ same failures.
 - When a Sub CPU path dies inside a simple memory primitive, disassemble before
   changing architecture. In this case, the WM data structure was not the bug;
   the generated libc code was.
+- On this Windows/SGDK setup, use `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile`
+  for forced rebuilds. `-B` without `-r` can invoke built-in implicit rules and
+  may treat `crt0.s` as a case-insensitive `.S` source, rewriting the startup
+  file instead of assembling it.
 
 ## Desktop Architecture
 
@@ -167,6 +171,12 @@ same failures.
   host-tested against the 5,120-byte strip buffer shape: a 235-tile
   VBlank-budgeted upload splits into 160 and 75 tile chunks with VRAM addresses
   derived directly from `firstTile * 32`.
+- The Main-side wrapper is now emulator-proven only in a narrow diagnostic
+  path. `DESKTOP_DIRTY_QUEUE_PROBE=1` constructs a one-entry queue for title
+  tile `0x0147`, poisons the sampled VRAM row, calls `FB_UpdateTileQueue()`,
+  reaches phase `0x85ff`, and reads `0xf11f/0x1f11` back from VRAM. This proves
+  the queue-to-DMA path can work on hardware-shaped emulation; it does not yet
+  prove the final VBlank scheduler or long-running frame policy.
 - Source glyph/bitmap reads can remain normal byte reads because they come from
   PRG-RAM/rodata, not Word RAM.
 - If `VDP_TEXT_PROBE=1` displays readable text but desktop text is corrupted,
@@ -223,10 +233,10 @@ same failures.
   width ranges become one upload span per tile row; full-width ranges become a
   contiguous span; `maxBytes` slices a span to the caller's frame budget; and
   `budgetExceeded` is kept separate from queue-storage `overflow`.
-- The next VDP implementation step should be an emulator-visible probe or
-  frame-loop gate that calls `FB_UpdateTileQueue()` during the chosen transfer
-  window. Do not reintroduce full-frame policy assumptions while wiring that
-  consumer.
+- The next VDP implementation step should be a scheduler/frame-loop gate around
+  `FB_UpdateTileQueue()`, not another proof that the wrapper can upload one
+  tile. Do not reintroduce full-frame policy assumptions while moving from the
+  diagnostic dirty upload to production scheduling.
 - The concrete frame-policy warning is now host-tested: a full 40x28 tile
   4bpp frame is 1,120 tiles / 35,840 bytes, so it cannot fit the 7,524-byte
   NTSC VBlank budget recorded in the Mega Drive development notes. The queue

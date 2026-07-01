@@ -96,6 +96,17 @@ volatile uint16_t segaos_desktop_title_wram_word0;
 volatile uint16_t segaos_desktop_title_wram_word1;
 volatile uint16_t segaos_desktop_title_vram_word0;
 volatile uint16_t segaos_desktop_title_vram_word1;
+#ifdef DESKTOP_DIRTY_QUEUE_PROBE
+volatile uint16_t segaos_desktop_dirty_queue_result;
+volatile uint16_t segaos_desktop_dirty_queue_count;
+volatile uint16_t segaos_desktop_dirty_queue_bytes;
+volatile uint16_t segaos_desktop_dirty_queue_first_tile;
+volatile uint16_t segaos_desktop_dirty_queue_tile_count;
+volatile uint16_t segaos_desktop_dirty_queue_wram_word0;
+volatile uint16_t segaos_desktop_dirty_queue_wram_word1;
+volatile uint16_t segaos_desktop_dirty_queue_vram_word0;
+volatile uint16_t segaos_desktop_dirty_queue_vram_word1;
+#endif
 #ifdef DESKTOP_REPEAT_PROBE
 volatile uint16_t segaos_desktop_repeat_status;
 volatile uint16_t segaos_desktop_repeat_trace;
@@ -290,8 +301,10 @@ static void boot_sequence(void) {
         (uint8_t)((mem | MEM_MODE_1M | MEM_MODE_RET) & ~MEM_MODE_DMNA);
   }
 
+#ifndef DESKTOP_DIRTY_QUEUE_PROBE
   /* Step 3: Initialize Mega Mouse on controller port 1 */
   Mouse_Init(1);
+#endif
 
   /* Step 4: Initialize VDP (standalone, no SGDK dependency) */
   VDP_Init();
@@ -307,7 +320,9 @@ static void boot_sequence(void) {
 
   /* Step 5: Set up framebuffer tilemap + palette */
   FB_Init();
+#ifndef DESKTOP_DIRTY_QUEUE_PROBE
   FB_ShowBootPattern();
+#endif
 
 #if !defined(BOOT_PROBE) && !defined(BOOT_SAFE_DESKTOP)
   /* Step 6: Initialize Sub-side OS/rendering now that Word RAM and the Main
@@ -405,8 +420,10 @@ void segaos_runtime_smoke_halt(void) {
   ((((DESKTOP_TITLE_PROBE_TILE_Y * FB_TILES_X) + DESKTOP_TITLE_PROBE_TILE_X) * \
     FB_BYTES_PER_TILE) +                                                       \
    (DESKTOP_TITLE_PROBE_TILE_ROW * 4U))
+#define DESKTOP_TITLE_PROBE_TILE_INDEX                                         \
+  ((DESKTOP_TITLE_PROBE_TILE_Y * FB_TILES_X) + DESKTOP_TITLE_PROBE_TILE_X)
 
-#ifdef BOOT_SAFE_TITLE_PROBE
+#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE)
 static uint16_t desktop_title_read_wram_word(uint16_t word_index) {
   volatile const uint16_t *title_wram =
       (volatile const uint16_t *)(WRAM_BANK0_MAIN +
@@ -417,12 +434,65 @@ static uint16_t desktop_title_read_wram_word(uint16_t word_index) {
 #endif
 
 #if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE) ||       \
-    defined(DESKTOP_LOOP_PROBE)
+    defined(DESKTOP_LOOP_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE)
 static uint16_t desktop_title_read_vram_word(uint16_t word_index) {
   VDP_SET_REG(VDP_REG_AUTOINC, 2);
   VDP_VRAM_READ((uint16_t)(DESKTOP_TITLE_PROBE_VRAM_OFFSET +
                            (word_index << 1)));
   return VDP_DATA_PORT;
+}
+#endif
+
+#ifdef DESKTOP_DIRTY_QUEUE_PROBE
+static void desktop_dirty_queue_probe_upload(void) {
+  DirtyTileUpload upload;
+  DirtyTileQueue queue;
+
+  segaos_desktop_dirty_queue_result = 0;
+  segaos_desktop_dirty_queue_wram_word0 = desktop_title_read_wram_word(0);
+  segaos_desktop_dirty_queue_wram_word1 = desktop_title_read_wram_word(1);
+
+  upload.firstTile = DESKTOP_TITLE_PROBE_TILE_INDEX;
+  upload.tileCount = 1;
+  upload.byteCount = FB_BYTES_PER_TILE;
+
+  queue.items = &upload;
+  queue.capacity = 1;
+  queue.count = 1;
+  queue.maxBytes = FB_BYTES_PER_TILE;
+  queue.byteCount = FB_BYTES_PER_TILE;
+  queue.budgetExceeded = 0;
+  queue.overflow = 0;
+
+  segaos_desktop_dirty_queue_count = queue.count;
+  segaos_desktop_dirty_queue_bytes = queue.byteCount;
+  segaos_desktop_dirty_queue_first_tile = upload.firstTile;
+  segaos_desktop_dirty_queue_tile_count = upload.tileCount;
+
+  VDP_WaitDMA();
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_VRAM_WRITE(DESKTOP_TITLE_PROBE_VRAM_OFFSET);
+  VDP_DATA_PORT = 0;
+  VDP_DATA_PORT = 0;
+
+  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &queue)) {
+    segaos_desktop_dirty_queue_result = 0x00e2;
+    return;
+  }
+
+  VDP_WaitDMA();
+  segaos_desktop_dirty_queue_vram_word0 = desktop_title_read_vram_word(0);
+  segaos_desktop_dirty_queue_vram_word1 = desktop_title_read_vram_word(1);
+
+  if (segaos_desktop_dirty_queue_wram_word0 !=
+          segaos_desktop_dirty_queue_vram_word0 ||
+      segaos_desktop_dirty_queue_wram_word1 !=
+          segaos_desktop_dirty_queue_vram_word1) {
+    segaos_desktop_dirty_queue_result = 0x00e3;
+    return;
+  }
+
+  segaos_desktop_dirty_queue_result = 1;
 }
 #endif
 
@@ -615,7 +685,9 @@ static void desktop_init_probe(void) {
   segaos_desktop_title_vram_word0 = 0;
   segaos_desktop_title_vram_word1 = 0;
 #endif
-#ifdef DESKTOP_TIMING_PROBE
+#ifdef DESKTOP_DIRTY_QUEUE_PROBE
+  desktop_dirty_queue_probe_upload();
+#elif defined(DESKTOP_TIMING_PROBE)
   FB_UpdateFrameProfile(WRAM_BANK0_MAIN);
 #else
   FB_UpdateFrame(WRAM_BANK0_MAIN);
@@ -692,6 +764,8 @@ static void desktop_init_probe(void) {
   segaos_desktop_main_phase = 0x83ff;
 #elif defined(DESKTOP_TIMING_PROBE)
   segaos_desktop_main_phase = 0x84ff;
+#elif defined(DESKTOP_DIRTY_QUEUE_PROBE)
+  segaos_desktop_main_phase = 0x85ff;
 #else
   segaos_desktop_main_phase = 0x81ff;
 #endif
