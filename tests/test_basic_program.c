@@ -270,6 +270,18 @@ static void evaluates_integer_expressions(void) {
   expect_i16(value.integer, 3, "signed integer expression result");
 }
 
+static void evaluates_integer_variables_with_runtime(void) {
+  BasicRuntime runtime;
+  BasicValue value;
+
+  BAS_InitRuntime(&runtime);
+  expect_true(BAS_RuntimeSetInteger(&runtime, 'A', 6), "set runtime variable");
+  expect_true(BAS_EvaluateExpressionWithRuntime("A + 4", &runtime, &value),
+              "evaluate variable expression");
+  expect_u8(value.kind, BAS_VALUE_INTEGER, "variable expression kind");
+  expect_i16(value.integer, 10, "variable expression result");
+}
+
 static void evaluates_string_literals(void) {
   BasicValue value;
 
@@ -395,6 +407,78 @@ static void runner_reports_bad_print_expression_line(void) {
   expect_u16(result.errorLine, 10, "bad expression line");
 }
 
+static void runner_let_sets_integer_variable(void) {
+  BasicLine lines[3];
+  uint8_t storage[96];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[48];
+  int16_t stored = 0;
+
+  BAS_InitProgram(&program, lines, 3, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 LET A = 12 + 5"),
+              "store LET assignment");
+  expect_true(BAS_StoreSourceLine(&program, "20 PRINT A - 2"),
+              "store variable print");
+  expect_true(BAS_StoreSourceLine(&program, "30 END"), "store LET end");
+
+  expect_true(BAS_RunProgramWithRuntime(&program, &runtime, capture_run_output,
+                                        0, lineBuffer, sizeof(lineBuffer),
+                                        &result),
+              "runner executes LET");
+  expect_u8(result.status, BAS_RUN_HALTED, "LET run status");
+  expect_u8(result.linesEmitted, 1, "LET output count");
+  expect_str(runOutputLines[0], "15", "LET output line");
+  expect_true(BAS_RuntimeGetInteger(&runtime, 'A', &stored),
+              "get assigned variable");
+  expect_i16(stored, 17, "assigned variable value");
+}
+
+static void runner_reports_undefined_variable_line(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT A"),
+              "store undefined variable print");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects undefined variable");
+  expect_u8(result.status, BAS_RUN_UNDEFINED_VARIABLE,
+            "undefined variable status");
+  expect_u16(result.errorLine, 10, "undefined variable line");
+}
+
+static void runner_rejects_string_assignment(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  expect_true(BAS_StoreSourceLine(&program, "10 LET A = \"X\""),
+              "store string assignment");
+
+  expect_false(BAS_RunProgramWithRuntime(&program, &runtime,
+                                         capture_run_output, 0, lineBuffer,
+                                         sizeof(lineBuffer), &result),
+               "runner rejects string assignment");
+  expect_u8(result.status, BAS_RUN_BAD_ASSIGNMENT,
+            "string assignment status");
+  expect_u16(result.errorLine, 10, "string assignment line");
+}
+
 int main(void) {
   parse_print_line_tokenizes_keyword();
   program_stores_lines_sorted();
@@ -406,6 +490,7 @@ int main(void) {
   shell_new_clears_program();
   shell_run_executes_print_program();
   evaluates_integer_expressions();
+  evaluates_integer_variables_with_runtime();
   evaluates_string_literals();
   rejects_bad_expressions();
   runner_reports_unsupported_statement_line();
@@ -413,6 +498,9 @@ int main(void) {
   runner_reports_missing_goto_target();
   runner_stops_goto_loops_at_step_limit();
   runner_reports_bad_print_expression_line();
+  runner_let_sets_integer_variable();
+  runner_reports_undefined_variable_line();
+  runner_rejects_string_assignment();
 
   if (failures) {
     printf("basic program tests failed: %d\n", failures);

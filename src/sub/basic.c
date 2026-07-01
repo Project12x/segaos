@@ -162,7 +162,52 @@ static void bas_clear_value(BasicValue *value) {
   value->stringLength = 0;
 }
 
-static uint8_t bas_parse_integer_term(const char **cursor, int16_t *out) {
+static uint8_t bas_variable_index(char name, uint8_t *indexOut) {
+  char upper = bas_upper(name);
+
+  if (upper < 'A' || upper > 'Z')
+    return 0;
+  if (indexOut)
+    *indexOut = (uint8_t)(upper - 'A');
+  return 1;
+}
+
+void BAS_InitRuntime(BasicRuntime *runtime) {
+  if (!runtime)
+    return;
+
+  for (uint8_t i = 0; i < BAS_VARIABLE_COUNT; i++) {
+    runtime->integerDefined[i] = 0;
+    runtime->integerValues[i] = 0;
+  }
+}
+
+uint8_t BAS_RuntimeSetInteger(BasicRuntime *runtime, char name,
+                              int16_t value) {
+  uint8_t index;
+
+  if (!runtime || !bas_variable_index(name, &index))
+    return 0;
+  runtime->integerDefined[index] = 1;
+  runtime->integerValues[index] = value;
+  return 1;
+}
+
+uint8_t BAS_RuntimeGetInteger(const BasicRuntime *runtime, char name,
+                              int16_t *out) {
+  uint8_t index;
+
+  if (!runtime || !out || !bas_variable_index(name, &index))
+    return 0;
+  if (!runtime->integerDefined[index])
+    return 0;
+  *out = runtime->integerValues[index];
+  return 1;
+}
+
+static uint8_t bas_parse_integer_term_with_runtime(
+    const char **cursor, const BasicRuntime *runtime, int16_t *out,
+    uint8_t *undefinedVariable) {
   const char *p;
   uint8_t negative = 0;
   uint8_t digitSeen = 0;
@@ -176,6 +221,29 @@ static uint8_t bas_parse_integer_term(const char **cursor, int16_t *out) {
   if (*p == '+' || *p == '-') {
     negative = (uint8_t)(*p == '-');
     p++;
+  }
+
+  {
+    uint8_t index;
+
+    if (bas_variable_index(*p, &index)) {
+      int32_t value;
+
+      if (!runtime || !runtime->integerDefined[index]) {
+        if (undefinedVariable)
+          *undefinedVariable = 1;
+        return 0;
+      }
+
+      value = runtime->integerValues[index];
+      if (negative)
+        value = -value;
+      if (value < -32768L || value > 32767L)
+        return 0;
+      *out = (int16_t)value;
+      *cursor = p + 1;
+      return 1;
+    }
   }
 
   limit = negative ? 32768UL : 32767UL;
@@ -195,13 +263,18 @@ static uint8_t bas_parse_integer_term(const char **cursor, int16_t *out) {
   return 1;
 }
 
-static uint8_t bas_eval_integer_expression(const char *source,
-                                           BasicValue *out) {
+static uint8_t bas_eval_integer_expression_with_runtime(
+    const char *source, const BasicRuntime *runtime, BasicValue *out,
+    uint8_t *undefinedVariable) {
   const char *p = source;
   int16_t term;
   int32_t total;
 
-  if (!bas_parse_integer_term(&p, &term))
+  if (undefinedVariable)
+    *undefinedVariable = 0;
+
+  if (!bas_parse_integer_term_with_runtime(&p, runtime, &term,
+                                           undefinedVariable))
     return 0;
   total = term;
 
@@ -215,7 +288,8 @@ static uint8_t bas_eval_integer_expression(const char *source,
       return 0;
     op = *p++;
 
-    if (!bas_parse_integer_term(&p, &term))
+    if (!bas_parse_integer_term_with_runtime(&p, runtime, &term,
+                                             undefinedVariable))
       return 0;
     if (op == '+')
       total += term;
@@ -730,9 +804,14 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
   return 0;
 }
 
-uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out) {
+static uint8_t bas_evaluate_expression_internal(const char *source,
+                                                const BasicRuntime *runtime,
+                                                BasicValue *out,
+                                                uint8_t *undefinedVariable) {
   const char *p;
 
+  if (undefinedVariable)
+    *undefinedVariable = 0;
   if (!source || !out)
     return 0;
 
@@ -744,12 +823,68 @@ uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out) {
   if (*p == '"')
     return bas_eval_string_literal(p, out);
 
-  return bas_eval_integer_expression(p, out);
+  return bas_eval_integer_expression_with_runtime(p, runtime, out,
+                                                 undefinedVariable);
+}
+
+uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out) {
+  return bas_evaluate_expression_internal(source, (const BasicRuntime *)0, out,
+                                          (uint8_t *)0);
+}
+
+uint8_t BAS_EvaluateExpressionWithRuntime(const char *source,
+                                          const BasicRuntime *runtime,
+                                          BasicValue *out) {
+  return bas_evaluate_expression_internal(source, runtime, out, (uint8_t *)0);
+}
+
+static uint8_t bas_execute_let(BasicRuntime *runtime, const char *source,
+                               BasicRunStatus *status) {
+  const char *p = bas_skip_spaces(source);
+  uint8_t index;
+  BasicValue value;
+  uint8_t undefinedVariable = 0;
+
+  if (status)
+    *status = BAS_RUN_BAD_ASSIGNMENT;
+  if (!runtime || !p || !bas_variable_index(*p, &index))
+    return 0;
+
+  p++;
+  p = bas_skip_spaces(p);
+  if (*p != '=')
+    return 0;
+  p++;
+
+  if (!bas_evaluate_expression_internal(p, runtime, &value,
+                                        &undefinedVariable)) {
+    if (status && undefinedVariable)
+      *status = BAS_RUN_UNDEFINED_VARIABLE;
+    return 0;
+  }
+  if (value.kind != BAS_VALUE_INTEGER)
+    return 0;
+
+  runtime->integerDefined[index] = 1;
+  runtime->integerValues[index] = value.integer;
+  return 1;
 }
 
 uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
                        void *user, char *lineBuffer,
                        uint16_t lineBufferBytes, BasicRunResult *result) {
+  BasicRuntime runtime;
+
+  BAS_InitRuntime(&runtime);
+  return BAS_RunProgramWithRuntime(program, &runtime, sink, user, lineBuffer,
+                                   lineBufferBytes, result);
+}
+
+uint8_t BAS_RunProgramWithRuntime(const BasicProgram *program,
+                                  BasicRuntime *runtime, BasicLineSink sink,
+                                  void *user, char *lineBuffer,
+                                  uint16_t lineBufferBytes,
+                                  BasicRunResult *result) {
   uint8_t statementsExecuted = 0;
   uint8_t linesEmitted = 0;
   uint8_t pc = 0;
@@ -757,6 +892,10 @@ uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
   bas_set_run_result(result, BAS_RUN_COMPLETE, 0, 0, 0);
   if (!program || !lineBuffer || lineBufferBytes == 0) {
     bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL, 0, 0, 0);
+    return 0;
+  }
+  if (!runtime) {
+    bas_set_run_result(result, BAS_RUN_UNDEFINED_VARIABLE, 0, 0, 0);
     return 0;
   }
 
@@ -791,6 +930,7 @@ uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
 
     if (token == BAS_TOK_PRINT) {
       BasicValue value;
+      uint8_t undefinedVariable = 0;
 
       if (!bas_copy_payload_to_buffer(bytes, line->length, lineBuffer,
                                       lineBufferBytes)) {
@@ -798,9 +938,12 @@ uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
                            statementsExecuted, linesEmitted, line->number);
         return 0;
       }
-      if (!BAS_EvaluateExpression(lineBuffer, &value)) {
-        bas_set_run_result(result, BAS_RUN_BAD_EXPRESSION, statementsExecuted,
-                           linesEmitted, line->number);
+      if (!bas_evaluate_expression_internal(lineBuffer, runtime, &value,
+                                            &undefinedVariable)) {
+        bas_set_run_result(result,
+                           undefinedVariable ? BAS_RUN_UNDEFINED_VARIABLE
+                                             : BAS_RUN_BAD_EXPRESSION,
+                           statementsExecuted, linesEmitted, line->number);
         return 0;
       }
       if (!bas_value_to_line(&value, lineBuffer, lineBufferBytes)) {
@@ -814,6 +957,24 @@ uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
         return 0;
       }
       linesEmitted++;
+      pc++;
+      continue;
+    }
+
+    if (token == BAS_TOK_LET) {
+      BasicRunStatus assignmentStatus = BAS_RUN_BAD_ASSIGNMENT;
+
+      if (!bas_copy_payload_to_buffer(bytes, line->length, lineBuffer,
+                                      lineBufferBytes)) {
+        bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      if (!bas_execute_let(runtime, lineBuffer, &assignmentStatus)) {
+        bas_set_run_result(result, assignmentStatus, statementsExecuted,
+                           linesEmitted, line->number);
+        return 0;
+      }
       pc++;
       continue;
     }

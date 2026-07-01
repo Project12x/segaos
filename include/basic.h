@@ -4,8 +4,8 @@
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
  * decode, simple expression values, and a tiny PRINT/END/GOTO runner. It does
- * not handle variables, input, IF/THEN, subroutines, or display/storage
- * hardware yet.
+ * handle fixed A-Z integer LET variables, but not string variables, input,
+ * IF/THEN, subroutines, or display/storage hardware yet.
  */
 
 #ifndef BASIC_H
@@ -19,6 +19,7 @@
 #define BAS_MAX_PROGRAM_LINES 64U
 #define BAS_MAX_PROGRAM_STORAGE 2048U
 #define BAS_RUN_MAX_STEPS 128U
+#define BAS_VARIABLE_COUNT 26U
 
 typedef enum {
   BAS_TOK_RAW = 0,
@@ -90,6 +91,11 @@ typedef struct {
   uint16_t stringLength;
 } BasicValue;
 
+typedef struct {
+  uint8_t integerDefined[BAS_VARIABLE_COUNT];
+  int16_t integerValues[BAS_VARIABLE_COUNT];
+} BasicRuntime;
+
 typedef enum {
   BAS_RUN_COMPLETE = 0,
   BAS_RUN_HALTED = 1,
@@ -99,7 +105,9 @@ typedef enum {
   BAS_RUN_BUFFER_TOO_SMALL = 5,
   BAS_RUN_BAD_TARGET = 6,
   BAS_RUN_MISSING_LINE = 7,
-  BAS_RUN_STEP_LIMIT = 8
+  BAS_RUN_STEP_LIMIT = 8,
+  BAS_RUN_BAD_ASSIGNMENT = 9,
+  BAS_RUN_UNDEFINED_VARIABLE = 10
 } BasicRunStatus;
 
 typedef struct {
@@ -128,9 +136,21 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
                               BasicLineSink sink, void *user,
                               char *lineBuffer, uint16_t lineBufferBytes,
                               BasicCommandResult *result);
+void BAS_InitRuntime(BasicRuntime *runtime);
+uint8_t BAS_RuntimeSetInteger(BasicRuntime *runtime, char name, int16_t value);
+uint8_t BAS_RuntimeGetInteger(const BasicRuntime *runtime, char name,
+                              int16_t *out);
 uint8_t BAS_EvaluateExpression(const char *source, BasicValue *out);
+uint8_t BAS_EvaluateExpressionWithRuntime(const char *source,
+                                          const BasicRuntime *runtime,
+                                          BasicValue *out);
 uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
                        void *user, char *lineBuffer,
                        uint16_t lineBufferBytes, BasicRunResult *result);
+uint8_t BAS_RunProgramWithRuntime(const BasicProgram *program,
+                                  BasicRuntime *runtime, BasicLineSink sink,
+                                  void *user, char *lineBuffer,
+                                  uint16_t lineBufferBytes,
+                                  BasicRunResult *result);
 
 #endif /* BASIC_H */

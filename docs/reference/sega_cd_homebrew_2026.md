@@ -254,18 +254,26 @@ BASIC-expression update on 2026-07-01: `BAS_EvaluateExpression()` now adds the
 first value evaluator seam. It supports signed 16-bit integer literals with
 left-to-right `+`/`-` arithmetic and quoted string literals, rejects empty,
 unterminated, mixed, or overflowing expressions, and remains independent of
-variables, desktop I/O, and storage.
+desktop I/O and storage.
 
 BASIC-runner update on 2026-07-01: `BAS_RunProgram()` now adds the first
 statement execution seam. It runs stored program lines sequentially, supports
 `PRINT` of the current integer/string expression values, stops on `END`, routes
 output through the same callback shape as `LIST`, and reports unsupported
 statements or bad expressions with source line numbers. It is still clean-room
-SegaOS code and does not implement variables, `INPUT`, desktop I/O, `LOAD`, or
-`SAVE`.
+SegaOS code and does not implement `INPUT`, desktop I/O, `LOAD`, or `SAVE`.
 
 BASIC-GOTO update on 2026-07-01: `BAS_RunProgram()` now supports literal-line
 `GOTO` by resolving targets against the sorted program table. Host tests prove
 successful jumps, missing-target errors, and a hard `BAS_RUN_MAX_STEPS` guard
 that stops self-jumping loops. This is still not computed branching, `IF`/`THEN`,
-variables, subroutines, desktop I/O, `LOAD`, or `SAVE`.
+subroutines, desktop I/O, `LOAD`, or `SAVE`.
+
+BASIC-variable update on 2026-07-01: `BasicRuntime` now provides a fixed
+A-Z signed 16-bit integer variable table. Host tests prove runtime set/get,
+runtime-backed expression lookup, `LET A = <integer expression>` assignment,
+undefined-variable errors, and string-assignment rejection. This is still a
+small OS-tooling seam, not a complete BASIC: no string variables, arrays,
+`INPUT`, `IF`/`THEN`, subroutines, desktop I/O, `LOAD`, or `SAVE`. Reuse mode
+remains clean-room; no GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter
+source was copied or closely ported.

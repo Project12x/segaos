@@ -331,8 +331,10 @@ with in at least one emulator.
         with callback-based output and structured line-numbered errors
   - [x] Literal-line `GOTO` branching with missing-target errors and a hard
         runner step cap
-  - [ ] Variables, `INPUT`, `IF`/`THEN`, subroutines, and broader statement
-        execution
+  - [x] Fixed A-Z signed 16-bit integer runtime variables, `LET`
+        assignment, undefined-variable errors, and bad-assignment errors
+  - [ ] `INPUT`, `IF`/`THEN`, subroutines, string variables, arrays, and
+        broader statement execution
   - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
