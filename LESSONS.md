@@ -260,9 +260,9 @@ same failures.
 - Build BASIC as an OS tool in narrow stages: program buffer plus shell line
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
   sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,
-  fixed A-Z integer `LET` variables fifth, broader statement execution sixth,
-  desktop I/O and storage last. The current BASIC core is clean-room SegaOS
-  code. No GEOS,
+  fixed A-Z integer `LET` variables fifth, integer `IF`/`THEN` branching sixth,
+  broader statement execution seventh, desktop I/O and storage last. The
+  current BASIC core is clean-room SegaOS code. No GEOS,
   GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source is copied or closely
   ported; this first primitive is small enough that a direct interpreter
   reference would add licensing/runtime mismatch before it adds value.

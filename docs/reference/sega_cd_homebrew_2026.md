@@ -266,14 +266,23 @@ SegaOS code and does not implement `INPUT`, desktop I/O, `LOAD`, or `SAVE`.
 BASIC-GOTO update on 2026-07-01: `BAS_RunProgram()` now supports literal-line
 `GOTO` by resolving targets against the sorted program table. Host tests prove
 successful jumps, missing-target errors, and a hard `BAS_RUN_MAX_STEPS` guard
-that stops self-jumping loops. This is still not computed branching, `IF`/`THEN`,
-subroutines, desktop I/O, `LOAD`, or `SAVE`.
+that stops self-jumping loops. This is still not subroutines, desktop I/O,
+`LOAD`, or `SAVE`.
 
 BASIC-variable update on 2026-07-01: `BasicRuntime` now provides a fixed
 A-Z signed 16-bit integer variable table. Host tests prove runtime set/get,
 runtime-backed expression lookup, `LET A = <integer expression>` assignment,
 undefined-variable errors, and string-assignment rejection. This is still a
 small OS-tooling seam, not a complete BASIC: no string variables, arrays,
-`INPUT`, `IF`/`THEN`, subroutines, desktop I/O, `LOAD`, or `SAVE`. Reuse mode
-remains clean-room; no GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter
-source was copied or closely ported.
+`INPUT`, subroutines, desktop I/O, `LOAD`, or `SAVE`. Reuse mode remains
+clean-room; no GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source was
+copied or closely ported.
+
+BASIC-IF update on 2026-07-01: `BAS_RunProgram()` now supports a narrow
+`IF ... THEN ...` branch form. Conditions are integer-only: either truthiness
+of an integer expression or comparisons using `=`, `<>`, `<`, `>`, `<=`, and
+`>=` between integer expressions. `THEN` targets are literal line numbers, with
+optional `GOTO` before the target. Host tests prove true jumps, false
+fallthrough, `THEN GOTO`, missing-target errors, and bad-condition errors. This
+still does not execute arbitrary statements after `THEN` and does not add
+`INPUT`, string variables, arrays, subroutines, desktop I/O, `LOAD`, or `SAVE`.

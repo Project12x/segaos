@@ -369,6 +369,190 @@ static void runner_reports_missing_goto_target(void) {
   expect_u16(result.errorLine, 10, "missing GOTO line");
 }
 
+static void runner_if_then_jumps_when_comparison_true(void) {
+  BasicLine lines[6];
+  uint8_t storage[160];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 6, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 LET A = 3"),
+              "store IF true setup");
+  expect_true(BAS_StoreSourceLine(&program, "20 IF A = 3 THEN 50"),
+              "store true IF line");
+  expect_true(BAS_StoreSourceLine(&program, "30 PRINT \"BAD\""),
+              "store skipped true print");
+  expect_true(BAS_StoreSourceLine(&program, "40 END"), "store skipped end");
+  expect_true(BAS_StoreSourceLine(&program, "50 PRINT \"OK\""),
+              "store true target print");
+  expect_true(BAS_StoreSourceLine(&program, "60 END"), "store true final end");
+
+  expect_true(BAS_RunProgramWithRuntime(&program, &runtime, capture_run_output,
+                                        0, lineBuffer, sizeof(lineBuffer),
+                                        &result),
+              "runner executes true IF");
+  expect_u8(result.status, BAS_RUN_HALTED, "true IF status");
+  expect_u8(result.linesEmitted, 1, "true IF output count");
+  expect_str(runOutputLines[0], "OK", "true IF output");
+}
+
+static void runner_if_then_falls_through_when_comparison_false(void) {
+  BasicLine lines[6];
+  uint8_t storage[160];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 6, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 LET A = 2"),
+              "store IF false setup");
+  expect_true(BAS_StoreSourceLine(&program, "20 IF A = 3 THEN 50"),
+              "store false IF line");
+  expect_true(BAS_StoreSourceLine(&program, "30 PRINT \"NO\""),
+              "store false fallthrough print");
+  expect_true(BAS_StoreSourceLine(&program, "40 END"), "store false end");
+  expect_true(BAS_StoreSourceLine(&program, "50 PRINT \"BAD\""),
+              "store false skipped target");
+  expect_true(BAS_StoreSourceLine(&program, "60 END"),
+              "store false final end");
+
+  expect_true(BAS_RunProgramWithRuntime(&program, &runtime, capture_run_output,
+                                        0, lineBuffer, sizeof(lineBuffer),
+                                        &result),
+              "runner executes false IF");
+  expect_u8(result.status, BAS_RUN_HALTED, "false IF status");
+  expect_u8(result.linesEmitted, 1, "false IF output count");
+  expect_str(runOutputLines[0], "NO", "false IF output");
+}
+
+static void runner_if_then_accepts_goto_target(void) {
+  BasicLine lines[6];
+  uint8_t storage[160];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 6, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 LET A = 1"),
+              "store IF GOTO setup");
+  expect_true(BAS_StoreSourceLine(&program, "20 IF A THEN GOTO 50"),
+              "store IF GOTO line");
+  expect_true(BAS_StoreSourceLine(&program, "30 PRINT \"BAD\""),
+              "store IF GOTO skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "40 END"), "store IF GOTO end");
+  expect_true(BAS_StoreSourceLine(&program, "50 PRINT \"GO\""),
+              "store IF GOTO target");
+  expect_true(BAS_StoreSourceLine(&program, "60 END"),
+              "store IF GOTO final end");
+
+  expect_true(BAS_RunProgramWithRuntime(&program, &runtime, capture_run_output,
+                                        0, lineBuffer, sizeof(lineBuffer),
+                                        &result),
+              "runner executes IF THEN GOTO");
+  expect_u8(result.status, BAS_RUN_HALTED, "IF THEN GOTO status");
+  expect_u8(result.linesEmitted, 1, "IF THEN GOTO output count");
+  expect_str(runOutputLines[0], "GO", "IF THEN GOTO output");
+}
+
+static void runner_if_then_handles_relational_operators(void) {
+  BasicLine lines[13];
+  uint8_t storage[320];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 13, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 LET A = 3"),
+              "store IF operator setup");
+  expect_true(BAS_StoreSourceLine(&program, "20 IF A <> 4 THEN 40"),
+              "store not-equal IF");
+  expect_true(BAS_StoreSourceLine(&program, "30 PRINT \"BAD\""),
+              "store not-equal skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "40 IF A < 4 THEN 60"),
+              "store less-than IF");
+  expect_true(BAS_StoreSourceLine(&program, "50 PRINT \"BAD\""),
+              "store less-than skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "60 IF A <= 3 THEN 80"),
+              "store less-equal IF");
+  expect_true(BAS_StoreSourceLine(&program, "70 PRINT \"BAD\""),
+              "store less-equal skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "80 IF A > 2 THEN 100"),
+              "store greater-than IF");
+  expect_true(BAS_StoreSourceLine(&program, "90 PRINT \"BAD\""),
+              "store greater-than skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "100 IF A >= 3 THEN 120"),
+              "store greater-equal IF");
+  expect_true(BAS_StoreSourceLine(&program, "110 PRINT \"BAD\""),
+              "store greater-equal skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "120 PRINT \"OPS\""),
+              "store operator target print");
+  expect_true(BAS_StoreSourceLine(&program, "130 END"),
+              "store operator final end");
+
+  expect_true(BAS_RunProgramWithRuntime(&program, &runtime, capture_run_output,
+                                        0, lineBuffer, sizeof(lineBuffer),
+                                        &result),
+              "runner executes IF relational operators");
+  expect_u8(result.status, BAS_RUN_HALTED, "IF relational status");
+  expect_u8(result.linesEmitted, 1, "IF relational output count");
+  expect_str(runOutputLines[0], "OPS", "IF relational output");
+}
+
+static void runner_if_then_reports_missing_target(void) {
+  BasicLine lines[1];
+  uint8_t storage[48];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 IF 1 THEN 999"),
+              "store missing IF target");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects missing IF target");
+  expect_u8(result.status, BAS_RUN_MISSING_LINE, "missing IF status");
+  expect_u16(result.errorLine, 10, "missing IF line");
+}
+
+static void runner_if_then_reports_bad_condition(void) {
+  BasicLine lines[2];
+  uint8_t storage[64];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 2, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 IF \"X\" THEN 20"),
+              "store bad IF condition");
+  expect_true(BAS_StoreSourceLine(&program, "20 END"),
+              "store bad IF target");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects bad IF condition");
+  expect_u8(result.status, BAS_RUN_BAD_EXPRESSION, "bad IF status");
+  expect_u16(result.errorLine, 10, "bad IF line");
+}
+
 static void runner_stops_goto_loops_at_step_limit(void) {
   BasicLine lines[1];
   uint8_t storage[32];
@@ -496,6 +680,12 @@ int main(void) {
   runner_reports_unsupported_statement_line();
   runner_goto_jumps_to_target_line();
   runner_reports_missing_goto_target();
+  runner_if_then_jumps_when_comparison_true();
+  runner_if_then_falls_through_when_comparison_false();
+  runner_if_then_accepts_goto_target();
+  runner_if_then_handles_relational_operators();
+  runner_if_then_reports_missing_target();
+  runner_if_then_reports_bad_condition();
   runner_stops_goto_loops_at_step_limit();
   runner_reports_bad_print_expression_line();
   runner_let_sets_integer_variable();

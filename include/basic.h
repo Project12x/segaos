@@ -3,9 +3,9 @@
  *
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, simple expression values, and a tiny PRINT/END/GOTO runner. It does
- * handle fixed A-Z integer LET variables, but not string variables, input,
- * IF/THEN, subroutines, or display/storage hardware yet.
+ * decode, simple expression values, and a tiny PRINT/END/GOTO/IF runner. It
+ * does handle fixed A-Z integer LET variables, but not string variables,
+ * input, subroutines, or display/storage hardware yet.
  */
 
 #ifndef BASIC_H

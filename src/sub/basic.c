@@ -162,6 +162,11 @@ static void bas_clear_value(BasicValue *value) {
   value->stringLength = 0;
 }
 
+static uint8_t bas_evaluate_expression_internal(const char *source,
+                                                const BasicRuntime *runtime,
+                                                BasicValue *out,
+                                                uint8_t *undefinedVariable);
+
 static uint8_t bas_variable_index(char name, uint8_t *indexOut) {
   char upper = bas_upper(name);
 
@@ -411,6 +416,210 @@ static uint8_t bas_parse_line_target(const char *source, uint16_t *target) {
     return 0;
 
   *target = (uint16_t)number;
+  return 1;
+}
+
+static uint8_t bas_starts_with_keyword(const char *source,
+                                       const char *keyword) {
+  uint8_t i = 0;
+
+  if (!source || !keyword)
+    return 0;
+
+  while (keyword[i]) {
+    if (bas_upper(source[i]) != keyword[i])
+      return 0;
+    i++;
+  }
+  return (uint8_t)(source[i] == 0 || bas_is_space(source[i]));
+}
+
+static char *bas_find_standalone_keyword(char *source, const char *keyword) {
+  char *p = source;
+
+  if (!source || !keyword)
+    return (char *)0;
+
+  while (*p) {
+    uint8_t atBoundary = (uint8_t)(p == source || bas_is_space(*(p - 1)));
+
+    if (atBoundary && bas_starts_with_keyword(p, keyword))
+      return p;
+    p++;
+  }
+
+  return (char *)0;
+}
+
+static uint8_t bas_eval_integer_condition_value(
+    const char *source, const BasicRuntime *runtime, int16_t *out,
+    uint8_t *undefinedVariable) {
+  BasicValue value;
+
+  if (!bas_evaluate_expression_internal(source, runtime, &value,
+                                        undefinedVariable))
+    return 0;
+  if (value.kind != BAS_VALUE_INTEGER)
+    return 0;
+
+  *out = value.integer;
+  return 1;
+}
+
+static char *bas_find_condition_operator(char *source, uint8_t *operatorLen) {
+  char *p = source;
+
+  if (operatorLen)
+    *operatorLen = 0;
+  if (!source)
+    return (char *)0;
+
+  while (*p) {
+    if (*p == '=') {
+      if (operatorLen)
+        *operatorLen = 1;
+      return p;
+    }
+    if (*p == '<' || *p == '>') {
+      if ((p[0] == '<' && p[1] == '>') || p[1] == '=') {
+        if (operatorLen)
+          *operatorLen = 2;
+      } else if (operatorLen) {
+        *operatorLen = 1;
+      }
+      return p;
+    }
+    p++;
+  }
+
+  return (char *)0;
+}
+
+static uint8_t bas_compare_condition_values(int16_t left, int16_t right,
+                                            const char *op,
+                                            uint8_t operatorLen,
+                                            uint8_t *truth) {
+  if (!op || !truth)
+    return 0;
+
+  if (operatorLen == 1 && op[0] == '=') {
+    *truth = (uint8_t)(left == right);
+    return 1;
+  }
+  if (operatorLen == 1 && op[0] == '<') {
+    *truth = (uint8_t)(left < right);
+    return 1;
+  }
+  if (operatorLen == 1 && op[0] == '>') {
+    *truth = (uint8_t)(left > right);
+    return 1;
+  }
+  if (operatorLen == 2 && op[0] == '<' && op[1] == '=') {
+    *truth = (uint8_t)(left <= right);
+    return 1;
+  }
+  if (operatorLen == 2 && op[0] == '>' && op[1] == '=') {
+    *truth = (uint8_t)(left >= right);
+    return 1;
+  }
+  if (operatorLen == 2 && op[0] == '<' && op[1] == '>') {
+    *truth = (uint8_t)(left != right);
+    return 1;
+  }
+
+  return 0;
+}
+
+static uint8_t bas_eval_if_condition(char *source, const BasicRuntime *runtime,
+                                     uint8_t *truth,
+                                     BasicRunStatus *status) {
+  char *conditionEnd;
+  char *op;
+  uint8_t operatorLen = 0;
+  uint8_t undefinedVariable = 0;
+  char operatorText[2];
+  int16_t left;
+  int16_t right;
+
+  if (status)
+    *status = BAS_RUN_BAD_EXPRESSION;
+  if (!source || !truth)
+    return 0;
+
+  source = (char *)bas_skip_spaces(source);
+  conditionEnd = (char *)bas_trim_end(source, source + bas_strlen_limited(
+                                                    source,
+                                                    BAS_MAX_PAYLOAD_TEXT));
+  *conditionEnd = 0;
+  if (*source == 0)
+    return 0;
+
+  op = bas_find_condition_operator(source, &operatorLen);
+  if (!op) {
+    if (!bas_eval_integer_condition_value(source, runtime, &left,
+                                          &undefinedVariable)) {
+      if (status && undefinedVariable)
+        *status = BAS_RUN_UNDEFINED_VARIABLE;
+      return 0;
+    }
+    *truth = (uint8_t)(left != 0);
+    return 1;
+  }
+
+  operatorText[0] = op[0];
+  operatorText[1] = (operatorLen == 2) ? op[1] : 0;
+  *op = 0;
+  if (!bas_eval_integer_condition_value(source, runtime, &left,
+                                        &undefinedVariable)) {
+    if (status && undefinedVariable)
+      *status = BAS_RUN_UNDEFINED_VARIABLE;
+    return 0;
+  }
+  if (!bas_eval_integer_condition_value(op + operatorLen, runtime, &right,
+                                        &undefinedVariable)) {
+    if (status && undefinedVariable)
+      *status = BAS_RUN_UNDEFINED_VARIABLE;
+    return 0;
+  }
+
+  return bas_compare_condition_values(left, right, operatorText, operatorLen,
+                                      truth);
+}
+
+static uint8_t bas_parse_if_target(const char *source, uint16_t *target) {
+  const char *p = bas_skip_spaces(source);
+
+  if (bas_starts_with_keyword(p, "GOTO"))
+    p = bas_skip_spaces(p + 4);
+  return bas_parse_line_target(p, target);
+}
+
+static uint8_t bas_execute_if(char *source, const BasicRuntime *runtime,
+                              uint8_t *truth, uint16_t *target,
+                              BasicRunStatus *status) {
+  char *thenKeyword;
+  char *targetText;
+
+  if (status)
+    *status = BAS_RUN_BAD_EXPRESSION;
+  if (!source || !truth || !target)
+    return 0;
+
+  thenKeyword = bas_find_standalone_keyword(source, "THEN");
+  if (!thenKeyword)
+    return 0;
+
+  *thenKeyword = 0;
+  targetText = thenKeyword + 4;
+  if (!bas_eval_if_condition(source, runtime, truth, status))
+    return 0;
+
+  if (!bas_parse_if_target(targetText, target)) {
+    if (status)
+      *status = BAS_RUN_BAD_TARGET;
+    return 0;
+  }
+
   return 1;
 }
 
@@ -976,6 +1185,37 @@ uint8_t BAS_RunProgramWithRuntime(const BasicProgram *program,
         return 0;
       }
       pc++;
+      continue;
+    }
+
+    if (token == BAS_TOK_IF) {
+      BasicRunStatus ifStatus = BAS_RUN_BAD_EXPRESSION;
+      uint8_t truth = 0;
+      uint16_t target;
+
+      if (!bas_copy_payload_to_buffer(bytes, line->length, lineBuffer,
+                                      lineBufferBytes)) {
+        bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      if (!bas_execute_if(lineBuffer, runtime, &truth, &target, &ifStatus)) {
+        bas_set_run_result(result, ifStatus, statementsExecuted, linesEmitted,
+                           line->number);
+        return 0;
+      }
+      if (truth) {
+        uint8_t targetIndex = 0;
+
+        if (!bas_find_line(program, target, &targetIndex)) {
+          bas_set_run_result(result, BAS_RUN_MISSING_LINE, statementsExecuted,
+                             linesEmitted, line->number);
+          return 0;
+        }
+        pc = targetIndex;
+      } else {
+        pc++;
+      }
       continue;
     }
 

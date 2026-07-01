@@ -246,9 +246,10 @@ signed 16-bit integer `+`/`-` expressions and quoted string literals. The
 first `RUN` path executes stored lines sequentially for `PRINT` and `END`,
 emitting printed values through the same caller-supplied sink. The runner also
 supports literal-line `GOTO` with a hard step cap to avoid runaway loops and
-fixed A-Z signed 16-bit integer variables through `LET`. It does not yet handle
-string variables, arrays, `IF`/`THEN`, `INPUT`, desktop display binding, or
-persistence.
+fixed A-Z signed 16-bit integer variables through `LET`. The first `IF` path
+supports integer truth/comparison checks and literal `THEN` line targets,
+including `THEN GOTO`. It does not yet handle string variables, arrays,
+`INPUT`, subroutines, desktop display binding, or persistence.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

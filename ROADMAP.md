@@ -333,8 +333,11 @@ with in at least one emulator.
         runner step cap
   - [x] Fixed A-Z signed 16-bit integer runtime variables, `LET`
         assignment, undefined-variable errors, and bad-assignment errors
-  - [ ] `INPUT`, `IF`/`THEN`, subroutines, string variables, arrays, and
-        broader statement execution
+  - [x] Integer `IF`/`THEN` branching with truth/comparison conditions,
+        bare line targets, `THEN GOTO`, missing-target errors, and bad
+        condition errors
+  - [ ] `INPUT`, subroutines, string variables, arrays, and broader statement
+        execution after `THEN`
   - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
