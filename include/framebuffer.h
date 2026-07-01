@@ -104,6 +104,12 @@ void FB_ShowBootPattern(void);
 void FB_UpdateFrameProfile(const uint8_t *wram_bank);
 #endif
 
+/* Convert a contiguous sequence of framebuffer tiles into VDP tile byte order.
+ * This is the testable core used before issuing any VRAM transfer. */
+uint8_t FB_ConvertTileSpan(const uint8_t *linear_fb, uint16_t firstTile,
+                           uint16_t tileCount, uint8_t *tile_out,
+                           uint16_t tile_out_bytes);
+
 /* ============================================================
  * Frame Update
  *

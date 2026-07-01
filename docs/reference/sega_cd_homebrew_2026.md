@@ -201,3 +201,12 @@ record: SGDK repo `https://github.com/Stephane-D/SGDK`, commit
 `ef9292c03fe33a2f8af3a2589ab856a53dcef35c`, MIT license, inspected files
 `inc/dma.h`, `src/dma.c`, and `src/sys.c`, reuse mode pattern-only /
 clean-room. No SGDK queue source was copied or closely ported.
+
+Framebuffer-span update on 2026-07-01: `FB_ConvertTileSpan()` now exposes the
+Main CPU linear-framebuffer-to-VDP-tile conversion as a host-tested seam. The
+test covers a single arbitrary tile, a contiguous span crossing the 40-tile row
+boundary, and invalid span rejection. The Main CPU build still uses 16-bit Word
+RAM reads for the hardware path; the host test path uses normal byte reads so
+the same tile-index math can be verified on the development machine. This
+prepares the live VBlank queue consumer without changing the default full-frame
+upload path yet.

@@ -156,6 +156,13 @@ same failures.
 - Main's framebuffer converter must also read returned Word RAM as 16-bit
   words, then unpack the bytes locally. Byte-copying the returned bank can make
   small glyph strokes appear corrupt even when the source glyph data is real.
+- Keep the conversion logic testable without changing that hardware rule.
+  `FB_ConvertTileSpan()` is now the shared seam: host tests exercise byte-order
+  and tile-index math with normal byte reads, while the Main CPU build still
+  uses 16-bit Word RAM reads before unpacking to VDP tile bytes.
+- Dirty upload work should consume `DirtyTileQueue` spans through
+  `FB_ConvertTileSpan()` before issuing any VRAM write. That separates three
+  risks: dirty region ownership, linear-to-tile conversion, and live VDP timing.
 - Source glyph/bitmap reads can remain normal byte reads because they come from
   PRG-RAM/rodata, not Word RAM.
 - If `VDP_TEXT_PROBE=1` displays readable text but desktop text is corrupted,
@@ -197,7 +204,7 @@ same failures.
   the boot-safe full-frame upload as 7 strip DMA transfers, reaches phase
   `0x84ff`, and passes `-Probe DesktopTiming`.
 - The current BlastEm sample records HV `0xbc1d` before the profiled upload and
-  `0xeb95` after it, final VDP status `0x3208`, transition mask `0x007f`, and
+  `0xfdb2` after it, final VDP status `0x320c`, transition mask `0x007f`, and
   DMA-clear mask `0x007f`.
 - Interpret that narrowly: every strip consumed measurable HV time and DMA was
   clear after each strip. This does not yet prove a production VBlank-only
@@ -212,6 +219,10 @@ same failures.
   width ranges become one upload span per tile row; full-width ranges become a
   contiguous span; `maxBytes` slices a span to the caller's frame budget; and
   `budgetExceeded` is kept separate from queue-storage `overflow`.
+- The next VDP implementation step should be a queue consumer that chunks each
+  `DirtyTileUpload` through the 5,120-byte strip buffer and issues bounded
+  VRAM transfers. Do not reintroduce full-frame policy assumptions while wiring
+  that consumer.
 - The concrete frame-policy warning is now host-tested: a full 40x28 tile
   4bpp frame is 1,120 tiles / 35,840 bytes, so it cannot fit the 7,524-byte
   NTSC VBlank budget recorded in the Mega Drive development notes. The queue

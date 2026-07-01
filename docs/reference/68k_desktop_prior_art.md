@@ -214,8 +214,8 @@ measured VBlank scheduler or alternating double-buffer policy.
 Status update, 2026-07-01 timing probe pass: `DESKTOP_TIMING_PROBE=1` adds the
 first measured VDP upload rung for that same boot-safe direct renderer. The
 current BlastEm pass profiles the full-frame upload as 7 strip DMA transfers,
-reaches phase `0x84ff`, records HV `0xbc1d` to `0xeb95`, final VDP status
-`0x3208`, transition mask `0x007f`, and DMA-clear mask `0x007f`. The reference
+reaches phase `0x84ff`, records HV `0xbc1d` to `0xfdb2`, final VDP status
+`0x320c`, transition mask `0x007f`, and DMA-clear mask `0x007f`. The reference
 basis remains split: GEM/TOS/GEOS/CP/M-style systems guide clean-room desktop
 ownership and redraw/event layering, while Sega CD hardware evidence must guide
 Word RAM and VDP transfer policy. No GEM/TOS/GEOS/CP/M source was copied or

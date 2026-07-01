@@ -71,8 +71,8 @@ return points, and still reads the final title-row VRAM words as
 `0xf11f/0x1f11`.
 `DESKTOP_TIMING_PROBE=1` now gives the first VDP timing-budget evidence for
 the current boot-safe full-frame upload path. The probe reaches phase `0x84ff`,
-profiles 7 strip DMA transfers, records HV `0xbc1d` to `0xeb95` in the current
-BlastEm run, records final VDP status `0x3208`, and proves every strip both
+profiles 7 strip DMA transfers, records HV `0xbc1d` to `0xfdb2` in the current
+BlastEm run, records final VDP status `0x320c`, and proves every strip both
 moved the HV counter and ended with DMA clear via masks `0x007f/0x007f`.
 `DESKTOP_WM_PROBE=1` now proves a minimal real window-manager boot render path:
 the Sub CPU runs `WM_Init()`, creates one `WM_NewWindow()` document window,
@@ -133,10 +133,10 @@ The active strategy is a bring-up ladder:
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
 | Desktop repeated-frame probe | Passing | `DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` proves a second boot-safe `CMD_RENDER_FRAME` after Main returns Word RAM; terminal phase `0x82ff`, repeat status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, repeated title VRAM `0xf11f/0x1f11` |
 | Desktop short loop probe | Passing | `DESKTOP_LOOP_PROBE=1` + `-Probe DesktopLoop` proves four additional single-bank render/upload/return cycles after the first frame; terminal phase `0x83ff`, loop count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, final title VRAM `0xf11f/0x1f11` |
-| Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xeb95`, final VDP status `0x3208`, masks `0x007f/0x007f`, and `probe_gdb_timeout=False` |
+| Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xfdb2`, final VDP status `0x320c`, masks `0x007f/0x007f`, and `probe_gdb_timeout=False` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
-| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, framebuffer tile-span conversion, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -181,6 +181,8 @@ The active strategy is a bring-up ladder:
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
   `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
   part of the probe path
+- Default Main IP usage after exposing `FB_ConvertTileSpan()`: 2,856 text bytes
+  observed locally with a forced normal `make iso`
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
 - Framebuffer: 35,840 bytes @ 4bpp (320x224)
@@ -255,7 +257,7 @@ Key adopted assumptions:
   first frame, with the final title row still present in VDP tile data.
 - `DESKTOP_TIMING_PROBE=1` proves the current full-frame upload path runs as 7
   strip DMAs and gives the first HV/status measurement for frame-policy work:
-  current BlastEm sample HV `0xbc1d` to `0xeb95`, final status `0x3208`, and
+  current BlastEm sample HV `0xbc1d` to `0xfdb2`, final status `0x320c`, and
   transition/DMA-clear masks `0x007f/0x007f`.
 - The framebuffer probe uses that handoff for a deterministic 4bpp tile:
   Sub writes `$1234/$5678` to linear row 0 and `$9abc/$def0` to row 1, Main
@@ -328,7 +330,7 @@ SGDK DMA queue source:
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
-| Framebuffer | Main | `src/main/framebuffer.c` | Linear-to-tile + DMA pipeline |
+| Framebuffer | Main/host | `src/main/framebuffer.c` | Linear-to-tile conversion seam plus Main-side DMA pipeline |
 | VDP | Main | `include/vdp.h` | Standalone VDP register interface |
 | VDP text probe | Main | `src/main/vdp_text_probe.c` | Main-only SGDK 8x8 tile text canary |
 
@@ -367,8 +369,8 @@ High priority:
   BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
   helpers. The dirty-rectangle/clipping pool now has host tests for both root
   and window redraw planning, 8x8 tile-range mapping, tile transfer budgeting,
-  and dirty upload queue span generation; it is wired into `WM_InvalidateRect()`
-  and is used by the
+  dirty upload queue span generation, and framebuffer tile-span conversion; it
+  is wired into `WM_InvalidateRect()` and is used by the
   boot-safe direct renderer's dirty loop. The narrow real
   `WM_NewWindow()` allocation/z-order render probe and its debugger-backed
   visual screenshot are now green, and the short single-bank render/upload loop
@@ -391,8 +393,10 @@ Runtime validation:
   policy before the desktop loop can be considered stable. The first timing
   probe measures the current full-frame upload shape; `DR_TileRangeBudget()`
   and `DR_QueueTileRange()` now prove the dirty-region side can report
-  tile/byte/span costs and build bounded upload spans, but they do not yet
-  define the live VBlank flush, active-display policy, or double-buffer policy.
+  tile/byte/span costs and build bounded upload spans, and
+  `FB_ConvertTileSpan()` proves the Main side can convert those spans into VDP
+  tile bytes. They do not yet define the live VBlank flush, active-display
+  policy, or double-buffer policy.
 - The `DesktopTiming` probe script now has a bounded failure path around the
   GDB `continue` phase. `tools/probe_blastem_boot.ps1` accepts
   `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` on timeout, and

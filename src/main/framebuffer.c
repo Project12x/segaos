@@ -26,7 +26,9 @@
 #define STRIP_TILES (FB_TILES_X * STRIP_TILE_ROWS)       /* 160 */
 #define STRIP_BUF_SIZE (STRIP_TILES * FB_BYTES_PER_TILE) /* 5120 */
 
+#ifndef FB_HOST_TEST
 static uint8_t strip_buf[STRIP_BUF_SIZE];
+#endif
 
 #ifdef DESKTOP_TIMING_PROBE
 volatile uint16_t segaos_desktop_timing_strip_count;
@@ -37,6 +39,64 @@ volatile uint16_t segaos_desktop_timing_transition_mask;
 volatile uint16_t segaos_desktop_timing_dma_clear_mask;
 #endif
 
+static void fb_copy_tile_row(const uint8_t *src, uint8_t *dst) {
+#if defined(MAIN_CPU) && !defined(FB_HOST_TEST)
+  volatile const uint16_t *src_words = (volatile const uint16_t *)src;
+  uint16_t row_word0 = src_words[0];
+  uint16_t row_word1 = src_words[1];
+
+  dst[0] = (uint8_t)(row_word0 >> 8);
+  dst[1] = (uint8_t)(row_word0 & 0x00ff);
+  dst[2] = (uint8_t)(row_word1 >> 8);
+  dst[3] = (uint8_t)(row_word1 & 0x00ff);
+#else
+  dst[0] = src[0];
+  dst[1] = src[1];
+  dst[2] = src[2];
+  dst[3] = src[3];
+#endif
+}
+
+static void fb_convert_tile(const uint8_t *linear_fb, uint16_t tileIndex,
+                            uint8_t *tile_dst) {
+  uint16_t tx = (uint16_t)(tileIndex % FB_TILES_X);
+  uint16_t ty = (uint16_t)(tileIndex / FB_TILES_X);
+  uint16_t px_y = (uint16_t)(ty * 8U);
+  uint16_t byte_x = (uint16_t)(tx * 4U);
+  uint16_t r;
+
+  for (r = 0; r < 8; r++) {
+    uint32_t src_offset =
+        ((uint32_t)(px_y + r) * FB_LINEAR_BPR) + (uint32_t)byte_x;
+    fb_copy_tile_row(linear_fb + src_offset, &tile_dst[r * 4]);
+  }
+}
+
+uint8_t FB_ConvertTileSpan(const uint8_t *linear_fb, uint16_t firstTile,
+                           uint16_t tileCount, uint8_t *tile_out,
+                           uint16_t tile_out_bytes) {
+  uint32_t needed_bytes;
+  uint16_t i;
+
+  if (!linear_fb || !tile_out || tileCount == 0)
+    return 0;
+  if (firstTile >= FB_TILE_COUNT)
+    return 0;
+  if (tileCount > (uint16_t)(FB_TILE_COUNT - firstTile))
+    return 0;
+
+  needed_bytes = (uint32_t)tileCount * FB_BYTES_PER_TILE;
+  if (needed_bytes > tile_out_bytes)
+    return 0;
+
+  for (i = 0; i < tileCount; i++) {
+    fb_convert_tile(linear_fb, (uint16_t)(firstTile + i),
+                    tile_out + ((uint32_t)i * FB_BYTES_PER_TILE));
+  }
+
+  return 1;
+}
+
 /* ============================================================
  * FB_Init - Set up VDP tilemap and palette
  *
@@ -44,6 +104,7 @@ volatile uint16_t segaos_desktop_timing_dma_clear_mask;
  * tiles 0-1119 map directly to screen positions.
  * Loads the Windows-like boot palette to CRAM palette line 0.
  * ============================================================ */
+#ifndef FB_HOST_TEST
 void FB_Init(void) {
   uint16_t tile_idx;
 
@@ -92,6 +153,7 @@ void FB_ShowBootPattern(void) {
     VDP_DATA_PORT = TILE_ENTRY(0, 0, 0, 0, 0);
   }
 }
+#endif /* FB_HOST_TEST */
 
 /* ============================================================
  * convert_strip - Convert one strip of tile-rows from linear to tiles
@@ -111,6 +173,7 @@ void FB_ShowBootPattern(void) {
  * is kept 16-bit wide and unpacked into bytes locally; byte reads from the
  * shared RAM path have produced misleading partial glyphs in emulator testing.
  * ============================================================ */
+#ifndef FB_HOST_TEST
 static void convert_strip(const uint8_t *linear_fb, uint16_t strip_y) {
   uint16_t tile_rows = STRIP_TILE_ROWS;
 
@@ -126,26 +189,8 @@ static void convert_strip(const uint8_t *linear_fb, uint16_t strip_y) {
       /* Destination: tile within strip buffer */
       uint16_t tile_idx = tr * FB_TILES_X + tx;
       uint8_t *tile_dst = &strip_buf[tile_idx * FB_BYTES_PER_TILE];
-
-      /* Source: 8 rows of 4 bytes each from linear FB */
-      uint16_t px_y = ty * 8;
-      uint16_t byte_x = tx * 4; /* 8 pixels @ 4bpp = 4 bytes */
-
-      for (uint16_t r = 0; r < 8; r++) {
-        uint32_t src_offset =
-            ((uint32_t)(px_y + r) * FB_LINEAR_BPR) + (uint32_t)byte_x;
-        volatile const uint16_t *src_words =
-            (volatile const uint16_t *)(linear_fb + src_offset);
-        uint16_t row_word0 = src_words[0];
-        uint16_t row_word1 = src_words[1];
-        uint8_t *dst_row = &tile_dst[r * 4];
-
-        /* Copy 4 bytes (8 pixels) - same nibble packing */
-        dst_row[0] = (uint8_t)(row_word0 >> 8);
-        dst_row[1] = (uint8_t)(row_word0 & 0x00ff);
-        dst_row[2] = (uint8_t)(row_word1 >> 8);
-        dst_row[3] = (uint8_t)(row_word1 & 0x00ff);
-      }
+      fb_convert_tile(linear_fb, (uint16_t)((ty * FB_TILES_X) + tx),
+                      tile_dst);
     }
   }
 }
@@ -246,3 +291,4 @@ void FB_UpdateFrameProfile(const uint8_t *wram_bank) {
   segaos_desktop_timing_status_end = VDP_CTRL_PORT;
 }
 #endif
+#endif /* FB_HOST_TEST */

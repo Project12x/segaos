@@ -180,8 +180,8 @@ cycles, reaches phase `0x83ff`, counts four loop frames, keeps status
 final title row from VDP as `0xf11f/0x1f11`.
 `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` now gives the first measured
 VDP upload evidence: the current full-frame path runs 7 strip DMA transfers,
-reaches phase `0x84ff`, records HV `0xbc1d` to `0xeb95` in BlastEm, records
-final VDP status `0x3208`, and proves every strip changed HV and ended with DMA
+reaches phase `0x84ff`, records HV `0xbc1d` to `0xfdb2` in BlastEm, records
+final VDP status `0x320c`, and proves every strip changed HV and ended with DMA
 clear through masks `0x007f/0x007f`.
 `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` now proves a minimal clean-room
 window-manager boot render path. The Sub CPU runs `WM_Init()`, allocates one
@@ -210,6 +210,8 @@ remains a later production policy.
   - [ ] VBlank-only dirty-tile queue
     - [x] Host-tested queue planner with static storage, byte-budget slicing,
           and separate budget/overflow flags
+    - [x] Host-tested `FB_ConvertTileSpan()` seam that converts planned tile
+          spans from linear 4bpp framebuffer layout into VDP tile bytes
     - [ ] Live VBlank flush of queued tile spans to VRAM
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
@@ -279,6 +281,8 @@ that matches Genesis VDP constraints.
       deterministic subtraction strips, edge-touch merge, corner-touch
       separation, overflow behavior, 8x8 tile range rounding, and dirty tile
       transfer budgeting/upload queue planning
+- [x] Add host tests for framebuffer tile-span conversion, including a span
+      crossing a 40-tile row boundary
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy

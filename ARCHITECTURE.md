@@ -140,6 +140,11 @@ span queues for the later VDP dirty-upload path.
 ### Framebuffer Pipeline (`src/main/framebuffer.c`)
 Converts the Sub CPU's linear 4bpp framebuffer to VDP 8x8 tile format using strip-based processing (5 KB buffer per strip, 7 strips per frame). Both formats use identical 4bpp nibble packing, so conversion is purely a memory rearrangement.
 
+`FB_ConvertTileSpan()` is the host-tested conversion seam for dirty uploads. It
+converts a contiguous tile span from the linear framebuffer into VDP tile bytes,
+including spans that cross a 40-tile row boundary, while the Main CPU build
+keeps 16-bit Word RAM reads for the actual shared-memory path.
+
 The full-frame path is a bring-up path first. Before the desktop loop is treated
 as stable, the project needs a measured VDP transfer policy: VBlank-only dirty
 tiles, accepted active-display transfer artifacts, or display-off/full redraws

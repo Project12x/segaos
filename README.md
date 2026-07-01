@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
-# Run host-side redraw, dirty-transfer queue, and probe-timeout tests
+# Run host-side redraw, dirty-transfer queue, framebuffer, and probe-timeout tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
@@ -180,7 +180,7 @@ Main-side return, and still reads the title-row VRAM words as
 `0xf11f/0x1f11`. `DESKTOP_TIMING_PROBE=1` adds the first measured VDP
 frame-transfer rung: it profiles the boot-safe full-frame upload as 7
 strip-based DMA transfers, reaches phase `0x84ff`, observes HV `0xbc1d` to
-`0xeb95` in the current BlastEm run, records final VDP status `0x3208`, and
+`0xfdb2` in the current BlastEm run, records final VDP status `0x320c`, and
 proves every strip changed the HV counter and ended with DMA clear via masks
 `0x007f/0x007f`. `DESKTOP_WM_PROBE=1` now proves the next narrow
 window-manager rung: `WM_Init()` plus one `WM_NewWindow()` creates a visible,
@@ -203,10 +203,13 @@ probe. The dirty-rectangle module now also has host-tested VDP transfer
 planning: small dirty tile ranges can be counted against a caller-supplied
 budget and turned into explicit tile upload spans, while the full 40x28 tile
 frame is known to exceed the NTSC VBlank reference budget and is sliced to that
-budget. This is a queue planner only; the live VBlank hardware flush is still
-pending. The next desktop gate is still a measured long-running frame policy;
-the full alternating double-buffer and dirty-tile VBlank policies remain later
-stability work before returning to normal menu/cursor/app rendering.
+budget. The Main framebuffer module now exposes a host-tested
+`FB_ConvertTileSpan()` seam that converts any planned tile span from linear
+4bpp Word RAM layout into VDP tile bytes. This is still a planner/conversion
+checkpoint; the live VBlank hardware flush is pending. The next desktop gate is
+still a measured long-running frame policy; the full alternating double-buffer
+and dirty-tile VBlank policies remain later stability work before returning to
+normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

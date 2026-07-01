@@ -214,6 +214,8 @@ info:
 host-tests: dirs
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_dirty_rect.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_dirty_rect.exe
 	$(BUILD_DIR)/test_dirty_rect.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_framebuffer.c src/main/framebuffer.c -o $(BUILD_DIR)/test_framebuffer.exe
+	$(BUILD_DIR)/test_framebuffer.exe
 	powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_probe_timeout.ps1 -HostCc "$(HOST_CC)"
 
 # ============================================================
