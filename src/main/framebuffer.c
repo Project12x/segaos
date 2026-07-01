@@ -97,6 +97,64 @@ uint8_t FB_ConvertTileSpan(const uint8_t *linear_fb, uint16_t firstTile,
   return 1;
 }
 
+uint8_t FB_FlushTileQueueWithCallback(const uint8_t *linear_fb,
+                                      const DirtyTileQueue *queue,
+                                      uint8_t *scratch,
+                                      uint16_t scratchBytes,
+                                      FB_TileUploadCallback upload,
+                                      void *user) {
+  uint16_t maxChunkTiles;
+  uint8_t i;
+
+  if (!linear_fb || !queue || !scratch || !upload)
+    return 0;
+  if (queue->count == 0)
+    return 1;
+  if (!queue->items || queue->count > queue->capacity)
+    return 0;
+
+  maxChunkTiles = (uint16_t)(scratchBytes / FB_BYTES_PER_TILE);
+  if (maxChunkTiles == 0)
+    return 0;
+
+  for (i = 0; i < queue->count; i++) {
+    const DirtyTileUpload *item = &queue->items[i];
+    uint16_t firstTile = item->firstTile;
+    uint16_t remaining = item->tileCount;
+
+    if (remaining == 0)
+      return 0;
+    if (item->byteCount !=
+        (uint16_t)((uint32_t)item->tileCount * FB_BYTES_PER_TILE)) {
+      return 0;
+    }
+
+    while (remaining > 0) {
+      uint16_t chunkTiles = remaining;
+      uint16_t vramAddr;
+      uint16_t wordCount;
+
+      if (chunkTiles > maxChunkTiles)
+        chunkTiles = maxChunkTiles;
+
+      if (!FB_ConvertTileSpan(linear_fb, firstTile, chunkTiles, scratch,
+                              scratchBytes)) {
+        return 0;
+      }
+
+      vramAddr = (uint16_t)(firstTile * FB_BYTES_PER_TILE);
+      wordCount = (uint16_t)(chunkTiles * (FB_BYTES_PER_TILE / 2));
+      if (!upload(scratch, firstTile, chunkTiles, vramAddr, wordCount, user))
+        return 0;
+
+      firstTile = (uint16_t)(firstTile + chunkTiles);
+      remaining = (uint16_t)(remaining - chunkTiles);
+    }
+  }
+
+  return 1;
+}
+
 /* ============================================================
  * FB_Init - Set up VDP tilemap and palette
  *
@@ -232,6 +290,25 @@ void FB_UpdateFrame(const uint8_t *wram_bank) {
     VDP_DMAToVRAM((uint32_t)strip_buf, vram_addr,
                   strip_tiles * (FB_BYTES_PER_TILE / 2));
   }
+}
+
+static uint8_t fb_dma_tile_upload(const uint8_t *tileData, uint16_t firstTile,
+                                  uint16_t tileCount, uint16_t vramAddr,
+                                  uint16_t wordCount, void *user) {
+  (void)firstTile;
+  (void)tileCount;
+  (void)user;
+
+  VDP_WaitDMA();
+  VDP_DMAToVRAM((uint32_t)tileData, vramAddr, wordCount);
+  return 1;
+}
+
+uint8_t FB_UpdateTileQueue(const uint8_t *wram_bank,
+                           const DirtyTileQueue *queue) {
+  return FB_FlushTileQueueWithCallback(wram_bank, queue, strip_buf,
+                                       STRIP_BUF_SIZE, fb_dma_tile_upload,
+                                       (void *)0);
 }
 
 #ifdef DESKTOP_TIMING_PROBE

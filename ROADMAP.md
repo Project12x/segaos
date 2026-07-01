@@ -212,7 +212,9 @@ remains a later production policy.
           and separate budget/overflow flags
     - [x] Host-tested `FB_ConvertTileSpan()` seam that converts planned tile
           spans from linear 4bpp framebuffer layout into VDP tile bytes
-    - [ ] Live VBlank flush of queued tile spans to VRAM
+    - [x] Host-tested queue consumer that chunks planned spans through a
+          caller-provided upload sink and exposes `FB_UpdateTileQueue()`
+    - [ ] Emulator-proven VBlank flush of queued tile spans to VRAM
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
 - [x] Tie dirty rectangles to tile-strip transfer ranges
@@ -283,6 +285,8 @@ that matches Genesis VDP constraints.
       transfer budgeting/upload queue planning
 - [x] Add host tests for framebuffer tile-span conversion, including a span
       crossing a 40-tile row boundary
+- [x] Add host tests for dirty queue upload chunking, including a 235-tile
+      budgeted span split across the 5,120-byte strip buffer
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy

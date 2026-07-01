@@ -163,6 +163,10 @@ same failures.
 - Dirty upload work should consume `DirtyTileQueue` spans through
   `FB_ConvertTileSpan()` before issuing any VRAM write. That separates three
   risks: dirty region ownership, linear-to-tile conversion, and live VDP timing.
+- The queue consumer now exists as `FB_FlushTileQueueWithCallback()`. It is
+  host-tested against the 5,120-byte strip buffer shape: a 235-tile
+  VBlank-budgeted upload splits into 160 and 75 tile chunks with VRAM addresses
+  derived directly from `firstTile * 32`.
 - Source glyph/bitmap reads can remain normal byte reads because they come from
   PRG-RAM/rodata, not Word RAM.
 - If `VDP_TEXT_PROBE=1` displays readable text but desktop text is corrupted,
@@ -219,10 +223,10 @@ same failures.
   width ranges become one upload span per tile row; full-width ranges become a
   contiguous span; `maxBytes` slices a span to the caller's frame budget; and
   `budgetExceeded` is kept separate from queue-storage `overflow`.
-- The next VDP implementation step should be a queue consumer that chunks each
-  `DirtyTileUpload` through the 5,120-byte strip buffer and issues bounded
-  VRAM transfers. Do not reintroduce full-frame policy assumptions while wiring
-  that consumer.
+- The next VDP implementation step should be an emulator-visible probe or
+  frame-loop gate that calls `FB_UpdateTileQueue()` during the chosen transfer
+  window. Do not reintroduce full-frame policy assumptions while wiring that
+  consumer.
 - The concrete frame-policy warning is now host-tested: a full 40x28 tile
   4bpp frame is 1,120 tiles / 35,840 bytes, so it cannot fit the 7,524-byte
   NTSC VBlank budget recorded in the Mega Drive development notes. The queue

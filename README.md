@@ -205,10 +205,13 @@ budget and turned into explicit tile upload spans, while the full 40x28 tile
 frame is known to exceed the NTSC VBlank reference budget and is sliced to that
 budget. The Main framebuffer module now exposes a host-tested
 `FB_ConvertTileSpan()` seam that converts any planned tile span from linear
-4bpp Word RAM layout into VDP tile bytes. This is still a planner/conversion
-checkpoint; the live VBlank hardware flush is pending. The next desktop gate is
-still a measured long-running frame policy; the full alternating double-buffer
-and dirty-tile VBlank policies remain later stability work before returning to
+4bpp Word RAM layout into VDP tile bytes. The same module now has a
+host-tested queue consumer that chunks `DirtyTileQueue` spans through a
+caller-provided upload sink and a Main-side `FB_UpdateTileQueue()` wrapper for
+DMA. This is still not wired into the desktop frame loop; the live
+emulator-visible VBlank policy is pending. The next desktop gate is still a
+measured long-running frame policy; the full alternating double-buffer and
+dirty-tile VBlank policies remain later stability work before returning to
 normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

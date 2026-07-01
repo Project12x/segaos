@@ -144,6 +144,11 @@ Converts the Sub CPU's linear 4bpp framebuffer to VDP 8x8 tile format using stri
 converts a contiguous tile span from the linear framebuffer into VDP tile bytes,
 including spans that cross a 40-tile row boundary, while the Main CPU build
 keeps 16-bit Word RAM reads for the actual shared-memory path.
+`FB_FlushTileQueueWithCallback()` consumes a `DirtyTileQueue`, chunks each span
+to the caller's scratch buffer size, converts each chunk, and emits VRAM
+destination/word-count metadata to an upload sink. `FB_UpdateTileQueue()` is the
+Main-side DMA wrapper around that seam, but the default desktop loop still uses
+the full-frame bring-up path until the VBlank policy is emulator-proven.
 
 The full-frame path is a bring-up path first. Before the desktop loop is treated
 as stable, the project needs a measured VDP transfer policy: VBlank-only dirty

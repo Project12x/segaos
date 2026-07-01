@@ -27,6 +27,7 @@
 #ifndef FRAMEBUFFER_H
 #define FRAMEBUFFER_H
 
+#include "dirty_rect.h"
 #include "vdp.h"
 #include <stdint.h>
 
@@ -110,6 +111,21 @@ uint8_t FB_ConvertTileSpan(const uint8_t *linear_fb, uint16_t firstTile,
                            uint16_t tileCount, uint8_t *tile_out,
                            uint16_t tile_out_bytes);
 
+typedef uint8_t (*FB_TileUploadCallback)(const uint8_t *tileData,
+                                         uint16_t firstTile,
+                                         uint16_t tileCount,
+                                         uint16_t vramAddr,
+                                         uint16_t wordCount, void *user);
+
+/* Convert and flush a dirty tile queue through a caller-provided upload sink.
+ * The sink receives chunks no larger than the provided scratch buffer. */
+uint8_t FB_FlushTileQueueWithCallback(const uint8_t *linear_fb,
+                                      const DirtyTileQueue *queue,
+                                      uint8_t *scratch,
+                                      uint16_t scratchBytes,
+                                      FB_TileUploadCallback upload,
+                                      void *user);
+
 /* ============================================================
  * Frame Update
  *
@@ -121,5 +137,7 @@ uint8_t FB_ConvertTileSpan(const uint8_t *linear_fb, uint16_t firstTile,
  *            (typically WRAM_BANK0_MAIN or WRAM_BANK1_MAIN)
  * ============================================================ */
 void FB_UpdateFrame(const uint8_t *wram_bank);
+uint8_t FB_UpdateTileQueue(const uint8_t *wram_bank,
+                           const DirtyTileQueue *queue);
 
 #endif /* FRAMEBUFFER_H */

@@ -136,7 +136,7 @@ The active strategy is a bring-up ladder:
 | Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xfdb2`, final VDP status `0x320c`, masks `0x007f/0x007f`, and `probe_gdb_timeout=False` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
-| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, framebuffer tile-span conversion, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, framebuffer tile-span conversion, dirty-queue upload chunking, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -330,7 +330,7 @@ SGDK DMA queue source:
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
-| Framebuffer | Main/host | `src/main/framebuffer.c` | Linear-to-tile conversion seam plus Main-side DMA pipeline |
+| Framebuffer | Main/host | `src/main/framebuffer.c` | Linear-to-tile conversion seam, dirty queue upload consumer, and Main-side DMA pipeline |
 | VDP | Main | `include/vdp.h` | Standalone VDP register interface |
 | VDP text probe | Main | `src/main/vdp_text_probe.c` | Main-only SGDK 8x8 tile text canary |
 
@@ -369,8 +369,9 @@ High priority:
   BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
   helpers. The dirty-rectangle/clipping pool now has host tests for both root
   and window redraw planning, 8x8 tile-range mapping, tile transfer budgeting,
-  dirty upload queue span generation, and framebuffer tile-span conversion; it
-  is wired into `WM_InvalidateRect()` and is used by the
+  dirty upload queue span generation, framebuffer tile-span conversion, and
+  dirty-queue upload chunking; it is wired into `WM_InvalidateRect()` and is
+  used by the
   boot-safe direct renderer's dirty loop. The narrow real
   `WM_NewWindow()` allocation/z-order render probe and its debugger-backed
   visual screenshot are now green, and the short single-bank render/upload loop
@@ -394,9 +395,11 @@ Runtime validation:
   probe measures the current full-frame upload shape; `DR_TileRangeBudget()`
   and `DR_QueueTileRange()` now prove the dirty-region side can report
   tile/byte/span costs and build bounded upload spans, and
-  `FB_ConvertTileSpan()` proves the Main side can convert those spans into VDP
-  tile bytes. They do not yet define the live VBlank flush, active-display
-  policy, or double-buffer policy.
+  `FB_ConvertTileSpan()` plus `FB_FlushTileQueueWithCallback()` prove the Main
+  side can convert and chunk those spans into VDP upload units. The
+  `FB_UpdateTileQueue()` hardware wrapper now exists, but the default desktop
+  loop does not call it yet; the live VBlank policy, active-display policy, and
+  double-buffer policy remain open.
 - The `DesktopTiming` probe script now has a bounded failure path around the
   GDB `continue` phase. `tools/probe_blastem_boot.ps1` accepts
   `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` on timeout, and

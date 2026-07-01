@@ -1,4 +1,5 @@
 #include "framebuffer.h"
+#include "dirty_rect.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -25,6 +26,13 @@ static void expect_u8(uint8_t actual, uint8_t expected, const char *name) {
   }
 }
 
+static void expect_u16(uint16_t actual, uint16_t expected, const char *name) {
+  if (actual != expected) {
+    printf("FAIL: %s expected %u got %u\n", name, expected, actual);
+    failures++;
+  }
+}
+
 static void write_source_tile(uint8_t *linear, uint16_t tileIndex,
                               uint8_t base) {
   uint16_t tx = tileIndex % FB_TILES_X;
@@ -39,6 +47,37 @@ static void write_source_tile(uint8_t *linear, uint16_t tileIndex,
     linear[offset + 2] = (uint8_t)(base + 0x20 + row);
     linear[offset + 3] = (uint8_t)(base + 0x30 + row);
   }
+}
+
+typedef struct {
+  uint8_t count;
+  uint16_t firstTile[4];
+  uint16_t tileCount[4];
+  uint16_t vramAddr[4];
+  uint16_t wordCount[4];
+  uint8_t firstByte[4];
+  uint8_t lastTileFirstByte[4];
+} UploadLog;
+
+static uint8_t record_upload(const uint8_t *tileData, uint16_t firstTile,
+                             uint16_t tileCount, uint16_t vramAddr,
+                             uint16_t wordCount, void *user) {
+  UploadLog *log = (UploadLog *)user;
+  uint8_t index;
+
+  if (!log || log->count >= 4 || !tileData || tileCount == 0)
+    return 0;
+
+  index = log->count;
+  log->firstTile[index] = firstTile;
+  log->tileCount[index] = tileCount;
+  log->vramAddr[index] = vramAddr;
+  log->wordCount[index] = wordCount;
+  log->firstByte[index] = tileData[0];
+  log->lastTileFirstByte[index] =
+      tileData[((uint32_t)(tileCount - 1) * FB_BYTES_PER_TILE)];
+  log->count++;
+  return 1;
 }
 
 static void expect_tile_bytes(const uint8_t *tiles, uint16_t outTileIndex,
@@ -102,10 +141,76 @@ static void framebuffer_rejects_invalid_spans(void) {
                "null destination rejected");
 }
 
+static void framebuffer_flushes_dirty_queue_in_strip_sized_chunks(void) {
+  uint8_t linear[FB_LINEAR_BPR * FB_SCREEN_H];
+  uint8_t scratch[FB_STRIP_TILES * FB_BYTES_PER_TILE];
+  DirtyTileUpload uploads[4];
+  DirtyTileQueue queue;
+  DirtyTileRange fullFrame = {0, 0, FB_TILES_X, FB_TILES_Y};
+  UploadLog log;
+
+  memset(linear, 0, sizeof(linear));
+  memset(scratch, 0, sizeof(scratch));
+  memset(&log, 0, sizeof(log));
+  write_source_tile(linear, 0, 0x10);
+  write_source_tile(linear, 159, 0x40);
+  write_source_tile(linear, 160, 0x70);
+  write_source_tile(linear, 234, 0xa0);
+
+  DR_InitTileQueue(&queue, uploads, 4, 7524);
+  expect_false(DR_QueueTileRange(&queue, &fullFrame, FB_TILES_X,
+                                 FB_BYTES_PER_TILE),
+               "full frame queue exceeds vblank budget");
+  expect_u16(queue.count, 1, "full frame queue entry count");
+
+  expect_true(FB_FlushTileQueueWithCallback(linear, &queue, scratch,
+                                            sizeof(scratch), record_upload,
+                                            &log),
+              "dirty queue flush callback succeeds");
+  expect_u8(log.count, 2, "dirty queue upload chunk count");
+  expect_u16(log.firstTile[0], 0, "chunk 0 first tile");
+  expect_u16(log.tileCount[0], 160, "chunk 0 tile count");
+  expect_u16(log.vramAddr[0], 0, "chunk 0 vram addr");
+  expect_u16(log.wordCount[0], 2560, "chunk 0 word count");
+  expect_u8(log.firstByte[0], 0x10, "chunk 0 first byte");
+  expect_u8(log.lastTileFirstByte[0], 0x40, "chunk 0 last tile byte");
+  expect_u16(log.firstTile[1], 160, "chunk 1 first tile");
+  expect_u16(log.tileCount[1], 75, "chunk 1 tile count");
+  expect_u16(log.vramAddr[1], 5120, "chunk 1 vram addr");
+  expect_u16(log.wordCount[1], 1200, "chunk 1 word count");
+  expect_u8(log.firstByte[1], 0x70, "chunk 1 first byte");
+  expect_u8(log.lastTileFirstByte[1], 0xa0, "chunk 1 last tile byte");
+}
+
+static void framebuffer_rejects_queue_flush_without_scratch_space(void) {
+  uint8_t linear[FB_LINEAR_BPR * FB_SCREEN_H];
+  uint8_t scratch[FB_BYTES_PER_TILE - 1];
+  DirtyTileUpload upload;
+  DirtyTileQueue queue;
+  DirtyTileRange range = {0, 0, 1, 1};
+  UploadLog log;
+
+  memset(linear, 0, sizeof(linear));
+  memset(scratch, 0, sizeof(scratch));
+  memset(&log, 0, sizeof(log));
+  DR_InitTileQueue(&queue, &upload, 1, 7524);
+  expect_true(DR_QueueTileRange(&queue, &range, FB_TILES_X,
+                                FB_BYTES_PER_TILE),
+              "small queue builds");
+
+  expect_false(FB_FlushTileQueueWithCallback(linear, &queue, scratch,
+                                             sizeof(scratch), record_upload,
+                                             &log),
+               "undersized scratch rejected");
+  expect_u8(log.count, 0, "no uploads with undersized scratch");
+}
+
 int main(void) {
   framebuffer_converts_single_tile_span();
   framebuffer_converts_span_across_row_boundary();
   framebuffer_rejects_invalid_spans();
+  framebuffer_flushes_dirty_queue_in_strip_sized_chunks();
+  framebuffer_rejects_queue_flush_without_scratch_space();
 
   if (failures) {
     printf("%d framebuffer test(s) failed\n", failures);

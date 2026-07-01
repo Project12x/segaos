@@ -210,3 +210,11 @@ RAM reads for the hardware path; the host test path uses normal byte reads so
 the same tile-index math can be verified on the development machine. This
 prepares the live VBlank queue consumer without changing the default full-frame
 upload path yet.
+
+Dirty-upload consumer update on 2026-07-01: `FB_FlushTileQueueWithCallback()`
+now consumes `DirtyTileQueue` spans, chunks them to the caller's scratch buffer,
+converts each chunk through `FB_ConvertTileSpan()`, and emits VRAM address /
+word-count metadata to an upload sink. Host tests prove the 7,520-byte
+NTSC-budgeted full-frame slice becomes two uploads through the 5,120-byte strip
+buffer: 160 tiles then 75 tiles. `FB_UpdateTileQueue()` is the Main-side DMA
+wrapper, but it is not yet wired into an emulator-proven VBlank frame policy.
