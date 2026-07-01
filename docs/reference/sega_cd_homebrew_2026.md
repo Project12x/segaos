@@ -166,3 +166,11 @@ to prove the app reached `segaos_visual_probe_halt` phase `0x76ff` before
 triggering BlastEm internal screenshotting. Treat this debugger-backed path as
 the default visual proof route; START-key autoplay captures can land on the Sega
 CD BIOS screen and should not be accepted as app-render evidence.
+
+Later 2026-06-30 update: the current command protocol uses CFM only as a pending
+signal and carries the opcode in `CMD0`. This matches the now-passing
+`BOOT_PROBE=1` assembly path and the C desktop path. The latest accepted
+boot-safe desktop screenshot is
+`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`, which
+shows the dirty-list root redraw plus direct startup window furniture with real
+SGDK-font title/body text.

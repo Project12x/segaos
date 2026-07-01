@@ -216,8 +216,8 @@ plan.
 
 Current local evidence:
 
-- normal `make all`: passes verifier with a 7,904-byte Sub SP observed with the
-  coarse block visual canary in the boot-safe frame
+- normal forced boot-safe desktop build: passes verifier with an 11,880 text-byte
+  Sub SP observed with the real SGDK-font starter window and dirty-rect module
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
 - `DESKTOP_INIT_PROBE=1`: passes `-Probe DesktopInit`, proving the boot-safe C
@@ -229,19 +229,19 @@ Current local evidence:
 - `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`: proves the sampled block title
   row reaches Word RAM and VDP tile data
 - normal boot-safe C desktop: visible as a checker desktop/menu/window frame
-  with a large block `OS` canary in
-  `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`;
-  SGDK-font body text remains opt-in while the scaled-stroke presentation is
-  cleaned up for default UI use
+  with readable SGDK-font menu, title, and body text in
+  `C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`
 
 The internal screenshot helper defaults to targeted window messages. For reliable
-BIOS START automation under SDL, use `-InputMode SendInputGuarded -ClickToFocus`;
-this clicks the BlastEm window, verifies it owns foreground focus before each
-key event, remaps `p` to controller START and `f12` to `ui.screenshot`, waits
-longer after START, and restores the user's BlastEm config afterward.
+BIOS START automation without injecting global keypresses into other programs,
+prefer `-InputMode PostMessage`. If SDL ignores posted input on a local setup,
+fall back to `-InputMode SendInputGuarded -ClickToFocus`; that path clicks the
+BlastEm window, verifies it owns foreground focus before each key event, remaps
+`p` to controller START and `f12` to `ui.screenshot`, waits longer after START,
+and restores the user's BlastEm config afterward.
 
-Do not advance the full desktop/app loop until the minimal `WM_NewWindow()`
-render rung and repeated-frame Word RAM policy are proven.
+Do not advance the full desktop/app loop until repeated-frame Word RAM policy
+and a minimal `WM_NewWindow()` render probe are proven.
 
 Additional diagnostic modes:
 

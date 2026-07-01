@@ -65,6 +65,11 @@ Timer tick = 30.72 microseconds.
 - **GA_COMCMD0-7** ($FF8010-$FF801E) — Main→Sub command params (read-only for Sub)
 - **GA_COMSTAT0-7** ($FF8020-$FF802E) — Sub→Main status returns (writable by Sub)
 
+SegaOS protocol evidence, 2026-06-30: use CFM only as a Main-to-Sub pending
+signal. The opcode lives in `GA_COMCMD0`; payload words live in
+`GA_COMCMD1`-`GA_COMCMD4`. The current pending value is `0x02` because that path
+is verified by both the C command loop and the assembly `BOOT_PROBE` path.
+
 ## ASIC / Stamp/Trace Registers
 - GA_STAMPSIZE ($FF8058)
 - GA_STAMPMAPBASE ($FF805A)

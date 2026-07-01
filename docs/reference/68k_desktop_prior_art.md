@@ -154,12 +154,24 @@ closely ported. `make host-tests`, `make iso`, and debugger-backed BlastEm
 internal screenshotting passed with the accepted frame at
 `C:\tmp\segaos_screens_internal\segaos_root_redraw_20260630_211404.png`.
 
+Status update, 2026-06-30 late pass: the minimal boot-safe window-furniture rung
+is complete for the direct startup renderer. `DR_PlanWindowRedraw()` is
+host-tested clean-room SegaOS code for dirty-window clipping, and the boot-safe
+first frame draws a compact window frame/title/body under the dirty-list clip
+without app callbacks or `WM_NewWindow()` allocation. DesktopInit proves the
+first render/upload path with terminal trace `0x7404`; the accepted visual frame
+is
+`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`.
+
 The remaining implementation rungs are:
 
-1. Minimal window furniture proof:
-   - draw one window frame/title/furniture through the dirty-rect list;
-   - no app content callbacks yet.
-2. Application content and event routing:
+1. Repeated-frame proof:
+   - verify Word RAM ownership/timing after the first returned frame;
+   - keep full-frame upload as bring-up until the VDP timing policy is measured.
+2. Real window-manager render proof:
+   - isolate a minimal `WM_NewWindow()`/z-order render probe;
+   - keep app callbacks disabled until the allocation/traversal path is stable.
+3. Application content and event routing:
    - add app-owned content rectangles;
    - route mouse/key events only after visible ownership and redraw are stable.
 

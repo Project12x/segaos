@@ -8,13 +8,14 @@
  *   Sub CPU:  Reads CMD registers, dispatches to Window Manager.
  *
  * Mouse event encoding in CMD registers:
- *   CMD[0] ($A12010): X position (absolute, 0-319)
- *   CMD[1] ($A12012): Y position (absolute, 0-223)
- *   CMD[2] ($A12014): Buttons (low byte) | Event type (high byte)
- *   CMD[3] ($A12016): Delta X (signed, for drag tracking)
+ *   CMD[0] ($A12010): CMD_MOUSE_EVENT opcode
+ *   CMD[1] ($A12012): X position (absolute, 0-319)
+ *   CMD[2] ($A12014): Y position (absolute, 0-223)
+ *   CMD[3] ($A12016): Buttons (low byte) | Event type (high byte)
+ *   CMD[4] ($A12018): Delta X (signed, for drag tracking)
  *
- * The Main CPU sends CMD_MOUSE_EVENT via the comm flag, then the
- * Sub CPU reads the packed data from the CMD registers.
+ * The Main CPU sends CMD_MOUSE_EVENT as the CMD0 opcode, then the Sub CPU
+ * reads the packed payload from the parameter CMD registers.
  */
 
 #ifndef INPUT_H
@@ -84,15 +85,9 @@ static inline void Input_SendMouseEvent(void) {
   if (evtType == INPUT_EVT_NONE)
     return;
 
-  /* Pack into CMD registers */
-  main_send_param(0, (uint16_t)ms->x);        /* CMD[0]: X pos    */
-  main_send_param(1, (uint16_t)ms->y);        /* CMD[1]: Y pos    */
-  main_send_param(2, ((uint16_t)evtType << 8) /* CMD[2]: type|btn */
-                         | (uint16_t)ms->buttons);
-  main_send_param(3, (uint16_t)ms->dx); /* CMD[3]: delta X  */
-
-  /* Send the command */
-  GA_MAIN_SET_FLAG(CMD_MOUSE_EVENT);
+  main_send_cmd(CMD_MOUSE_EVENT, (uint16_t)ms->x, (uint16_t)ms->y,
+                ((uint16_t)evtType << 8) | (uint16_t)ms->buttons,
+                (uint16_t)ms->dx);
 }
 
 #endif /* MAIN_CPU */

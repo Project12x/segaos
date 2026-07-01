@@ -192,6 +192,40 @@ static void root_redraw_rejects_empty_dirty_rects(void) {
   expect_false(plan.hasDesktop, "empty root plan has no desktop");
 }
 
+static void window_redraw_clips_to_dirty_region(void) {
+  DirtyWindowRedraw plan;
+  Rect dirty = rect_make(40, 50, 80, 120);
+  Rect window = rect_make(34, 40, 153, 258);
+
+  DR_PlanWindowRedraw(&dirty, &window, &plan);
+
+  expect_true(plan.hasWindow, "window redraw intersects");
+  expect_rect(plan.clip, dirty, "window redraw clip");
+}
+
+static void window_redraw_clips_partial_overlap(void) {
+  DirtyWindowRedraw plan;
+  Rect dirty = rect_make(20, 20, 60, 90);
+  Rect window = rect_make(34, 40, 153, 258);
+
+  DR_PlanWindowRedraw(&dirty, &window, &plan);
+
+  expect_true(plan.hasWindow, "window redraw partial intersects");
+  expect_rect(plan.clip, rect_make(34, 40, 60, 90),
+              "window redraw partial clip");
+}
+
+static void window_redraw_rejects_non_overlapping_regions(void) {
+  DirtyWindowRedraw plan;
+  Rect dirty = rect_make(0, 0, 20, 320);
+  Rect window = rect_make(34, 40, 153, 258);
+
+  plan.hasWindow = 1;
+  DR_PlanWindowRedraw(&dirty, &window, &plan);
+
+  expect_false(plan.hasWindow, "window redraw no intersection");
+}
+
 int main(void) {
   clips_to_bounds_and_rejects_empty();
   intersection_uses_half_open_edges();
@@ -203,6 +237,9 @@ int main(void) {
   root_redraw_splits_menu_and_desktop();
   root_redraw_keeps_single_owner_regions();
   root_redraw_rejects_empty_dirty_rects();
+  window_redraw_clips_to_dirty_region();
+  window_redraw_clips_partial_overlap();
+  window_redraw_rejects_non_overlapping_regions();
 
   if (failures) {
     printf("%d dirty rect test(s) failed\n", failures);

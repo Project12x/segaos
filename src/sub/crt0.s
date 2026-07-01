@@ -59,6 +59,7 @@ sp_init:
      * reaches the C command loop, causing a startup deadlock.
      */
     move.w  #0x0001, 0xFF8020   /* status0: SUB_STATE_BOOTING */
+    move.w  #0x0000, 0xFF8022   /* status1: clear ready magic */
     move.w  #0x5101, 0xFF802E   /* status7: entered sp_init */
     move.b  #0x01, 0xFF800F    /* CFS: STATUS_BUSY */
     rts
@@ -102,14 +103,17 @@ sp_main:
     .ifdef BOOT_PROBE
     move.w  #0x5201, 0xFF802E   /* status7: entered sp_main */
   .probe_wait_cmd:
-    move.b  0xFF800E, %d0       /* CFM: Main command flag */
-    cmpi.b  #0x03, %d0          /* CMD_BOOT_PROBE */
+    move.b  0xFF800E, %d0       /* CFM: Main command pending flag */
+    cmpi.b  #0x02, %d0
+    bne.s   .probe_wait_cmd
+    move.w  0xFF8010, %d0       /* CMD0: opcode */
+    cmpi.w  #0x0003, %d0        /* CMD_BOOT_PROBE */
     bne.s   .probe_wait_cmd
 
     move.b  #0x01, 0xFF800F    /* CFS: STATUS_BUSY */
-    move.w  0xFF8010, %d0       /* param0 */
-    move.w  0xFF8012, %d1       /* param1 */
-    move.w  0xFF8014, %d2       /* param2: nonzero enables WRAM survey */
+    move.w  0xFF8012, %d0       /* param0 */
+    move.w  0xFF8014, %d1       /* param1 */
+    move.w  0xFF8016, %d2       /* param2: nonzero enables WRAM survey */
 
     clr.w   0xFF8028            /* status4: Sub $0C0000 readback */
     clr.w   0xFF802A            /* status5: Sub $0C0002 readback */
@@ -198,6 +202,7 @@ sp_main:
     bra.w   .probe_wait_cmd
     .else
     move.w  #0x0001, 0xFF8020   /* status0: SUB_STATE_BOOTING */
+    move.w  #0x0000, 0xFF8022   /* status1: clear ready magic */
     move.w  #0x5201, 0xFF802E   /* status7: entered sp_main */
     move.b  #0x01, 0xFF800F    /* CFS: STATUS_BUSY */
     .endif

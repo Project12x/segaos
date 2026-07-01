@@ -5,9 +5,9 @@
  * via the Gate Array communication registers.
  *
  * Protocol Overview:
- *   1. Main sets COMM_FLAG high byte (CFM) to signal a command.
- *   2. Main writes command parameters to CMD registers ($A12010-$A1201E).
- *   3. Sub reads CFM, processes the command.
+ *   1. Main writes opcode to CMD0 and parameters to CMD1-CMD4.
+ *   2. Main sets COMM_FLAG high byte (CFM) to signal command pending.
+ *   3. Sub sees pending CFM, reads CMD0, processes the command.
  *   4. Sub writes results to STATUS registers ($FF8020-$FF802E).
  *   5. Sub sets COMM_FLAG low byte (CFS) to acknowledge.
  *   6. Main reads CFS and STATUS registers for the result.
@@ -33,9 +33,10 @@
 #define BRAM_INTERNAL_SIZE 0x2000  /* 8KB internal backup RAM     */
 
 /* ============================================================
- * Command Codes (Main -> Sub, via CFM flag byte)
+ * Command Codes (Main -> Sub, via CMD0 opcode word)
  *
- * The CFM byte is the "opcode". CMD registers carry parameters.
+ * The CFM byte is only a pending signal. CMD registers carry opcode and
+ * parameters because hardware/emulators only reliably expose low CFM bits.
  * ============================================================ */
 #define CMD_NONE 0x00         /* Idle / No command               */
 #define CMD_BOOT 0x01         /* Sub CPU has booted, awaiting OS */
@@ -53,6 +54,9 @@
 #define CMD_FILE_READ 0x50    /* Read file from CD               */
 #define CMD_FILE_WRITE 0x51   /* Write file to Backup RAM        */
 #define CMD_MOUSE_EVENT 0x60  /* Mouse input event from Main CPU */
+
+#define COMM_MAIN_IDLE 0x00
+#define COMM_MAIN_PENDING 0x02
 
 /* ============================================================
  * Status Codes (Sub -> Main, via CFS flag byte)
@@ -75,6 +79,8 @@ typedef enum {
   SUB_STATE_CRASHED = 0xFF
 } SubCPUState;
 
+#define SUB_READY_MAGIC 0x5244 /* "RD": C command loop ready */
+
 /* ============================================================
  * Communication Helpers
  *
@@ -92,14 +98,15 @@ static inline void main_send_cmd(uint8_t cmd, uint16_t p0, uint16_t p1,
   while (GA_MAIN_READ_SUB_FLAG() != STATUS_IDLE) {
   }
 
-  /* Write parameters to CMD registers */
-  GA_MAIN_REG16(GA_COMM_CMD0) = p0;
-  GA_MAIN_REG16(GA_COMM_CMD1) = p1;
-  GA_MAIN_REG16(GA_COMM_CMD2) = p2;
-  GA_MAIN_REG16(GA_COMM_CMD3) = p3;
+  /* Write opcode and parameters to CMD registers. */
+  GA_MAIN_REG16(GA_COMM_CMD0) = (uint16_t)cmd;
+  GA_MAIN_REG16(GA_COMM_CMD1) = p0;
+  GA_MAIN_REG16(GA_COMM_CMD2) = p1;
+  GA_MAIN_REG16(GA_COMM_CMD3) = p2;
+  GA_MAIN_REG16(GA_COMM_CMD4) = p3;
 
-  /* Set command flag (triggers Sub CPU to read) */
-  GA_MAIN_SET_FLAG(cmd);
+  /* Set pending flag (triggers Sub CPU to read CMD0 opcode). */
+  GA_MAIN_SET_FLAG(COMM_MAIN_PENDING);
 }
 
 /* Wait for command completion */
@@ -111,7 +118,7 @@ static inline uint8_t main_wait_done(void) {
   } while (status != STATUS_DONE && status != STATUS_ERROR);
 
   /* Clear our flag to complete handshake */
-  GA_MAIN_SET_FLAG(CMD_NONE);
+  GA_MAIN_SET_FLAG(COMM_MAIN_IDLE);
 
   /* Wait for Sub to also clear */
   while (GA_MAIN_READ_SUB_FLAG() != STATUS_IDLE) {
@@ -127,7 +134,12 @@ static inline uint16_t main_read_result(uint8_t index) {
 
 /* Write a single parameter to a CMD register (for event streaming) */
 static inline void main_send_param(uint8_t index, uint16_t value) {
-  GA_MAIN_REG16(GA_COMM_CMD0 + (index * 2)) = value;
+  GA_MAIN_REG16(GA_COMM_CMD1 + (index * 2)) = value;
+}
+
+static inline void main_send_opcode(uint8_t cmd) {
+  GA_MAIN_REG16(GA_COMM_CMD0) = (uint16_t)cmd;
+  GA_MAIN_SET_FLAG(COMM_MAIN_PENDING);
 }
 
 /* ---- Word RAM Bank Swap (Main CPU side) ---- */
@@ -175,16 +187,16 @@ static inline void main_return_wram_to_sub(void) {
 
 /* Wait for a command from the Main CPU. Returns the command byte. */
 static inline uint8_t sub_wait_cmd(void) {
-  uint8_t cmd;
+  uint8_t signal;
   do {
-    cmd = GA_SUB_READ_MAIN_FLAG();
-  } while (cmd == CMD_NONE);
-  return cmd;
+    signal = GA_SUB_READ_MAIN_FLAG();
+  } while (signal == COMM_MAIN_IDLE);
+  return (uint8_t)GA_SUB_REG16(GA_COMM_CMD0);
 }
 
 /* Read a parameter word from CMD registers */
 static inline uint16_t sub_read_param(uint8_t index) {
-  return GA_SUB_REG16(GA_COMM_CMD0 + (index * 2));
+  return GA_SUB_REG16(GA_COMM_CMD1 + (index * 2));
 }
 
 /* Write a result word to STATUS registers */
@@ -200,7 +212,7 @@ static inline void sub_done(void) {
   GA_SUB_SET_FLAG(STATUS_DONE);
 
   /* Wait for Main to clear its flag */
-  while (GA_SUB_READ_MAIN_FLAG() != CMD_NONE) {
+  while (GA_SUB_READ_MAIN_FLAG() != COMM_MAIN_IDLE) {
   }
 
   /* Clear our flag */
@@ -212,7 +224,7 @@ static inline void sub_error(void) {
   GA_SUB_SET_FLAG(STATUS_ERROR);
 
   /* Wait for Main to clear its flag */
-  while (GA_SUB_READ_MAIN_FLAG() != CMD_NONE) {
+  while (GA_SUB_READ_MAIN_FLAG() != COMM_MAIN_IDLE) {
   }
 
   GA_SUB_SET_FLAG(STATUS_IDLE);

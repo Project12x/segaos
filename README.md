@@ -58,7 +58,7 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Vdp
 
 # Build and capture the default boot-safe desktop frame deterministically
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BOOT_SAFE_VISUAL_PROBE=1
-powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -StartKey Enter -ScreenshotKey P -Template segaos_debug_visual_p_%Y%m%d_%H%M%S.png
+powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P -Template segaos_debug_visual_p_%Y%m%d_%H%M%S.png
 
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
@@ -97,7 +97,9 @@ The current emulator gate has also been crossed at the boot-disc and
 command/status levels. BlastEm with a USA Sega CD BIOS and SGDK GDB reaches the
 SegaOS IP, a Megadev-derived dual-CPU control reports from Sub-side code, and
 `BOOT_PROBE=1` now proves SegaOS Sub `sp_init`, Sub `sp_main`, and a Gate Array
-command/status round trip via `-Probe DualCpuStatus`. The strict `-Probe
+command/status round trip via `-Probe DualCpuStatus`. Main-to-Sub commands use
+CFM only as a pending signal; the opcode is carried in `CMD0`, with payload in
+`CMD1`-`CMD4`. The strict `-Probe
 DualCpu` check also proves a one-way Word RAM handoff: Sub writes its `$0C0000`
 bank, clears RET in 1M mode, and Main sees the pattern at `$200000`. The
 `-Probe Framebuffer` check now takes the next step: a deterministic 4bpp
@@ -137,7 +139,7 @@ boot-safe visual capture is now debugger-driven: build with
 `segaos_visual_probe_halt` and phase `0x76ff`,
 then resumes BlastEm so the emulator's internal `ui.screenshot` binding captures
 the app frame instead of a BIOS screen. The latest accepted default screenshot is
-`C:\tmp\segaos_screens_internal\segaos_root_redraw_20260630_211404.png`; the
+`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`; the
 older block-canary frame at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is retained
 only as historical evidence. The
@@ -149,9 +151,10 @@ are diagnostic references, not current visual passes.
 That boot-safe window is diagnostic, not the final UI. After the 68k desktop
 prior-art pass, the real-font correction, the palette-index transparency fix,
 default text restoration, and the host-tested dirty-rectangle/clipping pool, root
-desktop redraw now goes through the same dirty-rectangle/clipping contract. The
-next desktop gate is minimal window furniture through the dirty list before
-returning to normal menu/cursor/app rendering.
+desktop redraw and the first direct boot-safe window furniture now go through
+the same dirty-list clipping path. The next desktop gate is repeated-frame
+behavior, followed by a narrow `WM_NewWindow()` render probe before returning to
+normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

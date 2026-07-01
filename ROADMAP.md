@@ -137,7 +137,7 @@ starter frame with real SGDK-font menu, title, and body text through BLT's
 word-safe framebuffer backend. The older block-canary capture is retained at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
 current accepted default capture is
-`C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`,
+`C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`,
 created by the `BOOT_SAFE_VISUAL_PROBE=1` / `-DebugAutoBoot` path after GDB
 proved `segaos_visual_probe_halt` phase `0x76ff`.
 The captured striped title/body-text attempt at
@@ -146,10 +146,10 @@ known-bad visual reference, so body text and striped title styling stay opt-in.
 `WM_DrawDesktop()` supplies the boot-safe checker desktop/menu shell, while the
 starter window intentionally remains compact rectangle drawing. An attempt to
 move `WM_NewWindow()` into the boot render path regressed the Sub command loop
-before command consumption. The 68k desktop prior-art pass now moves the next
-work down one layer: prove real fixed-font text, dirty rectangles/clipping, and
-root desktop redraw before returning to minimal window furniture. The fixed-font
-rung now uses SGDK v2.11's MIT `font_default.png`, converted into SegaOS'
+before command consumption. The proven lower rungs are now real fixed-font text,
+dirty rectangles/clipping, root desktop redraw, and direct boot-safe window
+furniture. The fixed-font rung uses SGDK v2.11's MIT `font_default.png`,
+converted into SegaOS'
 1bpp glyph format and proven through the DesktopInit text probe; its scaled
 visual presentation is now readable in the opt-in compositor probe after
 reserving VDP palette index 0 for transparency/backdrop and using index 1 for
@@ -199,8 +199,8 @@ that matches Genesis VDP constraints.
       capture
 - [x] Add a static dirty-rectangle/clipping pool with host tests before it is
       used by the boot-safe renderer
-- [ ] Route root desktop redraw through the dirty-rectangle/clipping contract
-- [ ] Prove minimal window furniture through the redraw list, without app
+- [x] Route root desktop redraw through the dirty-rectangle/clipping contract
+- [x] Prove minimal window furniture through the redraw list, without app
       content callbacks
 - [ ] Re-enable the minimal window-manager render loop on top of the word-safe BLT backend
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
@@ -219,6 +219,7 @@ that matches Genesis VDP constraints.
 - [x] Add host tests for dirty-rect clipping, half-open intersection,
       deterministic subtraction strips, edge-touch merge, corner-touch
       separation, overflow behavior, and 8x8 tile range rounding
+- [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
       dirty-rectangle/root-redraw contracts pass
 - [ ] Validate mouse input -> window hit testing -> app callback flow

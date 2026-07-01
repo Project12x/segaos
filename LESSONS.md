@@ -43,6 +43,11 @@ same failures.
   and app content callbacks. `DR_PlanRootRedraw()` splits a dirty region at the
   menu boundary, and `WM_DrawDesktopInRect()` redraws menu, root desktop,
   separator, and screen border while preserving the caller's clip.
+- Window redraw clipping is now a tested dirty-rect contract too:
+  `DR_PlanWindowRedraw()` clips dirty regions to window bounds. The boot-safe
+  first frame still uses a compact direct BLT window renderer; do not route the
+  startup path through full `WM_NewWindow()` allocation or generalized window
+  traversal until that exact path has its own probe.
 - No maintained native Mega Drive desktop OS reference was found in this pass;
   that pushes SegaOS toward Sega CD hardware references plus 68k GEM/TOS
   desktop architecture, not toward inventing a GUI stack from scratch.
@@ -117,10 +122,17 @@ same failures.
 
 - READY must be published from the C runtime path after `sp_main` reaches the
   command loop, not from early BIOS callbacks.
+- Treat CFM as a pending signal, not as the opcode. The emulator-proven
+  protocol writes the opcode to `CMD0`, parameters to `CMD1`-`CMD4`, then sets
+  CFM to `COMM_MAIN_PENDING` (`0x02`). `CMD_BOOT_PROBE` in the assembly SP and
+  normal C commands both follow that rule.
 - The default boot-safe command wait loop should stay aligned with the
   probe-proven polling path until repeated-frame behavior is understood.
 - Keep command breadcrumbs in COMSTAT registers while debugging, but avoid
   overwriting the trace value that a probe is asserting.
+- After `sub_done()`, do not let the idle loop overwrite terminal command
+  traces such as `0x7404`; Main/GDB may capture status after the Sub command
+  loop has already returned to idle.
 
 ## Visual Target
 
@@ -150,7 +162,7 @@ same failures.
 - Latest accepted default internal screenshot, captured with
   `BOOT_SAFE_VISUAL_PROBE=1` and `-DebugAutoBoot` after GDB proved phase
   `0x76ff`:
-  `C:\tmp\segaos_screens_internal\segaos_root_redraw_20260630_211404.png`.
+  `C:\tmp\segaos_screens_internal\segaos_window_dirty_20260630_224628.png`.
   The older block-canary frame at
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is only a
   historical reference.
@@ -168,8 +180,13 @@ same failures.
 - `WM_DrawDesktopInRect()` is the root redraw gate: keep it clip-preserving so
   the Sub CPU dirty loop can draw root pixels and then continue with windows
   under the same dirty clip.
+- Minimal boot-safe window furniture is now accepted through the dirty-list
+  loop with fixed local rectangles, real SGDK-font title/body text, and no app
+  callbacks. This is a startup renderer, not proof that the full window manager
+  allocation/z-order path is safe.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
   consumption before the first command was handled. Treat full WM allocation and
-  z-order traversal as later rungs. Fixed-font text and the dirty rectangle pool
-  are now proven; root desktop redraw is now proven; the next isolated rung is
-  minimal window furniture.
+  z-order traversal as later rungs. Fixed-font text, dirty rectangles, root
+  redraw, and direct boot-safe window furniture are now proven; the next
+  isolated rung is repeated-frame behavior, then a minimal `WM_NewWindow()`
+  render probe.

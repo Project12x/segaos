@@ -234,7 +234,7 @@ static void boot_sequence(void) {
   segaos_smoke_main_phase = 0x8001;
 #endif
 
-  GA_MAIN_SET_FLAG(CMD_NONE);
+  GA_MAIN_SET_FLAG(COMM_MAIN_IDLE);
 
   /* Step 1: Wait for Sub CPU BIOS usercall startup before touching shared
    * display/Word RAM state. Keep BIOS VBlank/interrupt setup deferred until
@@ -259,9 +259,9 @@ static void boot_sequence(void) {
 
   /* Step 2: Set Word RAM to 1M mode for the verified boot framebuffer bank */
   {
-    uint16_t mem = GA_MAIN_REG16(GA_MEM_MODE);
-    mem |= MEM_MODE_1M;
-    GA_MAIN_REG16(GA_MEM_MODE) = mem;
+    uint8_t mem = GA_MAIN_REG8(GA_MEM_MODE + 1);
+    GA_MAIN_REG8(GA_MEM_MODE + 1) =
+        (uint8_t)((mem | MEM_MODE_1M | MEM_MODE_RET) & ~MEM_MODE_DMNA);
   }
 
   /* Step 3: Initialize Mega Mouse on controller port 1 */
@@ -486,7 +486,7 @@ static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
     status = GA_MAIN_READ_SUB_FLAG();
     if (status == STATUS_DONE || status == STATUS_ERROR) {
       segaos_desktop_wait_polls = (uint16_t)polls;
-      GA_MAIN_SET_FLAG(CMD_NONE);
+      GA_MAIN_SET_FLAG(COMM_MAIN_IDLE);
       while (GA_MAIN_READ_SUB_FLAG() != STATUS_IDLE) {
       }
       return status;
@@ -589,7 +589,8 @@ static uint8_t wait_for_sub_ready(void) {
   for (frame = 0; frame < SUB_READY_FRAME_LIMIT; frame++) {
     for (polls = 0; polls < SUB_READY_POLLS_PER_FRAME; polls++) {
       if (GA_MAIN_READ_SUB_FLAG() == STATUS_IDLE &&
-          main_read_result(0) == SUB_STATE_READY) {
+          main_read_result(0) == SUB_STATE_READY &&
+          main_read_result(1) == SUB_READY_MAGIC) {
         return 1;
       }
     }

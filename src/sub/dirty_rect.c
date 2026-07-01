@@ -160,6 +160,27 @@ void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
   }
 }
 
+void DR_PlanWindowRedraw(const Rect *dirty, const Rect *windowBounds,
+                         DirtyWindowRedraw *out) {
+  if (!out)
+    return;
+
+  out->hasWindow = 0;
+  out->clip.top = 0;
+  out->clip.left = 0;
+  out->clip.bottom = 0;
+  out->clip.right = 0;
+
+  if (!dirty || !windowBounds || DR_RectIsEmpty(dirty) ||
+      DR_RectIsEmpty(windowBounds)) {
+    return;
+  }
+
+  if (DR_RectIntersect(dirty, windowBounds, &out->clip)) {
+    out->hasWindow = 1;
+  }
+}
+
 static Boolean dr_rect_can_merge(const Rect *a, const Rect *b) {
   Boolean horizontalOverlap;
   Boolean verticalOverlap;

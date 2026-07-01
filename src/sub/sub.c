@@ -112,10 +112,8 @@ void sub_init(void) {
   BLT_Init((uint8_t *)0x0C0000);
   BLT_SetMode(BLT_MODE_4BIT);
 #endif
-  /* Signal readiness only. Main must establish Word RAM and the VDP path
-   * before it sends CMD_INIT_OS to initialize rendering. */
-  sub_write_result(0, SUB_STATE_READY);
-  GA_SUB_SET_FLAG(STATUS_IDLE);
+  /* Do not publish READY here. Main must wait until sub_main reaches the
+   * command loop so command flags cannot race BIOS/usercall startup. */
 #endif
 }
 
@@ -125,19 +123,34 @@ void sub_init(void) {
  * Runs the cooperative multitasking command loop. Does not return.
  */
 void sub_main(void) {
+#if !defined(BOOT_PROBE) &&                                                 \
+    (defined(DESKTOP_INIT_PROBE) || defined(BOOT_SAFE_DESKTOP))
+  uint8_t readyPublished = 0;
+#endif
 #if defined(DESKTOP_INIT_PROBE)
   sub_write_result(7, 0x7201);
+#endif
+#if !defined(BOOT_PROBE) && !defined(DESKTOP_INIT_PROBE) &&                 \
+    !defined(BOOT_SAFE_DESKTOP)
+  sub_write_result(0, SUB_STATE_READY);
+  GA_SUB_SET_FLAG(STATUS_IDLE);
 #endif
   while (1) {
 #ifdef BOOT_PROBE
     uint8_t cmd = sub_wait_cmd();
 #elif defined(DESKTOP_INIT_PROBE) || defined(BOOT_SAFE_DESKTOP)
     uint8_t cmd;
-    uint16_t idle_spin = 0;
+    uint8_t signal;
     do {
-      cmd = GA_SUB_READ_MAIN_FLAG();
-      sub_write_result(5, idle_spin++);
-    } while (cmd == CMD_NONE);
+      signal = GA_SUB_READ_MAIN_FLAG();
+      if (!readyPublished) {
+        sub_write_result(0, SUB_STATE_READY);
+        sub_write_result(1, SUB_READY_MAGIC);
+        GA_SUB_SET_FLAG(STATUS_IDLE);
+        readyPublished = 1;
+      }
+    } while (signal == COMM_MAIN_IDLE);
+    cmd = (uint8_t)GA_SUB_REG16(GA_COMM_CMD0);
 #else
     uint8_t cmd = sub_wait_cmd();
 #endif
@@ -146,14 +159,79 @@ void sub_main(void) {
     sub_write_result(6, (uint16_t)cmd);
 #endif
     process_command(cmd);
-#if defined(DESKTOP_INIT_PROBE)
-    sub_write_result(6, 0x7203);
-#endif
   }
 }
 
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
+static void boot_draw_menu_labels(void) {
+  BLT_DrawString(8, 4, "File", SysFont_Get(), BLT_BLACK);
+  BLT_DrawString(48, 4, "Edit", SysFont_Get(), BLT_BLACK);
+  BLT_DrawString(88, 4, "View", SysFont_Get(), BLT_BLACK);
+}
+
+static void boot_draw_window_body(void) {
+  Rect divider;
+
+  divider.left = 52;
+  divider.top = 83;
+  divider.right = 246;
+  divider.bottom = 84;
+
+  BLT_DrawString(56, 68, "Welcome to SegaOS", SysFont_Get(), BLT_BLACK);
+  BLT_FillRect(&divider, BLT_BLACK);
+  BLT_DrawString(56, 96, "68K desktop shell", SysFont_Get(), BLT_BLACK);
+  BLT_DrawString(56, 112, "Word RAM -> VDP", SysFont_Get(), BLT_BLACK);
+  BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
+}
+
+static void boot_draw_boot_window(void) {
+  Rect shadow;
+  Rect frame;
+  Rect titleBar;
+  Rect content;
+  Rect closeBox;
+  uint8_t titleFill;
+
+  shadow.left = 44;
+  shadow.top = 40;
+  shadow.right = 262;
+  shadow.bottom = 157;
+
+  frame.left = 40;
+  frame.top = 34;
+  frame.right = 258;
+  frame.bottom = 153;
+
+  titleBar.left = 41;
+  titleBar.top = 35;
+  titleBar.right = 257;
+  titleBar.bottom = 54;
+
+  content.left = 41;
+  content.top = 55;
+  content.right = 257;
+  content.bottom = 152;
+
+  closeBox.left = 45;
+  closeBox.top = 38;
+  closeBox.right = 57;
+  closeBox.bottom = 50;
+
+  titleFill = (BLT_GetMode() == BLT_MODE_2BIT) ? BLT_2_LIGHT_GRAY
+                                               : BLT_4_LIGHT_GRAY;
+
+  BLT_FillRect(&shadow, BLT_4_DARK_GRAY);
+  BLT_FillRect(&frame, BLT_GetWhite());
+  BLT_DrawRect(&frame, BLT_BLACK);
+  BLT_FillRect(&titleBar, titleFill);
+  BLT_DrawRect(&titleBar, BLT_BLACK);
+  BLT_DrawRect(&closeBox, BLT_BLACK);
+  BLT_DrawString(125, 37, "SegaOS", SysFont_Get(), BLT_BLACK);
+  BLT_FillRect(&content, BLT_GetWhite());
+  boot_draw_window_body();
+}
+
 static void render_boot_safe_desktop(void) {
 #ifdef BOOT_SAFE_TEXT_PROBE
   Rect screen;
@@ -176,55 +254,32 @@ static void render_boot_safe_desktop(void) {
   BLT_DrawStringScaled(64, 116, "TEXT OK", SysFont_Get(), BLT_BLACK, 2);
   BLT_DrawString(64, 152, "SGDK FONT", SysFont_Get(), BLT_BLACK);
 #else
-  Rect frame;
-  Rect shadow;
-  Rect titleBar;
-  Rect content;
-  Rect divider;
+  DirtyRect dirtyStorage[4];
+  DirtyRectList dirtyList;
+  Rect screen;
+  uint8_t i;
 
-  shadow.left = 44;
-  shadow.top = 40;
-  shadow.right = 262;
-  shadow.bottom = 157;
+  screen.left = 0;
+  screen.top = 0;
+  screen.right = WM_SCREEN_W;
+  screen.bottom = WM_SCREEN_H;
 
-  frame.left = 40;
-  frame.top = 34;
-  frame.right = 258;
-  frame.bottom = 153;
+  DR_InitList(&dirtyList, dirtyStorage, 4, &screen);
+  DR_AddRect(&dirtyList, &screen);
 
-  titleBar.left = 41;
-  titleBar.top = 35;
-  titleBar.right = 257;
-  titleBar.bottom = 54;
+  for (i = 0; i < DR_GetCount(&dirtyList); i++) {
+    DirtyRect *dirty = DR_GetRect(&dirtyList, i);
+    if (!dirty || !dirty->valid)
+      continue;
 
-  content.left = 41;
-  content.top = 55;
-  content.right = 257;
-  content.bottom = 152;
+    BLT_SetClipRect(&dirty->rect);
 
-  divider.left = 52;
-  divider.top = 83;
-  divider.right = 246;
-  divider.bottom = 84;
+    WM_DrawDesktopInRect(&dirty->rect);
+    boot_draw_menu_labels();
+    boot_draw_boot_window();
+  }
 
   BLT_ResetClip();
-  WM_DrawDesktop();
-
-  BLT_FillRect(&shadow, BLT_4_DARK_GRAY);
-  BLT_FillRect(&frame, BLT_GetWhite());
-  BLT_DrawRect(&frame, BLT_BLACK);
-  BLT_FillRect(&content, BLT_GetWhite());
-  BLT_DrawTitleBar(&titleBar, "SegaOS", 1, 1, SysFont_Get());
-
-  BLT_DrawString(8, 4, "File", SysFont_Get(), BLT_BLACK);
-  BLT_DrawString(48, 4, "Edit", SysFont_Get(), BLT_BLACK);
-  BLT_DrawString(88, 4, "View", SysFont_Get(), BLT_BLACK);
-
-  BLT_DrawString(56, 68, "Welcome to SegaOS", SysFont_Get(), BLT_BLACK);
-  BLT_FillRect(&divider, BLT_BLACK);
-  BLT_DrawString(56, 96, "68K desktop shell", SysFont_Get(), BLT_BLACK);
-  BLT_DrawString(56, 112, "Word RAM -> VDP", SysFont_Get(), BLT_BLACK);
-  BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
 #endif
 }
 #endif

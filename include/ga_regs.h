@@ -122,7 +122,7 @@
  *   Low byte  (offset 0x0F): Sub CPU flag  (CFS). Sub writes.
  * ============================================================ */
 
-/* Main CPU sets its flag byte */
+/* Main CPU sets its CFM byte. */
 #define GA_MAIN_SET_FLAG(val) GA_MAIN_REG8(GA_COMM_FLAG) = (uint8_t)(val)
 
 /* Sub CPU sets its flag byte */
