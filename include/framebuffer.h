@@ -100,6 +100,10 @@ void FB_Init(void);
  * its first rendered frame. */
 void FB_ShowBootPattern(void);
 
+#ifdef DESKTOP_TIMING_PROBE
+void FB_UpdateFrameProfile(const uint8_t *wram_bank);
+#endif
+
 /* ============================================================
  * Frame Update
  *

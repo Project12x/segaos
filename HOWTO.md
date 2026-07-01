@@ -238,6 +238,11 @@ Current local evidence:
   single-bank render/upload/return cycles after the first frame, with terminal
   phase `0x83ff`, loop count `0x0004`, status `0x0003`, trace `0x7404`,
   MEM_MODE `0x2a06`, and final title-row VRAM words `0xf11f/0x1f11`
+- `DESKTOP_TIMING_PROBE=1`: passes `-Probe DesktopTiming`, proving the current
+  boot-safe full-frame upload path runs 7 strip DMA transfers with HV counter
+  movement on every strip and DMA clear after every strip; the current BlastEm
+  sample reaches phase `0x84ff`, HV `0xbc1d` to `0xeb95`, final VDP status
+  `0x3208`, and masks `0x007f/0x007f`
 - `DESKTOP_WM_PROBE=1`: passes `-Probe DesktopWm`, proving a minimal
   `WM_Init()` + `WM_NewWindow()` document window can be allocated, made active,
   traversed through z-order, and rendered under the dirty-window clip path;
@@ -258,9 +263,10 @@ and restores the user's BlastEm config afterward.
 Do not advance the full desktop/app loop just because the minimal
 `WM_NewWindow()` probe and short multi-frame loop probe are green. The
 single-bank handoff, several repeated render/upload cycles, and the narrow WM
-allocation/z-order render path are proven, but alternating double buffering and
-VDP timing still need their own policy before the long-running desktop loop is
-treated as stable.
+allocation/z-order render path are proven, and the full-frame upload path has a
+first HV/status timing probe. Alternating double buffering, dirty-tile VBlank
+budgeting, and the final long-running desktop scheduler still need their own
+policy before the desktop loop is treated as stable.
 
 Additional diagnostic modes:
 
@@ -294,6 +300,12 @@ C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
 
 powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
   -Probe DesktopLoop
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_TIMING_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
+  -Probe DesktopTiming
 
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
   DESKTOP_WM_PROBE=1

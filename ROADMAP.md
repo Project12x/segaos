@@ -24,6 +24,7 @@
 - [x] Verify one-way Sub bank-0 return timing in emulator
 - [x] Verify two-frame single-bank return/reacquire timing in emulator
 - [x] Verify short multi-frame single-bank render/upload/return timing in emulator
+- [x] Add first HV/status timing probe for the full-frame upload path
 - [ ] Confirm which Main CPU Word RAM window should be displayed after each swap
 - [ ] DMA timing refinement (VBlank vs active display)
 
@@ -177,6 +178,11 @@ loop: after the first frame, Main drives four additional render/upload/return
 cycles, reaches phase `0x83ff`, counts four loop frames, keeps status
 `0x0003` and trace `0x7404`, observes MEM_MODE `0x2a06`, and still reads the
 final title row from VDP as `0xf11f/0x1f11`.
+`DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` now gives the first measured
+VDP upload evidence: the current full-frame path runs 7 strip DMA transfers,
+reaches phase `0x84ff`, records HV `0xbc1d` to `0xeb95` in BlastEm, records
+final VDP status `0x3208`, and proves every strip changed HV and ended with DMA
+clear through masks `0x007f/0x007f`.
 `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` now proves a minimal clean-room
 window-manager boot render path. The Sub CPU runs `WM_Init()`, allocates one
 `WM_NewWindow()` document window, traverses bottom-to-top z-order, clips it via
@@ -196,7 +202,8 @@ remains a later production policy.
 
 ### Milestone D: VDP Timing Budget
 - [ ] Treat full-frame conversion as a bring-up path, not the final frame loop
-- [ ] Measure conversion and DMA cost with scanline/VCounter instrumentation
+- [x] Add first HV/status probe around full-frame strip conversion/DMA
+- [ ] Turn HV/status samples into a documented frame-budget policy
 - [ ] Decide the production update policy:
   - [ ] VBlank-only dirty-tile queue
   - [ ] active-display transfer with acceptable artifacts
@@ -238,6 +245,8 @@ that matches Genesis VDP constraints.
       internal screenshotting
 - [x] Prove a short boot-safe single-bank render/upload loop before returning
       to broad desktop/app rendering
+- [x] Add a first VDP HV/status timing probe before selecting the long-running
+      frame scheduler
 - [ ] Re-enable the minimal window-manager render loop on top of the word-safe
       BLT backend outside the opt-in boot probe
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel

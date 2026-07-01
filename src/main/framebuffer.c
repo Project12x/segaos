@@ -28,6 +28,15 @@
 
 static uint8_t strip_buf[STRIP_BUF_SIZE];
 
+#ifdef DESKTOP_TIMING_PROBE
+volatile uint16_t segaos_desktop_timing_strip_count;
+volatile uint16_t segaos_desktop_timing_hv_start;
+volatile uint16_t segaos_desktop_timing_hv_end;
+volatile uint16_t segaos_desktop_timing_status_end;
+volatile uint16_t segaos_desktop_timing_transition_mask;
+volatile uint16_t segaos_desktop_timing_dma_clear_mask;
+#endif
+
 /* ============================================================
  * FB_Init - Set up VDP tilemap and palette
  *
@@ -179,3 +188,61 @@ void FB_UpdateFrame(const uint8_t *wram_bank) {
                   strip_tiles * (FB_BYTES_PER_TILE / 2));
   }
 }
+
+#ifdef DESKTOP_TIMING_PROBE
+void FB_UpdateFrameProfile(const uint8_t *wram_bank) {
+  uint16_t vram_addr;
+  uint16_t strip_tiles;
+  uint16_t strip_index = 0;
+  uint16_t strip_bit = 1;
+
+  segaos_desktop_timing_strip_count = 0;
+  segaos_desktop_timing_hv_start = VDP_HV_COUNTER;
+  segaos_desktop_timing_hv_end = segaos_desktop_timing_hv_start;
+  segaos_desktop_timing_status_end = VDP_CTRL_PORT;
+  segaos_desktop_timing_transition_mask = 0;
+  segaos_desktop_timing_dma_clear_mask = 0;
+
+  for (uint16_t strip_y = 0; strip_y < FB_TILES_Y; strip_y += STRIP_TILE_ROWS) {
+    uint16_t hv_before;
+    uint16_t hv_after_convert;
+    uint16_t hv_after_dma;
+    uint16_t status_after_dma;
+    uint16_t tile_rows = STRIP_TILE_ROWS;
+
+    if (strip_y + tile_rows > FB_TILES_Y) {
+      tile_rows = FB_TILES_Y - strip_y;
+    }
+
+    hv_before = VDP_HV_COUNTER;
+
+    convert_strip(wram_bank, strip_y);
+    hv_after_convert = VDP_HV_COUNTER;
+
+    strip_tiles = FB_TILES_X * tile_rows;
+    vram_addr = (strip_y * FB_TILES_X) * FB_BYTES_PER_TILE;
+
+    VDP_WaitDMA();
+    VDP_DMAToVRAM((uint32_t)strip_buf, vram_addr,
+                  strip_tiles * (FB_BYTES_PER_TILE / 2));
+    VDP_WaitDMA();
+
+    hv_after_dma = VDP_HV_COUNTER;
+    status_after_dma = VDP_CTRL_PORT;
+
+    if (hv_before != hv_after_convert || hv_after_convert != hv_after_dma) {
+      segaos_desktop_timing_transition_mask |= strip_bit;
+    }
+    if (!(status_after_dma & VDP_STATUS_DMA)) {
+      segaos_desktop_timing_dma_clear_mask |= strip_bit;
+    }
+
+    segaos_desktop_timing_strip_count = (uint16_t)(strip_index + 1);
+    strip_index++;
+    strip_bit = (uint16_t)(strip_bit << 1);
+  }
+
+  segaos_desktop_timing_hv_end = VDP_HV_COUNTER;
+  segaos_desktop_timing_status_end = VDP_CTRL_PORT;
+}
+#endif

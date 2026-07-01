@@ -615,7 +615,11 @@ static void desktop_init_probe(void) {
   segaos_desktop_title_vram_word0 = 0;
   segaos_desktop_title_vram_word1 = 0;
 #endif
+#ifdef DESKTOP_TIMING_PROBE
+  FB_UpdateFrameProfile(WRAM_BANK0_MAIN);
+#else
   FB_UpdateFrame(WRAM_BANK0_MAIN);
+#endif
   VDP_WaitDMA();
 #ifdef BOOT_SAFE_TEXT_PROBE
   desktop_text_capture_vram();
@@ -686,6 +690,8 @@ static void desktop_init_probe(void) {
     segaos_desktop_loop_title_vram_word1 = desktop_title_read_vram_word(1);
   }
   segaos_desktop_main_phase = 0x83ff;
+#elif defined(DESKTOP_TIMING_PROBE)
+  segaos_desktop_main_phase = 0x84ff;
 #else
   segaos_desktop_main_phase = 0x81ff;
 #endif

@@ -5,8 +5,9 @@
 
 Phase 1 and Phase 2 are complete. The production Word RAM bank-sync code paths
 are present; the boot-safe single-bank path now has two-frame and short
-multi-frame loop probes, while full alternating 1M double buffering still needs
-a runtime policy.
+multi-frame loop probes, and the full-frame upload path now has a first
+HV/status timing probe. Full alternating 1M double buffering still needs a
+runtime policy.
 Milestone A is complete:
 the repeatable boot-disc artifact builds, verifies, includes regional security
 bytes in the Main CPU IP, and reaches the SegaOS IP in BlastEm. Milestone B is
@@ -68,6 +69,11 @@ the probe reaches phase `0x83ff`, counts four loop frames, keeps status
 `0x0003` and trace `0x7404`, observes MEM_MODE `0x2a06` across the Main-side
 return points, and still reads the final title-row VRAM words as
 `0xf11f/0x1f11`.
+`DESKTOP_TIMING_PROBE=1` now gives the first VDP timing-budget evidence for
+the current boot-safe full-frame upload path. The probe reaches phase `0x84ff`,
+profiles 7 strip DMA transfers, records HV `0xbc1d` to `0xeb95` in the current
+BlastEm run, records final VDP status `0x3208`, and proves every strip both
+moved the HV counter and ended with DMA clear via masks `0x007f/0x007f`.
 `DESKTOP_WM_PROBE=1` now proves a minimal real window-manager boot render path:
 the Sub CPU runs `WM_Init()`, creates one `WM_NewWindow()` document window,
 walks z-order through the dirty-window clip path, and `-Probe DesktopWm`
@@ -122,6 +128,7 @@ The active strategy is a bring-up ladder:
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
 | Desktop repeated-frame probe | Passing | `DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` proves a second boot-safe `CMD_RENDER_FRAME` after Main returns Word RAM; terminal phase `0x82ff`, repeat status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, repeated title VRAM `0xf11f/0x1f11` |
 | Desktop short loop probe | Passing | `DESKTOP_LOOP_PROBE=1` + `-Probe DesktopLoop` proves four additional single-bank render/upload/return cycles after the first frame; terminal phase `0x83ff`, loop count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, final title VRAM `0xf11f/0x1f11` |
+| Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xeb95`, final VDP status `0x3208`, masks `0x007f/0x007f` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Dirty rectangle host tests | Passing | `make host-tests` covers clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, and 8x8 tile range mapping |
@@ -156,6 +163,8 @@ The active strategy is a bring-up ladder:
   bytes observed locally with `DESKTOP_REPEAT_PROBE=1`
 - Boot-safe loop probe usage: Main IP 3,560 bytes / SP 11,836 text bytes
   observed locally with `DESKTOP_LOOP_PROBE=1`
+- Boot-safe timing probe usage: Main IP 3,460 bytes / SP 11,836 text bytes
+  observed locally with `DESKTOP_TIMING_PROBE=1`
 - Boot-safe WM probe usage: Main IP 3,304 bytes / SP 13,118 text bytes,
   2,298 BSS bytes observed locally with `DESKTOP_WM_PROBE=1`
 - Boot-safe WM visual probe usage: Main IP 3,320 bytes / SP 13,118 text bytes,
@@ -234,6 +243,10 @@ Key adopted assumptions:
 - `DESKTOP_LOOP_PROBE=1` proves the same single-bank release/reacquire path can
   survive a short loop of four additional render/upload/return cycles after the
   first frame, with the final title row still present in VDP tile data.
+- `DESKTOP_TIMING_PROBE=1` proves the current full-frame upload path runs as 7
+  strip DMAs and gives the first HV/status measurement for frame-policy work:
+  current BlastEm sample HV `0xbc1d` to `0xeb95`, final status `0x3208`, and
+  transition/DMA-clear masks `0x007f/0x007f`.
 - The framebuffer probe uses that handoff for a deterministic 4bpp tile:
   Sub writes `$1234/$5678` to linear row 0 and `$9abc/$def0` to row 1, Main
   reads those words through `$200000`, runs `FB_UpdateFrame()`, and reads the
@@ -308,8 +321,9 @@ High priority:
 - The current dual-CPU probes prove Main boot, Sub `sp_init`/`sp_main`, Gate
   Array command/status, one-way Sub bank-0 Word RAM return, framebuffer-to-VDP
   tile readback, a visible deterministic framebuffer display, and the
-  boot-safe desktop's short single-bank render loop. They do not yet prove the
-  full alternating double-buffer policy or long-running frame scheduler.
+  boot-safe desktop's short single-bank render loop plus first VDP upload
+  timing sample. They do not yet prove the full alternating double-buffer
+  policy or long-running frame scheduler.
 - The boot-safe C desktop path now reaches Sub-ready, completes a first
   render/upload sequence, and displays a visible Mac-like starter frame through
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
@@ -333,8 +347,9 @@ High priority:
   by the boot-safe direct renderer's dirty loop. The narrow real
   `WM_NewWindow()` allocation/z-order render probe and its debugger-backed
   visual screenshot are now green, and the short single-bank render/upload loop
-  is now GDB-proven, but the long-running frame scheduler is still separate
-  stability work before menu/cursor/app rendering.
+  is now GDB-proven. The HV/status timing probe starts the frame-budget work,
+  but the long-running frame scheduler is still separate stability work before
+  menu/cursor/app rendering.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command
@@ -348,7 +363,9 @@ Runtime validation:
   double buffering is still unresolved: the proven path is a single-bank
   bring-up loop, not the final frame scheduler.
 - Full-frame conversion/DMA is acceptable for bring-up, but needs a VDP timing
-  policy before the desktop loop can be considered stable.
+  policy before the desktop loop can be considered stable. The first timing
+  probe measures the current full-frame upload shape; it does not yet define
+  dirty-tile VBlank budgeting or double-buffer policy.
 
 Lower priority:
 

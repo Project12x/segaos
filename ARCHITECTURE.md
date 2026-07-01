@@ -45,10 +45,19 @@ recorded in `docs/reference/68k_desktop_prior_art.md`:
   `shanecoughlan/OpenGEM@ac06b1a3fec3f3e8defcaaf7ea0338c38c3cef46`,
   GPL for GEM/FreeGEM/OpenGEM sections, reuse mode historical/API
   pattern-only.
+- PC/GEOS:
+  `bluewaysw/pcgeos@867154f966314155fdc2ee04593b21c0a5f6e724`,
+  candidate Apache-2.0 golden reference; no file-level porting pass has been
+  adopted yet.
+- CP/M-68K and reverse-engineered 8-bit GEOS sources are historical golden
+  references for small-machine discipline and UX/resource constraints until
+  source/license pinning is complete.
 
 These references are not code sources for SegaOS. They establish the clean-room
 architecture target: a VDI-like drawing/text/clipping layer, an AES-like
-window/event/redraw ownership layer, and a desktop shell on top.
+window/event/redraw ownership layer, and a desktop shell on top. VDP timing,
+Word RAM ownership, and frame-transfer policy must still be proven against Sega
+CD hardware/emulator evidence rather than inferred from those OSes.
 
 Concrete font data currently comes from SGDK v2.11:
 

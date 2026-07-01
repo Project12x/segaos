@@ -85,7 +85,8 @@ same failures.
   8. Visible BlastEm internal screenshot
   9. Repeated-frame Word RAM return/reacquire probe
   10. Short multi-frame single-bank render/upload loop probe
-  11. Minimal `WM_NewWindow()` allocation/z-order render probe
+  11. Full-frame upload HV/status timing probe
+  12. Minimal `WM_NewWindow()` allocation/z-order render probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -172,6 +173,22 @@ same failures.
   probe harness. Keep production scheduler work behind its own measured
   timing/banking decision instead of assuming the probe loop is the final loop.
 
+## VDP Timing
+
+- The golden 68k OS sources help with GUI ownership, redraw discipline, and
+  event layering; they do not answer Genesis VDP transfer timing. That policy
+  must come from Sega CD hardware evidence.
+- `DESKTOP_TIMING_PROBE=1` is the current first measurement rung. It profiles
+  the boot-safe full-frame upload as 7 strip DMA transfers, reaches phase
+  `0x84ff`, and passes `-Probe DesktopTiming`.
+- The current BlastEm sample records HV `0xbc1d` before the profiled upload and
+  `0xeb95` after it, final VDP status `0x3208`, transition mask `0x007f`, and
+  DMA-clear mask `0x007f`.
+- Interpret that narrowly: every strip consumed measurable HV time and DMA was
+  clear after each strip. This does not yet prove a production VBlank-only
+  dirty-tile queue, acceptable active-display artifacts, or alternating
+  double-buffer timing.
+
 ## Visual Target
 
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
@@ -234,3 +251,6 @@ same failures.
 - `DESKTOP_LOOP_PROBE=1` is the current evidence that the boot-safe direct
   renderer can run repeated single-bank frame cycles without losing the title
   text in VDP. It is not evidence that mouse/menu/app callbacks are ready.
+- `DESKTOP_TIMING_PROBE=1` gives the first timing evidence for the same
+  boot-safe direct renderer. It is not permission to skip the VDP transfer
+  policy decision before reintroducing broad desktop/app rendering.

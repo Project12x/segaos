@@ -68,6 +68,10 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_LOOP_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopLoop
 
+# Measure the boot-safe full-frame upload path with VDP HV/status samples
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_TIMING_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopTiming
+
 # Prove minimal WM_NewWindow allocation/z-order drawing in the boot renderer
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopWm
@@ -173,7 +177,12 @@ path to four additional render/upload/return cycles after the first frame:
 the probe reaches phase `0x83ff`, counts four loop frames, keeps status
 `0x0003` and trace `0x7404`, observes MEM_MODE `0x2a06` before and after each
 Main-side return, and still reads the title-row VRAM words as
-`0xf11f/0x1f11`. `DESKTOP_WM_PROBE=1` now proves the next narrow
+`0xf11f/0x1f11`. `DESKTOP_TIMING_PROBE=1` adds the first measured VDP
+frame-transfer rung: it profiles the boot-safe full-frame upload as 7
+strip-based DMA transfers, reaches phase `0x84ff`, observes HV `0xbc1d` to
+`0xeb95` in the current BlastEm run, records final VDP status `0x3208`, and
+proves every strip changed the HV counter and ended with DMA clear via masks
+`0x007f/0x007f`. `DESKTOP_WM_PROBE=1` now proves the next narrow
 window-manager rung: `WM_Init()` plus one `WM_NewWindow()` creates a visible,
 hilited document window, renders it through the dirty-window clip path, and
 passes `-Probe DesktopWm` with window count `0x0001`, active flags `0x0007`,
@@ -189,9 +198,10 @@ prior-art pass, the real-font correction, the palette-index transparency fix,
 default text restoration, and the host-tested dirty-rectangle/clipping pool, root
 desktop redraw and the first direct boot-safe window furniture now go through
 the same dirty-list clipping path. The short multi-frame single-bank loop is
-now GDB-proven, but the next desktop gate is still a measured long-running
-frame policy; the full alternating double-buffer and VDP timing policies remain
-later stability work before returning to normal
+now GDB-proven and the full-frame upload path has its first HV/status timing
+probe, but the next desktop gate is still a measured long-running frame policy;
+the full alternating double-buffer and dirty-tile VBlank policies remain later
+stability work before returning to normal
 menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
