@@ -229,3 +229,10 @@ title tile row in VRAM, builds one public `DirtyTileQueue` entry for tile
 `0x0147`, calls `FB_UpdateTileQueue()`, reaches phase `0x85ff`, and reads
 `0xf11f/0x1f11` back from VRAM matching Word RAM. This is a narrow hardware
 proof of the queue-to-DMA path, not a final VBlank scheduling policy.
+
+Storage-policy update on 2026-07-01: `STG_PlanSave()` now gives the first
+host-tested persistence decision seam. It is clean-room SegaOS policy code, not
+a BRAM hardware driver and not copied from Megadev: CD-ROM remains read-only,
+external Backup RAM cart storage is preferred for user documents/BASIC/text,
+internal BRAM is allowed only for preferences and tiny text/BASIC fallback
+saves, and image documents require the external cart path.

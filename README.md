@@ -87,7 +87,7 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
-# Run host-side redraw, dirty-transfer queue, framebuffer, and probe-timeout tests
+# Run host-side redraw, dirty-transfer queue, storage-policy, framebuffer, and probe-timeout tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
@@ -230,6 +230,10 @@ primary target for saved text, tokenized BASIC programs, tiny databases,
 preferences, and imported app data; internal 8 KB Backup RAM is the fallback
 for settings and emergency tiny saves. Exact cartridge presence/capacity still
 needs a SegaOS probe before the file manager and save UI are treated as stable.
+The first code-level storage contract is now `STG_PlanSave()`: host tests prove
+external cart preference for BASIC/text saves, internal BRAM fallback for tiny
+text/BASIC documents, reserve-space enforcement, and rejection of image saves
+without the external cart path.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

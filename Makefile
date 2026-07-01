@@ -140,6 +140,7 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/dirty_rect.c \
                $(SUB_DIR)/libc.c \
                $(SUB_DIR)/mem.c \
+               $(SUB_DIR)/storage.c \
                $(SUB_DIR)/sub.c \
                $(SUB_DIR)/sysfont.c \
                $(SUB_DIR)/wm.c
@@ -222,6 +223,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_dirty_rect.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_framebuffer.c src/main/framebuffer.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_framebuffer.exe
 	$(BUILD_DIR)/test_framebuffer.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe
+	$(BUILD_DIR)/test_storage_policy.exe
 	powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_probe_timeout.ps1 -HostCc "$(HOST_CC)"
 
 # ============================================================

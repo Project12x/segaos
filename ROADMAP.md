@@ -307,11 +307,16 @@ with in at least one emulator.
 ### Milestone F: Storage and OS Features
 - [ ] Add Sub CPU CD-ROM file access plan and API
 - [ ] Add Backup RAM wrappers with a three-tier storage policy:
-  - [ ] CD-ROM/ISO9660 remains the read-only app, demo, and asset source
-  - [ ] external Backup RAM cartridge is the planned primary writable store
+  - [x] Host-tested save-target policy contract:
+        `STG_PlanSave()` prefers external cart storage, allows internal BRAM
+        only for prefs/tiny text/BASIC fallback saves, enforces reserve space,
+        and rejects image saves without the external cart path
+  - [x] CD-ROM/ISO9660 remains the read-only app, demo, and asset source
+  - [x] external Backup RAM cartridge is the planned primary writable store
         for small user documents, BASIC programs, imported text, and app data
-  - [ ] internal 8 KB Backup RAM is the fallback for preferences, launch state,
+  - [x] internal 8 KB Backup RAM is the fallback for preferences, launch state,
         and emergency tiny documents
+  - [ ] Hardware-facing BRAM BIOS wrappers for directory/free-space/read/write
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
       blocks before designing the user-facing file manager
 - [ ] Decide app/resource packaging format on ISO9660

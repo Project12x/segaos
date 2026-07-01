@@ -253,6 +253,10 @@ same failures.
   programs, tiny databases, settings, and imported/exported app data. Internal
   8 KB Backup RAM should remain the compatibility fallback, not the design
   ceiling.
+- Use `STG_PlanSave()` before app save UI promises persistence. The current
+  host-tested policy prefers external cart storage, allows internal BRAM only
+  for preferences and tiny text/BASIC fallback saves, reserves free space on
+  both targets, and rejects image saves without the external cart path.
 - The current visible target is intentionally modest: checker desktop, menu
   separator, and a clean window starter frame with real SGDK-font menu, title,
   and body text.
