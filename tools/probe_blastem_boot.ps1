@@ -6,7 +6,7 @@ param(
   [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "VdpText")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopWm", "VdpText")]
   [string]$Probe = "Ip"
 )
 
@@ -237,7 +237,7 @@ try {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$name"
     }
-  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat") {
+  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat" -or $Probe -eq "DesktopWm") {
     $desktopNames = @(
       "segaos_desktop_main_phase",
       "segaos_desktop_sub_flag",
@@ -287,6 +287,13 @@ try {
         "segaos_desktop_repeat_mem_after_return",
         "segaos_desktop_repeat_title_vram_word0",
         "segaos_desktop_repeat_title_vram_word1"
+      )
+    }
+    if ($Probe -eq "DesktopWm") {
+      $desktopNames += @(
+        "segaos_desktop_wait_last_status",
+        "segaos_desktop_wait_first_non_idle",
+        "segaos_desktop_wait_last_non_idle"
       )
     }
 
@@ -515,7 +522,7 @@ try {
     if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
       exit 1
     }
-  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat") {
+  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat" -or $Probe -eq "DesktopWm") {
     $joined = $gdbOutput -join "`n"
     $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_desktop_init_halt")
     $desktopNames = @(
@@ -569,6 +576,13 @@ try {
         "segaos_desktop_repeat_title_vram_word1"
       )
     }
+    if ($Probe -eq "DesktopWm") {
+      $desktopNames += @(
+        "segaos_desktop_wait_last_status",
+        "segaos_desktop_wait_first_non_idle",
+        "segaos_desktop_wait_last_non_idle"
+      )
+    }
     $desktopValues = Get-NamedProbeValues $gdbOutput $desktopNames
     $expectedValues = [ordered]@{
       segaos_desktop_main_phase = "0x81ff"
@@ -591,6 +605,11 @@ try {
       $expectedValues["segaos_desktop_repeat_title_vram_word0"] = "0xf11f"
       $expectedValues["segaos_desktop_repeat_title_vram_word1"] = "0x1f11"
     }
+    if ($Probe -eq "DesktopWm") {
+      $expectedValues["segaos_desktop_stat2"] = "0x0001"
+      $expectedValues["segaos_desktop_stat3"] = "0x0007"
+      $expectedValues["segaos_desktop_stat5"] = "0x2822"
+    }
 
     $failed = @()
     foreach ($name in $expectedValues.Keys) {
@@ -607,6 +626,11 @@ try {
     Write-Output "desktop_stat3=$($desktopValues["segaos_desktop_stat3"])"
     Write-Output "desktop_stat5=$($desktopValues["segaos_desktop_stat5"])"
     Write-Output "desktop_stat6=$($desktopValues["segaos_desktop_stat6"])"
+    if ($Probe -eq "DesktopWm") {
+      Write-Output "desktop_wm_window_count=$($desktopValues["segaos_desktop_stat2"])"
+      Write-Output "desktop_wm_active_flags=$($desktopValues["segaos_desktop_stat3"])"
+      Write-Output "desktop_wm_frame_left_top=$($desktopValues["segaos_desktop_stat5"])"
+    }
     Write-Output "desktop_main_flag=$($desktopValues["segaos_desktop_main_flag"])"
     Write-Output "desktop_ready_sub_flag=$($desktopValues["segaos_desktop_ready_sub_flag"])"
     Write-Output "desktop_ready_stat0=$($desktopValues["segaos_desktop_ready_stat0"])"
@@ -617,6 +641,11 @@ try {
     Write-Output "desktop_mem_mode_before=$($desktopValues["segaos_desktop_mem_mode_before"])"
     Write-Output "desktop_mem_mode_after_return=$($desktopValues["segaos_desktop_mem_mode_after_return"])"
     Write-Output "desktop_wait_polls=$($desktopValues["segaos_desktop_wait_polls"])"
+    if ($Probe -eq "DesktopWm") {
+      Write-Output "desktop_wait_last_status=$($desktopValues["segaos_desktop_wait_last_status"])"
+      Write-Output "desktop_wait_first_non_idle=$($desktopValues["segaos_desktop_wait_first_non_idle"])"
+      Write-Output "desktop_wait_last_non_idle=$($desktopValues["segaos_desktop_wait_last_non_idle"])"
+    }
     Write-Output "desktop_text_probe_enabled=$($desktopValues["segaos_desktop_text_probe_enabled"])"
     Write-Output "desktop_text_wram=$($desktopValues["segaos_desktop_text_wram_word0"]),$($desktopValues["segaos_desktop_text_wram_word1"])"
     Write-Output "desktop_text_vram=$($desktopValues["segaos_desktop_text_vram_word0"]),$($desktopValues["segaos_desktop_text_vram_word1"])"

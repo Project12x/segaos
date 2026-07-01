@@ -15,7 +15,11 @@ not answer how to structure a small desktop GUI.
 For that GUI architecture, the best available references are 68000-era desktop
 systems in the GEM/TOS family. "Gemos" is treated here as GEM/GEMDOS/TOS unless
 a different project is identified later. GEOS is useful as historical UX
-context, but it is not a 68k/Sega CD implementation reference for this project.
+context. PC/GEOS is also a plausible permissive source candidate for later
+study, but it targets x86/DOS-era assumptions, not Sega CD. CP/M-68K is useful
+for the BDOS/BIOS separation and small-machine discipline, but source and
+license provenance still need a dedicated pinning pass before any
+implementation uses it.
 
 No maintained native Mega Drive desktop operating-system reference was found in
 this pass. That is not a blocker: SegaOS should take hardware bring-up and
@@ -30,8 +34,22 @@ from 68k GEM/TOS prior art.
 | FreeMiNT | https://github.com/freemint/freemint | `3172633539fb4281bc3b23c322892f565f303c16` | mixed; `COPYING` maps major trees including GPL and MiNT terms | pattern-only, clean-room behavior specs |
 | OpenGEM | https://github.com/shanecoughlan/OpenGEM | `ac06b1a3fec3f3e8defcaaf7ea0338c38c3cef46` | GPL for GEM/FreeGEM/OpenGEM sections per SDK README | historical/API pattern-only |
 
+## Candidate Golden References Not Yet Adopted
+
+These are explicitly on the source-reference list because they answer real
+questions about small OS structure or desktop UX, but they are not yet adopted
+implementation references for SegaOS:
+
+| Project | Repo / Source | Pinned Point | Current Licensing Read | SegaOS Status |
+|---|---|---|---|---|
+| PC/GEOS | https://github.com/bluewaysw/pcgeos | `867154f966314155fdc2ee04593b21c0a5f6e724` | GitHub reports Apache-2.0; file-level inspection still required before reuse | candidate reference for desktop/app architecture and docs; no code inspected for porting yet |
+| GEOS 2.0 C64/C128 reverse-engineered source | https://github.com/mist64/geos | `617efdc7191eda14eaf699d317e66d5bda68c039` | license not pinned in this pass | historical UX/resource-constraint reference only |
+| CP/M / CP/M-68K | Digital Research/CP/M archives and historical source mirrors | not pinned | licensing/source provenance not pinned in this pass | behavior reference for BDOS/BIOS split and file/process discipline only |
+
 Do not copy, closely port, or mechanically translate code from these GPL-family
-references into SegaOS. They are architecture and behavior references only.
+references into SegaOS. For candidate non-GPL references, do not copy or closely
+port until a future pass records the exact repo, commit, license file, files
+inspected, and reuse mode.
 
 ## EmuTOS
 
@@ -170,16 +188,26 @@ second render/upload cycle. The second command reaches status `0x0003`, trace
 `0xf11f/0x1f11`. This does not make the full window-manager/app loop safe; it
 removes the repeated-frame handoff as the next immediate blocker.
 
+Status update, 2026-06-30 WM probe pass: `DESKTOP_WM_PROBE=1` proves the first
+real window-manager allocation/z-order boot render rung. The probe runs
+`WM_Init()`, creates one document window through `WM_NewWindow()`, traverses it
+bottom-to-top, clips redraw with `DR_PlanWindowRedraw()`, and reports window
+count `0x0001`, active flags `0x0007`, frame origin `0x2822`, and terminal
+trace `0x7404`. No GEM/TOS/GEOS/CP/M code was copied or closely ported; the
+implementation remains clean-room. The blocker turned out to be toolchain
+contract, not desktop architecture: m68k GCC had optimized SegaOS' local
+`memset()` into a recursive self-call until the Makefile added
+`-ffreestanding -fno-builtin`. The same WM-backed boot frame is visually
+accepted through debugger-backed BlastEm internal screenshotting at
+`C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`.
+
 The remaining implementation rungs are:
 
-1. Real window-manager render proof:
-   - isolate a minimal `WM_NewWindow()`/z-order render probe;
-   - keep app callbacks disabled until the allocation/traversal path is stable.
-2. Long-running frame policy:
+1. Long-running frame policy:
    - keep full-frame upload as bring-up until the VDP timing policy is measured;
    - decide whether production uses single-bank bring-up, alternating 1M
      double buffering, or another transfer strategy.
-3. Application content and event routing:
+2. Application content and event routing:
    - add app-owned content rectangles;
    - route mouse/key events only after visible ownership and redraw are stable.
 

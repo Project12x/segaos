@@ -219,7 +219,7 @@ plan.
 
 Current local evidence:
 
-- normal forced boot-safe desktop build: passes verifier with an 11,926 text-byte
+- normal forced boot-safe desktop build: passes verifier with an 11,808 text-byte
   Sub SP observed with the real SGDK-font starter window and dirty-rect module
 - `BOOT_PROBE=1 BOOT_PROBE_FRAMEBUFFER=1`: passes `-Probe Framebuffer` and
   visible BlastEm internal screenshotting
@@ -234,6 +234,11 @@ Current local evidence:
 - `DESKTOP_REPEAT_PROBE=1`: passes `-Probe DesktopRepeat`, proving two
   boot-safe `CMD_RENDER_FRAME` commands in one run, with the second return
   still showing title-row VRAM words `0xf11f/0x1f11`
+- `DESKTOP_WM_PROBE=1`: passes `-Probe DesktopWm`, proving a minimal
+  `WM_Init()` + `WM_NewWindow()` document window can be allocated, made active,
+  traversed through z-order, and rendered under the dirty-window clip path;
+  adding `BOOT_SAFE_VISUAL_PROBE=1` captures the accepted WM-backed frame at
+  `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`
 - normal boot-safe C desktop: visible as a checker desktop/menu/window frame
   with readable SGDK-font menu, title, and body text in
   `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`
@@ -246,10 +251,11 @@ BlastEm window, verifies it owns foreground focus before each key event, remaps
 `p` to controller START and `f12` to `ui.screenshot`, waits longer after START,
 and restores the user's BlastEm config afterward.
 
-Do not advance the full desktop/app loop until a minimal `WM_NewWindow()`
-render probe is proven. The two-frame single-bank handoff is proven, but
-alternating double buffering and VDP timing still need their own policy before
-the long-running desktop loop is treated as stable.
+Do not advance the full desktop/app loop just because the minimal
+`WM_NewWindow()` probe is green. The two-frame single-bank handoff and the
+narrow WM allocation/z-order render path are proven, but alternating double
+buffering and VDP timing still need their own policy before the long-running
+desktop loop is treated as stable.
 
 Additional diagnostic modes:
 
@@ -277,6 +283,19 @@ C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
 
 powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
   -Probe DesktopRepeat
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_WM_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
+  -Probe DesktopWm
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 `
+  -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P `
+  -Template segaos_wm_probe_%Y%m%d_%H%M%S.png
 ```
 
 ## Megadev Dual-CPU Control

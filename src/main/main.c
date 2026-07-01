@@ -76,6 +76,11 @@ volatile uint16_t segaos_desktop_render_trace;
 volatile uint16_t segaos_desktop_mem_mode_before;
 volatile uint16_t segaos_desktop_mem_mode_after_return;
 volatile uint16_t segaos_desktop_wait_polls;
+#ifdef DESKTOP_WM_PROBE
+volatile uint16_t segaos_desktop_wait_last_status;
+volatile uint16_t segaos_desktop_wait_first_non_idle;
+volatile uint16_t segaos_desktop_wait_last_non_idle;
+#endif
 volatile uint16_t segaos_desktop_text_probe_enabled;
 volatile uint16_t segaos_desktop_text_wram_word0;
 volatile uint16_t segaos_desktop_text_wram_word1;
@@ -515,6 +520,15 @@ static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
 
   for (polls = 0; polls < poll_limit; polls++) {
     status = GA_MAIN_READ_SUB_FLAG();
+#ifdef DESKTOP_WM_PROBE
+    segaos_desktop_wait_last_status = status;
+    if (status != STATUS_IDLE && segaos_desktop_wait_first_non_idle == 0) {
+      segaos_desktop_wait_first_non_idle = status;
+    }
+    if (status != STATUS_IDLE) {
+      segaos_desktop_wait_last_non_idle = status;
+    }
+#endif
     if (status == STATUS_DONE || status == STATUS_ERROR) {
       segaos_desktop_wait_polls = (uint16_t)polls;
       GA_MAIN_SET_FLAG(COMM_MAIN_IDLE);
@@ -543,6 +557,11 @@ static void desktop_init_probe(void) {
 
   segaos_desktop_mem_mode_before = GA_MAIN_REG16(GA_MEM_MODE);
   segaos_desktop_mem_mode_after_return = GA_MAIN_REG16(GA_MEM_MODE);
+#ifdef DESKTOP_WM_PROBE
+  segaos_desktop_wait_last_status = 0;
+  segaos_desktop_wait_first_non_idle = 0;
+  segaos_desktop_wait_last_non_idle = 0;
+#endif
 
   main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
   segaos_desktop_main_phase = 0x8102;
@@ -628,6 +647,10 @@ static void desktop_init_probe(void) {
   segaos_desktop_main_phase = 0x81ff;
 #endif
 
+#ifdef BOOT_SAFE_VISUAL_PROBE
+  segaos_visual_probe_phase = 0x76ff;
+  segaos_visual_probe_halt();
+#endif
   segaos_desktop_init_halt();
 }
 

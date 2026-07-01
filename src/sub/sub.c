@@ -185,6 +185,7 @@ static void boot_draw_window_body(void) {
   BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
 }
 
+#ifndef DESKTOP_WM_PROBE
 static void boot_draw_boot_window(void) {
   Rect shadow;
   Rect frame;
@@ -231,6 +232,57 @@ static void boot_draw_boot_window(void) {
   BLT_FillRect(&content, BLT_GetWhite());
   boot_draw_window_body();
 }
+#endif
+
+#ifdef DESKTOP_WM_PROBE
+static Window *bootWmProbeWindow;
+
+static void boot_wm_probe_init_window(void) {
+  Rect bounds;
+
+  if (bootWmProbeWindow)
+    return;
+
+  WM_Init();
+
+  bounds.left = 40;
+  bounds.top = 34;
+  bounds.right = 258;
+  bounds.bottom = 153;
+
+  bootWmProbeWindow =
+      WM_NewWindow(&bounds, "SegaOS", WM_STYLE_DOCUMENT, WF_VISIBLE);
+}
+
+static void boot_wm_probe_draw_windows(const Rect *dirty) {
+  Window *win;
+
+  for (win = WM_GetBottomWindow(); win; win = win->above) {
+    DirtyWindowRedraw plan;
+
+    if (!(win->flags & WF_VISIBLE))
+      continue;
+
+    DR_PlanWindowRedraw(dirty, &win->frame, &plan);
+    if (!plan.hasWindow)
+      continue;
+
+    BLT_SetClipRect(&plan.clip);
+    BLT_DrawWindowFrame(win, SysFont_Get());
+    boot_draw_window_body();
+  }
+}
+
+static void boot_wm_probe_publish_metrics(void) {
+  Window *active = WM_GetActiveWindow();
+
+  sub_write_result(2, WM_GetWindowCount());
+  sub_write_result(3, active ? active->flags : 0xffff);
+  sub_write_result(5, active ? (uint16_t)(((uint16_t)active->frame.left << 8) |
+                                          ((uint16_t)active->frame.top & 0xff))
+                             : 0xffff);
+}
+#endif
 
 static void render_boot_safe_desktop(void) {
 #ifdef BOOT_SAFE_TEXT_PROBE
@@ -264,6 +316,10 @@ static void render_boot_safe_desktop(void) {
   screen.right = WM_SCREEN_W;
   screen.bottom = WM_SCREEN_H;
 
+#ifdef DESKTOP_WM_PROBE
+  boot_wm_probe_init_window();
+#endif
+
   DR_InitList(&dirtyList, dirtyStorage, 4, &screen);
   DR_AddRect(&dirtyList, &screen);
 
@@ -276,10 +332,17 @@ static void render_boot_safe_desktop(void) {
 
     WM_DrawDesktopInRect(&dirty->rect);
     boot_draw_menu_labels();
+#ifdef DESKTOP_WM_PROBE
+    boot_wm_probe_draw_windows(&dirty->rect);
+#else
     boot_draw_boot_window();
+#endif
   }
 
   BLT_ResetClip();
+#ifdef DESKTOP_WM_PROBE
+  boot_wm_probe_publish_metrics();
+#endif
 #endif
 }
 #endif

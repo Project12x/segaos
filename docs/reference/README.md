@@ -54,6 +54,10 @@ freestanding C headers. May be useful if the SGDK toolchain lacks these.
 - EmuTOS, FreeMiNT/XaAES, and OpenGEM are now recorded as GPL-family
   desktop-architecture references only. They inform the VDI/AES/Desktop split,
   clipping, redraw ownership, and event contracts; do not copy code from them.
+- GEOS and CP/M-68K are now tracked as golden-reference candidates rather than
+  ignored context. PC/GEOS is pinned as a candidate Apache-2.0 source reference
+  in `68k_desktop_prior_art.md`; CP/M-68K and reverse-engineered GEOS source
+  still require source/license pinning before any implementation use.
 - A Megadev-derived dual-CPU control fixture is kept under
   `tools/controls/megadev_dualcpu` as the current boot/startup baseline.
 - The canonical data track format for the current SegaOS boot-disc work is a

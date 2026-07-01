@@ -17,6 +17,7 @@ BOOT_SAFE_DESKTOP ?= 1
 SUB_RUNTIME_SMOKE ?= 0
 DESKTOP_INIT_PROBE ?= 0
 DESKTOP_REPEAT_PROBE ?= 0
+DESKTOP_WM_PROBE ?= 0
 BOOT_SAFE_TEXT_PROBE ?= 0
 BOOT_SAFE_TITLE_PROBE ?= 0
 BOOT_SAFE_VISUAL_PROBE ?= 0
@@ -36,7 +37,8 @@ PYTHON    ?= $(firstword $(PYTHON_CANDIDATES) python)
 # ============================================================
 # Flags
 # ============================================================
-CFLAGS_COMMON = -m68000 -Wall -Wextra -O2 -fomit-frame-pointer \
+CFLAGS_COMMON = -m68000 -Wall -Wextra -O2 -ffreestanding -fno-builtin \
+                -fomit-frame-pointer \
                 -ffunction-sections -fdata-sections \
                 -nostdinc -isystem include/libc -Iinclude \
                 -B $(SGDK_BIN)/
@@ -62,6 +64,10 @@ endif
 ifeq ($(DESKTOP_REPEAT_PROBE),1)
 CFLAGS_SUB  += -DDESKTOP_INIT_PROBE -DDESKTOP_REPEAT_PROBE
 CFLAGS_MAIN += -DDESKTOP_INIT_PROBE -DDESKTOP_REPEAT_PROBE
+endif
+ifeq ($(DESKTOP_WM_PROBE),1)
+CFLAGS_SUB  += -DDESKTOP_INIT_PROBE -DDESKTOP_WM_PROBE
+CFLAGS_MAIN += -DDESKTOP_INIT_PROBE -DDESKTOP_WM_PROBE
 endif
 ifeq ($(BOOT_SAFE_TEXT_PROBE),1)
 CFLAGS_SUB  += -DBOOT_SAFE_TEXT_PROBE
@@ -182,6 +188,7 @@ info:
 	@echo "SUB_RUNTIME_SMOKE: $(SUB_RUNTIME_SMOKE)"
 	@echo "DESKTOP_INIT_PROBE: $(DESKTOP_INIT_PROBE)"
 	@echo "DESKTOP_REPEAT_PROBE: $(DESKTOP_REPEAT_PROBE)"
+	@echo "DESKTOP_WM_PROBE: $(DESKTOP_WM_PROBE)"
 	@echo "BOOT_SAFE_TEXT_PROBE: $(BOOT_SAFE_TEXT_PROBE)"
 	@echo "BOOT_SAFE_TITLE_PROBE: $(BOOT_SAFE_TITLE_PROBE)"
 	@echo "BOOT_SAFE_VISUAL_PROBE: $(BOOT_SAFE_VISUAL_PROBE)"

@@ -61,6 +61,16 @@ index 0 for backdrop/transparent and uses index 1 for opaque black text/lines.
 after Main uploads and releases the first returned frame, the Sub CPU consumes
 a second `CMD_RENDER_FRAME`, returns status `0x0003` with trace `0x7404`, and
 Main reads the repeated title-row VRAM words as `0xf11f/0x1f11`.
+`DESKTOP_WM_PROBE=1` now proves a minimal real window-manager boot render path:
+the Sub CPU runs `WM_Init()`, creates one `WM_NewWindow()` document window,
+walks z-order through the dirty-window clip path, and `-Probe DesktopWm`
+verifies window count `0x0001`, active flags `0x0007`, frame origin `0x2822`,
+and terminal trace `0x7404`. `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1`
+then captures the accepted WM-backed frame at
+`C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`. The root
+cause of the earlier WM probe timeout was freestanding-toolchain related: the
+local `memset()` compiled into a recursive self-call until the build added
+`-ffreestanding -fno-builtin`.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -88,7 +98,7 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,926 text bytes observed locally with the SGDK-font starter window and dirty-rect module; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,808 text bytes observed locally with the SGDK-font starter window and dirty-rect module; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,776 text bytes observed locally with US security block in the forced normal default build |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
 | Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
@@ -104,11 +114,15 @@ The active strategy is a bring-up ladder:
 | Desktop scaled text isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff11`, full-glyph signature `0xd2dd`, Plane A entries `0x0198/0x0199/0x019a`, and readable desktop-compositor screenshot `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png` |
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
 | Desktop repeated-frame probe | Passing | `DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` proves a second boot-safe `CMD_RENDER_FRAME` after Main returns Word RAM; terminal phase `0x82ff`, repeat status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, repeated title VRAM `0xf11f/0x1f11` |
+| Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
+| Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Dirty rectangle host tests | Passing | `make host-tests` covers clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, and 8x8 tile range mapping |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
+- Both CPU C builds use `-ffreestanding -fno-builtin`; without this, m68k GCC
+  can rewrite SegaOS' local libc primitives into unsafe hosted/builtin calls
 - Direct ld.exe linking (bypasses LTO plugin issue)
 - libgcc.a for runtime math helpers
 - Current ISO builder/verifier path uses Python standard-library scripts
@@ -118,22 +132,27 @@ The active strategy is a bring-up ladder:
 ## Key Metrics
 - Work RAM usage: Main CPU IP remains within the 0xE00 boot-sector envelope
   after the regional security block is linked first
-- PRG-RAM usage: 11,926 text bytes / ~488 KB observed locally for the default
+- PRG-RAM usage: 11,808 text bytes / ~488 KB observed locally for the default
   boot-safe Sub CPU SP binary
 - BOOT_PROBE SP usage: 1,042 text bytes, intentionally below Megadev's 16KB
   default SP window
 - BOOT_PROBE SP layout: Megadev-style `SUBALIGN(2)`, `sp_init` at `$602A`,
   `sp_main` at `$607E`, `_TEXT_LENGTH = $0412`
-- Boot-safe desktop SP usage: 11,926 text bytes observed locally with
+- Boot-safe desktop SP usage: 11,808 text bytes observed locally with
   `BOOT_SAFE_DESKTOP=1`
 - Boot-safe text probe SP usage: 9,248 bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1`
-- Boot-safe title/default-text probe SP usage: 11,954 text bytes observed locally with
+- Boot-safe title/default-text probe SP usage: 11,836 text bytes observed locally with
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
-- Boot-safe repeated-frame probe usage: Main IP 3,568 bytes / SP 11,954 text
+- Boot-safe repeated-frame probe usage: Main IP 3,568 bytes / SP 11,836 text
   bytes observed locally with `DESKTOP_REPEAT_PROBE=1`
+- Boot-safe WM probe usage: Main IP 3,304 bytes / SP 13,118 text bytes,
+  2,298 BSS bytes observed locally with `DESKTOP_WM_PROBE=1`
+- Boot-safe WM visual probe usage: Main IP 3,320 bytes / SP 13,118 text bytes,
+  2,298 BSS bytes observed locally with
+  `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1`
 - Boot-safe visual-probe IP usage: 2,752 text bytes last observed with
-  `BOOT_SAFE_VISUAL_PROBE=1`; SP now follows the 11,926-byte boot-safe desktop
+  `BOOT_SAFE_VISUAL_PROBE=1`; SP now follows the 11,808-byte boot-safe desktop
   payload
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
   `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
@@ -239,6 +258,14 @@ SGDK font source:
 - OpenGEM:
   `shanecoughlan/OpenGEM@ac06b1a3fec3f3e8defcaaf7ea0338c38c3cef46`, GPL for
   GEM/FreeGEM/OpenGEM sections, historical/API pattern-only.
+- PC/GEOS:
+  `bluewaysw/pcgeos@867154f966314155fdc2ee04593b21c0a5f6e724`, GitHub
+  reports Apache-2.0. Candidate golden source only; no file-level porting pass
+  has been done yet.
+- CP/M-68K and reverse-engineered GEOS sources:
+  golden historical references, but not pinned for implementation reuse yet.
+  Do not copy or closely port until repo/source, commit, license, inspected
+  files, and reuse mode are recorded.
 - Adopted architectural assumption: prove a small VDI-like text/clipping layer,
   then an AES-like dirty-rect/window ownership layer, then desktop/window/app
   behavior. The current block `OS` canary is diagnostic evidence, not the final
@@ -290,9 +317,10 @@ High priority:
   BLT framebuffer access and Main framebuffer upload both use 16-bit Word RAM
   helpers. The dirty-rectangle/clipping pool now has host tests for both root
   and window redraw planning, is wired into `WM_InvalidateRect()`, and is used
-  by the boot-safe direct renderer's dirty loop. The next risk is a narrow real
-  `WM_NewWindow()` render probe, while alternating double buffering and VDP
-  timing remain separate stability work before menu/cursor/app rendering.
+  by the boot-safe direct renderer's dirty loop. The narrow real
+  `WM_NewWindow()` allocation/z-order render probe and its debugger-backed
+  visual screenshot are now green, but the long-running frame scheduler is still
+  separate stability work before menu/cursor/app rendering.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command

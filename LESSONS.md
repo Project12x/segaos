@@ -17,11 +17,28 @@ same failures.
   `docs/reference/68k_desktop_prior_art.md`: EmuTOS, FreeMiNT/XaAES, and
   OpenGEM. They are GPL-family references, so the allowed reuse mode is
   pattern-only / clean-room behavior specs.
+- Treat GEOS, GEM/TOS, CP/M-68K, and related 68k-era OSes as golden references,
+  but do not blur their licensing. PC/GEOS is a promising Apache-2.0 candidate
+  reference; CP/M-68K and reverse-engineered 8-bit GEOS sources need a pinned
+  source/license pass before any implementation work uses them. Until then,
+  they are historical behavior references only.
 - For concrete UI assets such as fonts, do not invent vague placeholder
   glyphs and then debug against them. The current system font is SGDK v2.11's
   MIT 8x8 `font_default.png`, pinned at
   `Stephane-D/SGDK@ef9292c03fe33a2f8af3a2589ab856a53dcef35c` and converted
   into SegaOS' 1bpp glyph format with attribution in `third_party/sgdk_font/`.
+
+## Freestanding C Runtime
+
+- This project has no hosted C library. Build both CPU C images with
+  `-ffreestanding -fno-builtin`.
+- The failure mode is real: without those flags, m68k GCC optimized SegaOS'
+  local `memset()` implementation into a recursive call to `memset` itself.
+  The first visible symptom was `DESKTOP_WM_PROBE=1` timing out inside
+  `WM_Init()` while clearing the static `WindowManager`.
+- When a Sub CPU path dies inside a simple memory primitive, disassemble before
+  changing architecture. In this case, the WM data structure was not the bug;
+  the generated libc code was.
 
 ## Desktop Architecture
 
@@ -45,9 +62,10 @@ same failures.
   separator, and screen border while preserving the caller's clip.
 - Window redraw clipping is now a tested dirty-rect contract too:
   `DR_PlanWindowRedraw()` clips dirty regions to window bounds. The boot-safe
-  first frame still uses a compact direct BLT window renderer; do not route the
-  startup path through full `WM_NewWindow()` allocation or generalized window
-  traversal until that exact path has its own probe.
+  first frame still uses a compact direct BLT window renderer by default.
+  `DESKTOP_WM_PROBE=1` now proves the exact minimal `WM_Init()` +
+  `WM_NewWindow()` allocation/z-order/render path, but that is still an opt-in
+  rung, not permission to re-enable the whole desktop/app loop.
 - No maintained native Mega Drive desktop OS reference was found in this pass;
   that pushes SegaOS toward Sega CD hardware references plus 68k GEM/TOS
   desktop architecture, not toward inventing a GUI stack from scratch.
@@ -66,6 +84,7 @@ same failures.
   7. Main-only direct VDP text canary
   8. Visible BlastEm internal screenshot
   9. Repeated-frame Word RAM return/reacquire probe
+  10. Minimal `WM_NewWindow()` allocation/z-order render probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -195,9 +214,12 @@ same failures.
   loop with fixed local rectangles, real SGDK-font title/body text, and no app
   callbacks. This is a startup renderer, not proof that the full window manager
   allocation/z-order path is safe.
-- Moving `WM_NewWindow()` into the boot render path regressed command-loop
-  consumption before the first command was handled. Treat full WM allocation and
-  z-order traversal as later rungs. Fixed-font text, dirty rectangles, root
-  redraw, direct boot-safe window furniture, and two-frame single-bank
-  repeated rendering are now proven; the next isolated rung is a minimal
-  `WM_NewWindow()` render probe.
+- The earlier `WM_NewWindow()` boot-render regression was caused by the
+  freestanding libc/builtin issue above, not by an inherent problem with
+  allocation or z-order traversal. `DESKTOP_WM_PROBE=1` now proves one active,
+  visible document window with flags `0x0007` at frame origin `40,34`, rendered
+  through the dirty-window clip path. The accepted WM-backed internal screenshot
+  is
+  `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`. The
+  long-running desktop loop still needs its own bank/timing policy before
+  menu/cursor/app callbacks return.

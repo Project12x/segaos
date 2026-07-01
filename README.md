@@ -64,6 +64,14 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_REPEAT_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopRepeat
 
+# Prove minimal WM_NewWindow allocation/z-order drawing in the boot renderer
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopWm
+
+# Capture that WM-backed boot frame through BlastEm's internal screenshot path
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P -Template segaos_wm_probe_%Y%m%d_%H%M%S.png
+
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
@@ -156,14 +164,24 @@ are diagnostic references, not current visual passes.
 after Main returns Word RAM to Sub: the probe reaches phase `0x82ff`, sees the
 second command complete with status `0x0003` and trace `0x7404`, observes the
 released 1M state as MEM_MODE `0x2a06`, and reads the repeated title row from
-VDP as `0xf11f/0x1f11`.
+VDP as `0xf11f/0x1f11`. `DESKTOP_WM_PROBE=1` now proves the next narrow
+window-manager rung: `WM_Init()` plus one `WM_NewWindow()` creates a visible,
+hilited document window, renders it through the dirty-window clip path, and
+passes `-Probe DesktopWm` with window count `0x0001`, active flags `0x0007`,
+and frame origin `0x2822` (`40,34`). The combined
+`DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` build also has a
+debugger-backed BlastEm internal screenshot at
+`C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`. That
+probe also exposed a freestanding C-runtime bug: m68k GCC optimized the local
+`memset()` into a recursive self-call until the Makefile explicitly added
+`-ffreestanding -fno-builtin`.
 That boot-safe window is diagnostic, not the final UI. After the 68k desktop
 prior-art pass, the real-font correction, the palette-index transparency fix,
 default text restoration, and the host-tested dirty-rectangle/clipping pool, root
 desktop redraw and the first direct boot-safe window furniture now go through
-the same dirty-list clipping path. The next desktop gate is a narrow
-`WM_NewWindow()` render probe, while the full alternating double-buffer and VDP
-timing policies remain later stability work before returning to normal
+the same dirty-list clipping path. The next desktop gate is a measured
+long-running frame policy; the full alternating double-buffer and VDP timing
+policies remain later stability work before returning to normal
 menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

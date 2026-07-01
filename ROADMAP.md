@@ -3,6 +3,8 @@
 ## Phase 1: Sub CPU Build -- COMPLETE
 - [x] crt0.s with SP header and vector table
 - [x] Freestanding C headers (stdint, stddef, stdbool, string)
+- [x] Freestanding compiler contract (`-ffreestanding -fno-builtin`) so local
+      libc primitives are not optimized into hosted-library/builtin calls
 - [x] Linker script (sub.ld) for PRG-RAM
 - [x] Makefile with ld.exe direct linking + libgcc.a
 
@@ -167,6 +169,17 @@ single-bank repeat path: after the first upload and Main release, the Sub CPU
 consumes a second `CMD_RENDER_FRAME`, returns status `0x0003` and trace
 `0x7404`, Main observes the released MEM_MODE state as `0x2a06`, and the
 repeated title row reads back from VDP as `0xf11f/0x1f11`.
+`DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` now proves a minimal clean-room
+window-manager boot render path. The Sub CPU runs `WM_Init()`, allocates one
+`WM_NewWindow()` document window, traverses bottom-to-top z-order, clips it via
+`DR_PlanWindowRedraw()`, and reports window count `0x0001`, active flags
+`0x0007`, frame origin `0x2822`, and terminal trace `0x7404`. The root cause of
+the earlier command-loop loss was not the WM data structure: m68k GCC compiled
+the local `memset()` into a recursive self-call until the build was made
+explicitly freestanding with `-ffreestanding -fno-builtin`. The combined
+`DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` image also has an accepted
+debugger-backed BlastEm internal screenshot at
+`C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`.
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, and the boot-safe single-bank repeat path is
@@ -210,7 +223,12 @@ that matches Genesis VDP constraints.
 - [x] Route root desktop redraw through the dirty-rectangle/clipping contract
 - [x] Prove minimal window furniture through the redraw list, without app
       content callbacks
-- [ ] Re-enable the minimal window-manager render loop on top of the word-safe BLT backend
+- [x] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
+      dirty-rectangle/root-redraw contracts pass
+- [x] Visually accept the WM-backed boot frame through debugger-backed BlastEm
+      internal screenshotting
+- [ ] Re-enable the minimal window-manager render loop on top of the word-safe
+      BLT backend outside the opt-in boot probe
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel
 - [ ] Verify menu bar, cursor, window frames, Calculator, Notepad, keyboard, and Paint
 - [ ] Audit line-drawing call sites for width/height versus endpoint confusion
@@ -228,8 +246,6 @@ that matches Genesis VDP constraints.
       deterministic subtraction strips, edge-touch merge, corner-touch
       separation, overflow behavior, and 8x8 tile range rounding
 - [x] Add host tests for window redraw clipping against dirty regions
-- [ ] Isolate and prove a minimal `WM_NewWindow()` boot render probe after
-      dirty-rectangle/root-redraw contracts pass
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy
 - [ ] Validate mouse input -> window hit testing -> app callback flow
