@@ -2,8 +2,9 @@
  * basic.h - Clean-room SegaOS BASIC program buffer.
  *
  * This is the first interpreter seam: line-number parsing, small keyword
- * tokenization, sorted storage, replace/delete, and decode. It does not
- * evaluate expressions or touch display/storage hardware yet.
+ * tokenization, sorted storage, replace/delete, LIST/NEW shell commands, and
+ * decode. It does not evaluate expressions or touch display/storage hardware
+ * yet.
  */
 
 #ifndef BASIC_H
@@ -55,9 +56,27 @@ typedef struct {
   uint16_t storageUsed;
 } BasicProgram;
 
+typedef enum {
+  BAS_CMD_EMPTY = 0,
+  BAS_CMD_PROGRAM_LINE = 1,
+  BAS_CMD_LIST = 2,
+  BAS_CMD_NEW = 3,
+  BAS_CMD_UNSUPPORTED = 4,
+  BAS_CMD_ERROR = 5
+} BasicCommandKind;
+
+typedef uint8_t (*BasicLineSink)(const char *line, void *user);
+
+typedef struct {
+  BasicCommandKind kind;
+  uint8_t ok;
+  uint8_t linesEmitted;
+} BasicCommandResult;
+
 void BAS_InitProgram(BasicProgram *program, BasicLine *lines,
                      uint8_t lineCapacity, uint8_t *storage,
                      uint16_t storageCapacity);
+void BAS_ClearProgram(BasicProgram *program);
 uint8_t BAS_ParseSourceLine(const char *source, BasicParsedLine *out);
 uint8_t BAS_StoreSourceLine(BasicProgram *program, const char *source);
 const BasicLine *BAS_GetLine(const BasicProgram *program, uint8_t index);
@@ -66,5 +85,12 @@ const uint8_t *BAS_GetLineBytes(const BasicProgram *program,
 const char *BAS_TokenName(BasicToken token);
 uint8_t BAS_DecodeLine(const BasicProgram *program, const BasicLine *line,
                        char *out, uint16_t outBytes);
+uint8_t BAS_ListProgram(const BasicProgram *program, BasicLineSink sink,
+                        void *user, char *lineBuffer,
+                        uint16_t lineBufferBytes, uint8_t *linesEmitted);
+uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
+                              BasicLineSink sink, void *user,
+                              char *lineBuffer, uint16_t lineBufferBytes,
+                              BasicCommandResult *result);
 
 #endif /* BASIC_H */

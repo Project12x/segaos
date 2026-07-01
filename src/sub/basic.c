@@ -118,6 +118,30 @@ static uint8_t bas_find_line(const BasicProgram *program, uint16_t number,
   return 0;
 }
 
+static uint8_t bas_command_equals(const char *input, const char *command) {
+  uint8_t i = 0;
+
+  input = bas_skip_spaces(input);
+  while (command[i]) {
+    if (bas_upper(input[i]) != command[i])
+      return 0;
+    i++;
+  }
+
+  input = bas_skip_spaces(input + i);
+  return (uint8_t)(*input == 0);
+}
+
+static void bas_set_command_result(BasicCommandResult *result,
+                                   BasicCommandKind kind, uint8_t ok,
+                                   uint8_t linesEmitted) {
+  if (!result)
+    return;
+  result->kind = kind;
+  result->ok = ok;
+  result->linesEmitted = linesEmitted;
+}
+
 static uint8_t bas_line_payload_length(const BasicParsedLine *parsed) {
   return (uint8_t)(1U + parsed->payloadLength);
 }
@@ -220,6 +244,13 @@ void BAS_InitProgram(BasicProgram *program, BasicLine *lines,
   program->lineCount = 0;
   program->storage = storage;
   program->storageCapacity = storageCapacity;
+  program->storageUsed = 0;
+}
+
+void BAS_ClearProgram(BasicProgram *program) {
+  if (!program)
+    return;
+  program->lineCount = 0;
   program->storageUsed = 0;
 }
 
@@ -404,4 +435,70 @@ uint8_t BAS_DecodeLine(const BasicProgram *program, const BasicLine *line,
 
 #undef BAS_APPEND_CHAR
   return 1;
+}
+
+uint8_t BAS_ListProgram(const BasicProgram *program, BasicLineSink sink,
+                        void *user, char *lineBuffer,
+                        uint16_t lineBufferBytes, uint8_t *linesEmitted) {
+  uint8_t emitted = 0;
+
+  if (linesEmitted)
+    *linesEmitted = 0;
+  if (!program || !lineBuffer || lineBufferBytes == 0)
+    return 0;
+
+  for (uint8_t i = 0; i < program->lineCount; i++) {
+    const BasicLine *line = BAS_GetLine(program, i);
+
+    if (!line || !BAS_DecodeLine(program, line, lineBuffer, lineBufferBytes))
+      return 0;
+    if (sink && !sink(lineBuffer, user))
+      return 0;
+    emitted++;
+  }
+
+  if (linesEmitted)
+    *linesEmitted = emitted;
+  return 1;
+}
+
+uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
+                              BasicLineSink sink, void *user,
+                              char *lineBuffer, uint16_t lineBufferBytes,
+                              BasicCommandResult *result) {
+  const char *p;
+  uint8_t ok;
+  uint8_t emitted = 0;
+
+  bas_set_command_result(result, BAS_CMD_ERROR, 0, 0);
+  if (!program || !input)
+    return 0;
+
+  p = bas_skip_spaces(input);
+  if (*p == 0) {
+    bas_set_command_result(result, BAS_CMD_EMPTY, 1, 0);
+    return 1;
+  }
+
+  if (*p >= '0' && *p <= '9') {
+    ok = BAS_StoreSourceLine(program, p);
+    bas_set_command_result(result, BAS_CMD_PROGRAM_LINE, ok, 0);
+    return ok;
+  }
+
+  if (bas_command_equals(p, "LIST")) {
+    ok = BAS_ListProgram(program, sink, user, lineBuffer, lineBufferBytes,
+                         &emitted);
+    bas_set_command_result(result, BAS_CMD_LIST, ok, emitted);
+    return ok;
+  }
+
+  if (bas_command_equals(p, "NEW")) {
+    BAS_ClearProgram(program);
+    bas_set_command_result(result, BAS_CMD_NEW, 1, 0);
+    return 1;
+  }
+
+  bas_set_command_result(result, BAS_CMD_UNSUPPORTED, 0, 0);
+  return 0;
 }

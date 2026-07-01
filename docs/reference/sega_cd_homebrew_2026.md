@@ -243,3 +243,9 @@ closely ported GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source.
 The implemented scope is deliberately below an interpreter: numbered-line
 parsing, small keyword tokenization, sorted insert/replace/delete, compaction
 of caller-owned storage, and decode for later `LIST`/desktop UI work.
+
+BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
+REPL-facing command seam over that buffer. Host tests prove numbered line input
+through the shell, callback-based `LIST` output in sorted program order, `NEW`
+clearing program storage, and explicit rejection of `RUN` until an evaluator
+exists.

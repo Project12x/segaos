@@ -3,6 +3,8 @@
 #include <string.h>
 
 static int failures;
+static char listedLines[4][48];
+static uint8_t listedLineCount;
 
 static void expect_true(uint8_t value, const char *name) {
   if (!value) {
@@ -37,6 +39,27 @@ static void expect_str(const char *actual, const char *expected,
   if (strcmp(actual, expected) != 0) {
     printf("FAIL: %s expected \"%s\" got \"%s\"\n", name, expected, actual);
     failures++;
+  }
+}
+
+static uint8_t capture_list_line(const char *line, void *user) {
+  (void)user;
+  if (listedLineCount >= 4)
+    return 0;
+  for (uint8_t i = 0; i < sizeof(listedLines[0]); i++) {
+    listedLines[listedLineCount][i] = line[i];
+    if (!line[i])
+      break;
+  }
+  listedLines[listedLineCount][sizeof(listedLines[0]) - 1U] = 0;
+  listedLineCount++;
+  return 1;
+}
+
+static void clear_list_capture(void) {
+  listedLineCount = 0;
+  for (uint8_t y = 0; y < 4; y++) {
+    listedLines[y][0] = 0;
   }
 }
 
@@ -127,6 +150,70 @@ static void rejects_invalid_or_oversized_source(void) {
   expect_u8(program.lineCount, 0, "no line after overflow");
 }
 
+static void shell_stores_lines_and_lists_program(void) {
+  BasicLine lines[4];
+  uint8_t storage[96];
+  BasicProgram program;
+  BasicCommandResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 4, storage, sizeof(storage));
+  clear_list_capture();
+
+  expect_true(BAS_SubmitConsoleLine(&program, "20 GOTO 10", capture_list_line,
+                                    0, lineBuffer, sizeof(lineBuffer),
+                                    &result),
+              "shell stores line 20");
+  expect_u8(result.kind, BAS_CMD_PROGRAM_LINE, "line input command kind");
+  expect_true(BAS_SubmitConsoleLine(&program, "10 PRINT \"HELLO\"",
+                                    capture_list_line, 0, lineBuffer,
+                                    sizeof(lineBuffer), &result),
+              "shell stores line 10");
+
+  expect_true(BAS_SubmitConsoleLine(&program, "LIST", capture_list_line, 0,
+                                    lineBuffer, sizeof(lineBuffer), &result),
+              "shell lists program");
+  expect_u8(result.kind, BAS_CMD_LIST, "list command kind");
+  expect_u8(result.linesEmitted, 2, "listed line count result");
+  expect_u8(listedLineCount, 2, "captured line count");
+  expect_str(listedLines[0], "10 PRINT \"HELLO\"", "first listed line");
+  expect_str(listedLines[1], "20 GOTO 10", "second listed line");
+}
+
+static void shell_new_clears_program(void) {
+  BasicLine lines[4];
+  uint8_t storage[64];
+  BasicProgram program;
+  BasicCommandResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 4, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT \"HELLO\""),
+              "store before NEW");
+  expect_true(BAS_SubmitConsoleLine(&program, "NEW", capture_list_line, 0,
+                                    lineBuffer, sizeof(lineBuffer), &result),
+              "shell NEW command");
+
+  expect_u8(result.kind, BAS_CMD_NEW, "new command kind");
+  expect_u8(program.lineCount, 0, "NEW clears line count");
+  expect_u16(program.storageUsed, 0, "NEW clears storage");
+}
+
+static void shell_rejects_unsupported_commands(void) {
+  BasicLine lines[4];
+  uint8_t storage[64];
+  BasicProgram program;
+  BasicCommandResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 4, storage, sizeof(storage));
+  expect_false(BAS_SubmitConsoleLine(&program, "RUN", capture_list_line, 0,
+                                     lineBuffer, sizeof(lineBuffer), &result),
+               "shell rejects RUN before evaluator exists");
+  expect_u8(result.kind, BAS_CMD_UNSUPPORTED, "unsupported command kind");
+  expect_u8(program.lineCount, 0, "unsupported leaves program empty");
+}
+
 int main(void) {
   parse_print_line_tokenizes_keyword();
   program_stores_lines_sorted();
@@ -134,6 +221,9 @@ int main(void) {
   replacing_line_compacts_storage();
   empty_body_deletes_line();
   rejects_invalid_or_oversized_source();
+  shell_stores_lines_and_lists_program();
+  shell_new_clears_program();
+  shell_rejects_unsupported_commands();
 
   if (failures) {
     printf("basic program tests failed: %d\n", failures);

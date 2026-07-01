@@ -323,8 +323,10 @@ with in at least one emulator.
   - [x] Host-tested fixed-storage program buffer for numbered lines, small
         keyword tokenization, sorted insert/replace/delete, compaction, and
         decode
+  - [x] Host-tested shell-facing line entry, `LIST`, and `NEW` commands with
+        callback-based listing output
   - [ ] Expression/value evaluator with integer/string basics
-  - [ ] `LIST`, `RUN`, `NEW`, `LOAD`, and `SAVE` command shell
+  - [ ] `RUN`, `LOAD`, and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
         BRAM/external-cart drivers
