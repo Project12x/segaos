@@ -84,7 +84,8 @@ same failures.
   7. Main-only direct VDP text canary
   8. Visible BlastEm internal screenshot
   9. Repeated-frame Word RAM return/reacquire probe
-  10. Minimal `WM_NewWindow()` allocation/z-order render probe
+  10. Short multi-frame single-bank render/upload loop probe
+  11. Minimal `WM_NewWindow()` allocation/z-order render probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -119,6 +120,10 @@ same failures.
 - `DESKTOP_REPEAT_PROBE=1` proves a two-frame single-bank ping-pong: first
   render, Main upload, Main release, second render, Main upload, second title
   row still visible in VDP as `0xf11f/0x1f11`, with terminal trace `0x7404`.
+- `DESKTOP_LOOP_PROBE=1` proves that path can survive a short loop: after the
+  first frame, four additional render/upload/return cycles complete with loop
+  count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, and
+  final title-row VRAM `0xf11f/0x1f11`.
 - Do not assume full alternating 1M double buffering is solved. The proven path
   is still the boot-safe single-bank `$0C0000`/`$200000` handoff, not a
   production long-running frame scheduler.
@@ -163,6 +168,9 @@ same failures.
 - After `sub_done()`, do not let the idle loop overwrite terminal command
   traces such as `0x7404`; Main/GDB may capture status after the Sub command
   loop has already returned to idle.
+- A short multi-frame loop is now proven only in the boot-safe single-bank
+  probe harness. Keep production scheduler work behind its own measured
+  timing/banking decision instead of assuming the probe loop is the final loop.
 
 ## Visual Target
 
@@ -223,3 +231,6 @@ same failures.
   `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`. The
   long-running desktop loop still needs its own bank/timing policy before
   menu/cursor/app callbacks return.
+- `DESKTOP_LOOP_PROBE=1` is the current evidence that the boot-safe direct
+  renderer can run repeated single-bank frame cycles without losing the title
+  text in VDP. It is not evidence that mouse/menu/app callbacks are ready.

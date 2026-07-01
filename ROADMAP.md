@@ -23,6 +23,7 @@
 - [x] Double-buffer handshake path between Main and Sub CPU
 - [x] Verify one-way Sub bank-0 return timing in emulator
 - [x] Verify two-frame single-bank return/reacquire timing in emulator
+- [x] Verify short multi-frame single-bank render/upload/return timing in emulator
 - [ ] Confirm which Main CPU Word RAM window should be displayed after each swap
 - [ ] DMA timing refinement (VBlank vs active display)
 
@@ -120,6 +121,8 @@ Sub boot, inter-CPU flags, and Word RAM bank ownership.
 - [x] Add a conservative single-bank return path after Main uploads a frame
 - [x] Prove the conservative single-bank path can complete two boot-safe
       render/upload cycles
+- [x] Prove the conservative single-bank path can complete a short multi-frame
+      boot-safe render/upload loop
 - [x] Prove the boot-safe C desktop SP publishes Sub-ready in emulator
 - [x] Prove boot-safe C desktop first `CMD_RENDER_FRAME` completes in emulator
 
@@ -169,6 +172,11 @@ single-bank repeat path: after the first upload and Main release, the Sub CPU
 consumes a second `CMD_RENDER_FRAME`, returns status `0x0003` and trace
 `0x7404`, Main observes the released MEM_MODE state as `0x2a06`, and the
 repeated title row reads back from VDP as `0xf11f/0x1f11`.
+`DESKTOP_LOOP_PROBE=1` + `-Probe DesktopLoop` now proves a short single-bank
+loop: after the first frame, Main drives four additional render/upload/return
+cycles, reaches phase `0x83ff`, counts four loop frames, keeps status
+`0x0003` and trace `0x7404`, observes MEM_MODE `0x2a06`, and still reads the
+final title row from VDP as `0xf11f/0x1f11`.
 `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` now proves a minimal clean-room
 window-manager boot render path. The Sub CPU runs `WM_Init()`, allocates one
 `WM_NewWindow()` document window, traverses bottom-to-top z-order, clips it via
@@ -183,7 +191,8 @@ debugger-backed BlastEm internal screenshot at
 
 Acceptance: a known 4bpp pattern drawn by Sub CPU appears correctly through
 Main CPU tile conversion and DMA, and the boot-safe single-bank repeat path is
-proven. Full alternating double buffering remains a later production policy.
+proven through a short multi-frame loop. Full alternating double buffering
+remains a later production policy.
 
 ### Milestone D: VDP Timing Budget
 - [ ] Treat full-frame conversion as a bring-up path, not the final frame loop
@@ -227,6 +236,8 @@ that matches Genesis VDP constraints.
       dirty-rectangle/root-redraw contracts pass
 - [x] Visually accept the WM-backed boot frame through debugger-backed BlastEm
       internal screenshotting
+- [x] Prove a short boot-safe single-bank render/upload loop before returning
+      to broad desktop/app rendering
 - [ ] Re-enable the minimal window-manager render loop on top of the word-safe
       BLT backend outside the opt-in boot probe
 - [ ] Move menu/apps out of the boot SP or load them after the boot-safe kernel

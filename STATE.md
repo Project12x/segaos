@@ -4,8 +4,9 @@
 **Milestone C/D/E bridge: VDI/AES desktop foundations**
 
 Phase 1 and Phase 2 are complete. The production Word RAM bank-sync code paths
-are present; the boot-safe single-bank path now has a two-frame repeat probe,
-while full alternating 1M double buffering still needs a runtime policy.
+are present; the boot-safe single-bank path now has two-frame and short
+multi-frame loop probes, while full alternating 1M double buffering still needs
+a runtime policy.
 Milestone A is complete:
 the repeatable boot-disc artifact builds, verifies, includes regional security
 bytes in the Main CPU IP, and reaches the SegaOS IP in BlastEm. Milestone B is
@@ -61,6 +62,12 @@ index 0 for backdrop/transparent and uses index 1 for opaque black text/lines.
 after Main uploads and releases the first returned frame, the Sub CPU consumes
 a second `CMD_RENDER_FRAME`, returns status `0x0003` with trace `0x7404`, and
 Main reads the repeated title-row VRAM words as `0xf11f/0x1f11`.
+`DESKTOP_LOOP_PROBE=1` now extends that same conservative single-bank path:
+after the first frame, Main drives four additional render/upload/return cycles,
+the probe reaches phase `0x83ff`, counts four loop frames, keeps status
+`0x0003` and trace `0x7404`, observes MEM_MODE `0x2a06` across the Main-side
+return points, and still reads the final title-row VRAM words as
+`0xf11f/0x1f11`.
 `DESKTOP_WM_PROBE=1` now proves a minimal real window-manager boot render path:
 the Sub CPU runs `WM_Init()`, creates one `WM_NewWindow()` document window,
 walks z-order through the dirty-window clip path, and `-Probe DesktopWm`
@@ -114,6 +121,7 @@ The active strategy is a bring-up ladder:
 | Desktop scaled text isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TEXT_PROBE=1` proves the first scaled SGDK-font "S" as row sample `0xffff/0xff11`, full-glyph signature `0xd2dd`, Plane A entries `0x0198/0x0199/0x019a`, and readable desktop-compositor screenshot `C:\tmp\segaos_screens_internal\segaos_desktop_text_opaque_20260630_183441.png` |
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
 | Desktop repeated-frame probe | Passing | `DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` proves a second boot-safe `CMD_RENDER_FRAME` after Main returns Word RAM; terminal phase `0x82ff`, repeat status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, repeated title VRAM `0xf11f/0x1f11` |
+| Desktop short loop probe | Passing | `DESKTOP_LOOP_PROBE=1` + `-Probe DesktopLoop` proves four additional single-bank render/upload/return cycles after the first frame; terminal phase `0x83ff`, loop count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, final title VRAM `0xf11f/0x1f11` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Dirty rectangle host tests | Passing | `make host-tests` covers clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, and 8x8 tile range mapping |
@@ -146,6 +154,8 @@ The active strategy is a bring-up ladder:
   `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1`
 - Boot-safe repeated-frame probe usage: Main IP 3,568 bytes / SP 11,836 text
   bytes observed locally with `DESKTOP_REPEAT_PROBE=1`
+- Boot-safe loop probe usage: Main IP 3,560 bytes / SP 11,836 text bytes
+  observed locally with `DESKTOP_LOOP_PROBE=1`
 - Boot-safe WM probe usage: Main IP 3,304 bytes / SP 13,118 text bytes,
   2,298 BSS bytes observed locally with `DESKTOP_WM_PROBE=1`
 - Boot-safe WM visual probe usage: Main IP 3,320 bytes / SP 13,118 text bytes,
@@ -221,6 +231,9 @@ Key adopted assumptions:
   `MEM_MODE=0x2a06` (DMNA set, RET clear). The boot-safe Sub-side ownership
   check now accepts either RET or DMNA, and `DESKTOP_REPEAT_PROBE=1` proves two
   render/upload cycles through the same single-bank path.
+- `DESKTOP_LOOP_PROBE=1` proves the same single-bank release/reacquire path can
+  survive a short loop of four additional render/upload/return cycles after the
+  first frame, with the final title row still present in VDP tile data.
 - The framebuffer probe uses that handoff for a deterministic 4bpp tile:
   Sub writes `$1234/$5678` to linear row 0 and `$9abc/$def0` to row 1, Main
   reads those words through `$200000`, runs `FB_UpdateFrame()`, and reads the
@@ -295,8 +308,8 @@ High priority:
 - The current dual-CPU probes prove Main boot, Sub `sp_init`/`sp_main`, Gate
   Array command/status, one-way Sub bank-0 Word RAM return, framebuffer-to-VDP
   tile readback, a visible deterministic framebuffer display, and the
-  boot-safe desktop's second single-bank render. They do not yet prove the full
-  alternating double-buffer policy or long-running frame scheduler.
+  boot-safe desktop's short single-bank render loop. They do not yet prove the
+  full alternating double-buffer policy or long-running frame scheduler.
 - The boot-safe C desktop path now reaches Sub-ready, completes a first
   render/upload sequence, and displays a visible Mac-like starter frame through
   BLT. `WM_DrawDesktop()` now owns the checker desktop/menu shell, while the
@@ -319,8 +332,9 @@ High priority:
   and window redraw planning, is wired into `WM_InvalidateRect()`, and is used
   by the boot-safe direct renderer's dirty loop. The narrow real
   `WM_NewWindow()` allocation/z-order render probe and its debugger-backed
-  visual screenshot are now green, but the long-running frame scheduler is still
-  separate stability work before menu/cursor/app rendering.
+  visual screenshot are now green, and the short single-bank render/upload loop
+  is now GDB-proven, but the long-running frame scheduler is still separate
+  stability work before menu/cursor/app rendering.
 - The active boot decision has narrowed: keep the assembly probe as the
   low-level truth source, keep the boot-safe direct renderer as the startup
   path, and reintroduce BLT/window-manager drawing behind probe-proven command
@@ -329,9 +343,10 @@ High priority:
 Runtime validation:
 
 - Word RAM bank ownership is proven for the first Sub `$0C0000` to Main
-  `$200000` handoff and for a second boot-safe render after Main releases the
-  same bank. Alternating 1M double buffering is still unresolved: the proven
-  path is a single-bank bring-up loop, not the final frame scheduler.
+  `$200000` handoff, for a second boot-safe render after Main releases the same
+  bank, and for a short loop of repeated single-bank renders. Alternating 1M
+  double buffering is still unresolved: the proven path is a single-bank
+  bring-up loop, not the final frame scheduler.
 - Full-frame conversion/DMA is acceptable for bring-up, but needs a VDP timing
   policy before the desktop loop can be considered stable.
 

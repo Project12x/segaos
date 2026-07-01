@@ -204,10 +204,10 @@ hotkey (`p` by default). Configure BlastEm's `screenshot_path` if the output
 directory needs to be controlled. The current passing internal screenshot shows
 the expected full-screen alternating 4bpp stripe pattern.
 
-The later desktop repeat probe now proves the current single-bank boot-safe
-frame path can return Word RAM to Sub and complete a second render. The full
-alternating 1M double-buffer policy is still separate VDP/runtime stability
-work.
+The later desktop repeat and loop probes now prove the current single-bank
+boot-safe frame path can return Word RAM to Sub and complete short repeated
+render/upload cycles. The full alternating 1M double-buffer policy is still
+separate VDP/runtime stability work.
 
 ## Boot-Safe Desktop Status
 
@@ -234,6 +234,10 @@ Current local evidence:
 - `DESKTOP_REPEAT_PROBE=1`: passes `-Probe DesktopRepeat`, proving two
   boot-safe `CMD_RENDER_FRAME` commands in one run, with the second return
   still showing title-row VRAM words `0xf11f/0x1f11`
+- `DESKTOP_LOOP_PROBE=1`: passes `-Probe DesktopLoop`, proving four additional
+  single-bank render/upload/return cycles after the first frame, with terminal
+  phase `0x83ff`, loop count `0x0004`, status `0x0003`, trace `0x7404`,
+  MEM_MODE `0x2a06`, and final title-row VRAM words `0xf11f/0x1f11`
 - `DESKTOP_WM_PROBE=1`: passes `-Probe DesktopWm`, proving a minimal
   `WM_Init()` + `WM_NewWindow()` document window can be allocated, made active,
   traversed through z-order, and rendered under the dirty-window clip path;
@@ -252,10 +256,11 @@ BlastEm window, verifies it owns foreground focus before each key event, remaps
 and restores the user's BlastEm config afterward.
 
 Do not advance the full desktop/app loop just because the minimal
-`WM_NewWindow()` probe is green. The two-frame single-bank handoff and the
-narrow WM allocation/z-order render path are proven, but alternating double
-buffering and VDP timing still need their own policy before the long-running
-desktop loop is treated as stable.
+`WM_NewWindow()` probe and short multi-frame loop probe are green. The
+single-bank handoff, several repeated render/upload cycles, and the narrow WM
+allocation/z-order render path are proven, but alternating double buffering and
+VDP timing still need their own policy before the long-running desktop loop is
+treated as stable.
 
 Additional diagnostic modes:
 
@@ -283,6 +288,12 @@ C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
 
 powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
   -Probe DesktopRepeat
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_LOOP_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
+  -Probe DesktopLoop
 
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
   DESKTOP_WM_PROBE=1

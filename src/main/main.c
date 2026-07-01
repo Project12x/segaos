@@ -108,6 +108,15 @@ volatile uint16_t segaos_desktop_repeat_mem_after_return;
 volatile uint16_t segaos_desktop_repeat_title_vram_word0;
 volatile uint16_t segaos_desktop_repeat_title_vram_word1;
 #endif
+#ifdef DESKTOP_LOOP_PROBE
+volatile uint16_t segaos_desktop_loop_frame_count;
+volatile uint16_t segaos_desktop_loop_status;
+volatile uint16_t segaos_desktop_loop_trace;
+volatile uint16_t segaos_desktop_loop_mem_before;
+volatile uint16_t segaos_desktop_loop_mem_after_return;
+volatile uint16_t segaos_desktop_loop_title_vram_word0;
+volatile uint16_t segaos_desktop_loop_title_vram_word1;
+#endif
 #endif
 #ifdef BOOT_SAFE_VISUAL_PROBE
 void segaos_visual_probe_halt(void) __attribute__((noinline, used));
@@ -372,6 +381,7 @@ void segaos_runtime_smoke_halt(void) {
 
 #ifdef DESKTOP_INIT_PROBE
 #define DESKTOP_PROBE_WAIT_LIMIT 0x00100000UL
+#define DESKTOP_LOOP_PROBE_FRAMES 4U
 #define DESKTOP_TEXT_PROBE_X 64U
 #define DESKTOP_TEXT_PROBE_Y 80U
 #define DESKTOP_TEXT_PROBE_ROW 3U
@@ -406,7 +416,8 @@ static uint16_t desktop_title_read_wram_word(uint16_t word_index) {
 }
 #endif
 
-#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE)
+#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE) ||       \
+    defined(DESKTOP_LOOP_PROBE)
 static uint16_t desktop_title_read_vram_word(uint16_t word_index) {
   VDP_SET_REG(VDP_REG_AUTOINC, 2);
   VDP_VRAM_READ((uint16_t)(DESKTOP_TITLE_PROBE_VRAM_OFFSET +
@@ -643,6 +654,38 @@ static void desktop_init_probe(void) {
   main_return_wram_to_sub();
   segaos_desktop_repeat_mem_after_return = GA_MAIN_REG16(GA_MEM_MODE);
   segaos_desktop_main_phase = 0x82ff;
+#elif defined(DESKTOP_LOOP_PROBE)
+  {
+    uint16_t frame;
+
+    segaos_desktop_loop_frame_count = 0;
+    for (frame = 0; frame < DESKTOP_LOOP_PROBE_FRAMES; frame++) {
+      segaos_desktop_loop_mem_before = GA_MAIN_REG16(GA_MEM_MODE);
+      main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+      segaos_desktop_main_phase = (uint16_t)(0x8300 | frame);
+      segaos_desktop_loop_status =
+          desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
+      desktop_init_capture_status();
+
+      segaos_desktop_loop_trace = segaos_desktop_trace;
+
+      if (segaos_desktop_loop_status != STATUS_DONE ||
+          segaos_desktop_stat0 != SUB_STATE_READY ||
+          segaos_desktop_loop_trace != 0x7404) {
+        segaos_desktop_main_phase = 0x83fe;
+        segaos_desktop_init_halt();
+      }
+
+      FB_UpdateFrame(WRAM_BANK0_MAIN);
+      VDP_WaitDMA();
+      main_return_wram_to_sub();
+      segaos_desktop_loop_mem_after_return = GA_MAIN_REG16(GA_MEM_MODE);
+      segaos_desktop_loop_frame_count = (uint16_t)(frame + 1U);
+    }
+    segaos_desktop_loop_title_vram_word0 = desktop_title_read_vram_word(0);
+    segaos_desktop_loop_title_vram_word1 = desktop_title_read_vram_word(1);
+  }
+  segaos_desktop_main_phase = 0x83ff;
 #else
   segaos_desktop_main_phase = 0x81ff;
 #endif

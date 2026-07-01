@@ -201,6 +201,16 @@ contract, not desktop architecture: m68k GCC had optimized SegaOS' local
 accepted through debugger-backed BlastEm internal screenshotting at
 `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png`.
 
+Status update, 2026-07-01 loop probe pass: `DESKTOP_LOOP_PROBE=1` proves the
+boot-safe single-bank direct renderer can complete a short repeated frame loop
+without reintroducing text corruption. After the first frame, the probe drives
+four more render/upload/return cycles, reaches phase `0x83ff`, reports loop
+count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, and final
+title-row VRAM `0xf11f/0x1f11`. This is still clean-room SegaOS probe work; no
+GEM/TOS/GEOS/CP/M code was copied or closely ported. It removes the immediate
+"can the single-bank path repeat more than once?" blocker, but it is not the
+measured VBlank scheduler or alternating double-buffer policy.
+
 The remaining implementation rungs are:
 
 1. Long-running frame policy:

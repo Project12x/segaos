@@ -64,6 +64,10 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_REPEAT_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopRepeat
 
+# Prove several boot-safe single-bank render/upload/return cycles
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_LOOP_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopLoop
+
 # Prove minimal WM_NewWindow allocation/z-order drawing in the boot renderer
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopWm
@@ -164,7 +168,12 @@ are diagnostic references, not current visual passes.
 after Main returns Word RAM to Sub: the probe reaches phase `0x82ff`, sees the
 second command complete with status `0x0003` and trace `0x7404`, observes the
 released 1M state as MEM_MODE `0x2a06`, and reads the repeated title row from
-VDP as `0xf11f/0x1f11`. `DESKTOP_WM_PROBE=1` now proves the next narrow
+VDP as `0xf11f/0x1f11`. `DESKTOP_LOOP_PROBE=1` extends that same conservative
+path to four additional render/upload/return cycles after the first frame:
+the probe reaches phase `0x83ff`, counts four loop frames, keeps status
+`0x0003` and trace `0x7404`, observes MEM_MODE `0x2a06` before and after each
+Main-side return, and still reads the title-row VRAM words as
+`0xf11f/0x1f11`. `DESKTOP_WM_PROBE=1` now proves the next narrow
 window-manager rung: `WM_Init()` plus one `WM_NewWindow()` creates a visible,
 hilited document window, renders it through the dirty-window clip path, and
 passes `-Probe DesktopWm` with window count `0x0001`, active flags `0x0007`,
@@ -179,9 +188,10 @@ That boot-safe window is diagnostic, not the final UI. After the 68k desktop
 prior-art pass, the real-font correction, the palette-index transparency fix,
 default text restoration, and the host-tested dirty-rectangle/clipping pool, root
 desktop redraw and the first direct boot-safe window furniture now go through
-the same dirty-list clipping path. The next desktop gate is a measured
-long-running frame policy; the full alternating double-buffer and VDP timing
-policies remain later stability work before returning to normal
+the same dirty-list clipping path. The short multi-frame single-bank loop is
+now GDB-proven, but the next desktop gate is still a measured long-running
+frame policy; the full alternating double-buffer and VDP timing policies remain
+later stability work before returning to normal
 menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
