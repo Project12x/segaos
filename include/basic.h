@@ -3,8 +3,9 @@
  *
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, simple expression values, and a tiny PRINT/END runner. It does not
- * handle variables, input, branching, or display/storage hardware yet.
+ * decode, simple expression values, and a tiny PRINT/END/GOTO runner. It does
+ * not handle variables, input, IF/THEN, subroutines, or display/storage
+ * hardware yet.
  */
 
 #ifndef BASIC_H
@@ -17,6 +18,7 @@
 #define BAS_MAX_STRING_VALUE 96U
 #define BAS_MAX_PROGRAM_LINES 64U
 #define BAS_MAX_PROGRAM_STORAGE 2048U
+#define BAS_RUN_MAX_STEPS 128U
 
 typedef enum {
   BAS_TOK_RAW = 0,
@@ -94,7 +96,10 @@ typedef enum {
   BAS_RUN_BAD_EXPRESSION = 2,
   BAS_RUN_UNSUPPORTED_STATEMENT = 3,
   BAS_RUN_OUTPUT_REJECTED = 4,
-  BAS_RUN_BUFFER_TOO_SMALL = 5
+  BAS_RUN_BUFFER_TOO_SMALL = 5,
+  BAS_RUN_BAD_TARGET = 6,
+  BAS_RUN_MISSING_LINE = 7,
+  BAS_RUN_STEP_LIMIT = 8
 } BasicRunStatus;
 
 typedef struct {

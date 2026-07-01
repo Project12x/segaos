@@ -329,7 +329,9 @@ with in at least one emulator.
         arithmetic and quoted string literals
   - [x] Minimal sequential `RUN` behavior for stored `PRINT`/`END` programs
         with callback-based output and structured line-numbered errors
-  - [ ] Variables, `INPUT`, branches such as `GOTO`, and broader statement
+  - [x] Literal-line `GOTO` branching with missing-target errors and a hard
+        runner step cap
+  - [ ] Variables, `INPUT`, `IF`/`THEN`, subroutines, and broader statement
         execution
   - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers

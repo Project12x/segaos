@@ -300,7 +300,7 @@ static void runner_reports_unsupported_statement_line(void) {
   char lineBuffer[32];
 
   BAS_InitProgram(&program, lines, 2, storage, sizeof(storage));
-  expect_true(BAS_StoreSourceLine(&program, "10 GOTO 10"),
+  expect_true(BAS_StoreSourceLine(&program, "10 INPUT A"),
               "store unsupported runner line");
 
   expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
@@ -309,6 +309,72 @@ static void runner_reports_unsupported_statement_line(void) {
   expect_u8(result.status, BAS_RUN_UNSUPPORTED_STATEMENT,
             "unsupported statement status");
   expect_u16(result.errorLine, 10, "unsupported statement line");
+}
+
+static void runner_goto_jumps_to_target_line(void) {
+  BasicLine lines[5];
+  uint8_t storage[128];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 5, storage, sizeof(storage));
+  clear_run_capture();
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT \"A\""),
+              "store goto first print");
+  expect_true(BAS_StoreSourceLine(&program, "20 GOTO 40"),
+              "store goto jump");
+  expect_true(BAS_StoreSourceLine(&program, "30 PRINT \"B\""),
+              "store skipped print");
+  expect_true(BAS_StoreSourceLine(&program, "40 PRINT \"C\""),
+              "store goto target print");
+  expect_true(BAS_StoreSourceLine(&program, "50 END"), "store goto end");
+
+  expect_true(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                             sizeof(lineBuffer), &result),
+              "runner executes GOTO");
+  expect_u8(result.status, BAS_RUN_HALTED, "goto run status");
+  expect_u8(result.linesEmitted, 2, "goto output count");
+  expect_str(runOutputLines[0], "A", "goto first output");
+  expect_str(runOutputLines[1], "C", "goto target output");
+}
+
+static void runner_reports_missing_goto_target(void) {
+  BasicLine lines[2];
+  uint8_t storage[64];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 2, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 GOTO 999"),
+              "store missing goto target");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects missing GOTO target");
+  expect_u8(result.status, BAS_RUN_MISSING_LINE, "missing GOTO status");
+  expect_u16(result.errorLine, 10, "missing GOTO line");
+}
+
+static void runner_stops_goto_loops_at_step_limit(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 GOTO 10"),
+              "store infinite goto loop");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner stops GOTO loop");
+  expect_u8(result.status, BAS_RUN_STEP_LIMIT, "GOTO loop status");
+  expect_u8(result.statementsExecuted, BAS_RUN_MAX_STEPS,
+            "GOTO loop step count");
+  expect_u16(result.errorLine, 10, "GOTO loop line");
 }
 
 static void runner_reports_bad_print_expression_line(void) {
@@ -343,6 +409,9 @@ int main(void) {
   evaluates_string_literals();
   rejects_bad_expressions();
   runner_reports_unsupported_statement_line();
+  runner_goto_jumps_to_target_line();
+  runner_reports_missing_goto_target();
+  runner_stops_goto_loops_at_step_limit();
   runner_reports_bad_print_expression_line();
 
   if (failures) {

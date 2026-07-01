@@ -261,5 +261,11 @@ statement execution seam. It runs stored program lines sequentially, supports
 `PRINT` of the current integer/string expression values, stops on `END`, routes
 output through the same callback shape as `LIST`, and reports unsupported
 statements or bad expressions with source line numbers. It is still clean-room
-SegaOS code and does not implement variables, `INPUT`, `GOTO`, desktop I/O,
-`LOAD`, or `SAVE`.
+SegaOS code and does not implement variables, `INPUT`, desktop I/O, `LOAD`, or
+`SAVE`.
+
+BASIC-GOTO update on 2026-07-01: `BAS_RunProgram()` now supports literal-line
+`GOTO` by resolving targets against the sorted program table. Host tests prove
+successful jumps, missing-target errors, and a hard `BAS_RUN_MAX_STEPS` guard
+that stops self-jumping loops. This is still not computed branching, `IF`/`THEN`,
+variables, subroutines, desktop I/O, `LOAD`, or `SAVE`.

@@ -259,8 +259,9 @@ same failures.
   both targets, and rejects image saves without the external cart path.
 - Build BASIC as an OS tool in narrow stages: program buffer plus shell line
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
-  sequential `PRINT`/`END` third, broader statement execution fourth, desktop
-  I/O and storage last. The current BASIC core is
+  sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,
+  broader statement execution fifth, desktop I/O and storage last. The current
+  BASIC core is
   clean-room SegaOS code. No GEOS,
   GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source is copied or closely
   ported; this first primitive is small enough that a direct interpreter
