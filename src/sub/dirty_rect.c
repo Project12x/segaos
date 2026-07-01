@@ -118,6 +118,57 @@ Boolean DR_RectToTileRange(const Rect *r, uint8_t tileW, uint8_t tileH,
   return 1;
 }
 
+static void dr_clear_budget(DirtyTransferBudget *out) {
+  if (!out)
+    return;
+
+  out->firstTile = 0;
+  out->tileCount = 0;
+  out->byteCount = 0;
+  out->rowSpanCount = 0;
+  out->fitsBudget = 0;
+  out->_pad = 0;
+}
+
+Boolean DR_TileRangeBudget(const DirtyTileRange *range, uint16_t planeTilesX,
+                           uint16_t bytesPerTile, uint16_t maxBytes,
+                           DirtyTransferBudget *out) {
+  uint32_t width;
+  uint32_t height;
+  uint32_t firstTile;
+  uint32_t tileCount;
+  uint32_t byteCount;
+  uint32_t rowSpanCount;
+
+  dr_clear_budget(out);
+
+  if (!range || !out || planeTilesX == 0 || bytesPerTile == 0)
+    return 0;
+  if (range->x0 >= range->x1 || range->y0 >= range->y1)
+    return 0;
+  if (range->x1 > planeTilesX)
+    return 0;
+
+  width = (uint32_t)(range->x1 - range->x0);
+  height = (uint32_t)(range->y1 - range->y0);
+  firstTile = ((uint32_t)range->y0 * planeTilesX) + range->x0;
+  tileCount = width * height;
+  byteCount = tileCount * bytesPerTile;
+  rowSpanCount = (range->x0 == 0 && width == planeTilesX) ? 1U : height;
+
+  if (firstTile > 0xffffU || tileCount > 0xffffU || byteCount > 0xffffU ||
+      rowSpanCount > 0xffffU) {
+    return 0;
+  }
+
+  out->firstTile = (uint16_t)firstTile;
+  out->tileCount = (uint16_t)tileCount;
+  out->byteCount = (uint16_t)byteCount;
+  out->rowSpanCount = (uint16_t)rowSpanCount;
+  out->fitsBudget = (byteCount <= maxBytes) ? 1 : 0;
+  return 1;
+}
+
 void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
                        DirtyRootRedraw *out) {
   Rect part;

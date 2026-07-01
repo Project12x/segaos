@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
-# Run host-side redraw data-structure tests
+# Run host-side redraw and dirty-transfer budget tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
@@ -199,9 +199,12 @@ default text restoration, and the host-tested dirty-rectangle/clipping pool, roo
 desktop redraw and the first direct boot-safe window furniture now go through
 the same dirty-list clipping path. The short multi-frame single-bank loop is
 now GDB-proven and the full-frame upload path has its first HV/status timing
-probe, but the next desktop gate is still a measured long-running frame policy;
-the full alternating double-buffer and dirty-tile VBlank policies remain later
-stability work before returning to normal
+probe. The dirty-rectangle module now also has host-tested VDP transfer budget
+planning: small dirty tile ranges can be counted against a caller-supplied
+budget, while the full 40x28 tile frame is known to exceed the NTSC VBlank
+reference budget. The next desktop gate is still a measured long-running frame
+policy; the full alternating double-buffer and dirty-tile VBlank policies
+remain later stability work before returning to normal
 menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)

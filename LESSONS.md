@@ -55,7 +55,9 @@ same failures.
   screen bounds, rejects empty rects, merges overlapping or edge-touching
   invalidations, keeps corner-only contact separate, subtracts one rect from
   another into deterministic strips, collapses overflow to one bounding rect,
-  and maps dirty pixels to 8x8 tile ranges for the later VDP upload queue.
+  maps dirty pixels to 8x8 tile ranges, and now computes first-tile,
+  tile-count, byte-count, row-span, and budget-fit data for the later VDP
+  upload queue.
 - Root desktop redraw is now a separate tested contract from window furniture
   and app content callbacks. `DR_PlanRootRedraw()` splits a dirty region at the
   menu boundary, and `WM_DrawDesktopInRect()` redraws menu, root desktop,
@@ -100,6 +102,10 @@ same failures.
   `make iso` after `BOOT_SAFE_VISUAL_PROBE=1` can keep probe-compiled Main CPU
   objects. The normal default Main CPU size observed after a forced rebuild is
   `2776` bytes.
+- Probe scripts that issue a raw GDB `continue` need bounded failure behavior.
+  During the 2026-07-01 dirty-transfer budget pass, `DesktopTiming` built and
+  verified its ISO but the GDB probe timed out twice without returning output.
+  Treat that as harness work, not as visual evidence either way.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
   moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"
@@ -188,6 +194,15 @@ same failures.
   clear after each strip. This does not yet prove a production VBlank-only
   dirty-tile queue, acceptable active-display artifacts, or alternating
   double-buffer timing.
+- `DR_TileRangeBudget()` is the first clean-room bridge from the
+  GEM/TOS-style dirty-region model to Genesis VDP transfer limits. It does not
+  copy or closely port GEOS, GEM/TOS, CP/M-68K, or Megadev code. It turns a
+  dirty tile range into first tile, tile count, byte count, row-span count, and
+  caller-supplied budget fit.
+- The concrete frame-policy warning is now host-tested: a full 40x28 tile
+  4bpp frame is 1,120 tiles / 35,840 bytes, so it cannot fit the 7,524-byte
+  NTSC VBlank budget recorded in the Mega Drive development notes. A small
+  2x2-tile dirty range is 4 tiles / 128 bytes and fits that budget.
 
 ## Visual Target
 

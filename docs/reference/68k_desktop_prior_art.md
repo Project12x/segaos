@@ -221,6 +221,16 @@ ownership and redraw/event layering, while Sega CD hardware evidence must guide
 Word RAM and VDP transfer policy. No GEM/TOS/GEOS/CP/M source was copied or
 closely ported.
 
+Status update, 2026-07-01 dirty-transfer budget pass: `DR_TileRangeBudget()`
+adds the first host-tested bridge from GEM/TOS-style dirty-region ownership to
+Genesis VDP transfer planning. It reports first tile, tile count, byte count,
+row-span count, and whether the range fits a caller-supplied byte budget.
+`make host-tests` now proves that a 2x2-tile dirty range is 4 tiles / 128 bytes
+and fits the 7,524-byte NTSC VBlank reference budget, while a full 40x28 tile
+frame is 1,120 tiles / 35,840 bytes and does not. The implementation is
+clean-room SegaOS code; no GEM/TOS/GEOS/CP/M or Megadev code was copied or
+closely ported for this helper.
+
 The remaining implementation rungs are:
 
 1. Long-running frame policy:

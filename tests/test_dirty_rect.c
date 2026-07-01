@@ -152,6 +152,53 @@ static void dirty_rect_maps_to_tile_range(void) {
   expect_u16(range.y1, 3, "tile y1");
 }
 
+static void dirty_tile_budget_counts_partial_row_spans(void) {
+  DirtyTileRange range = {2, 2, 4, 4};
+  DirtyTransferBudget budget;
+
+  expect_true(DR_TileRangeBudget(&range, 40, 32, 7524, &budget),
+              "partial dirty budget valid");
+  expect_u16(budget.firstTile, 82, "partial dirty first tile");
+  expect_u16(budget.tileCount, 4, "partial dirty tile count");
+  expect_u16(budget.byteCount, 128, "partial dirty byte count");
+  expect_u16(budget.rowSpanCount, 2, "partial dirty row spans");
+  expect_u16(budget.fitsBudget, 1, "partial dirty fits vblank budget");
+}
+
+static void dirty_tile_budget_counts_full_width_as_contiguous_span(void) {
+  DirtyTileRange range = {0, 8, 40, 9};
+  DirtyTransferBudget budget;
+
+  expect_true(DR_TileRangeBudget(&range, 40, 32, 7524, &budget),
+              "full-width row budget valid");
+  expect_u16(budget.firstTile, 320, "full-width row first tile");
+  expect_u16(budget.tileCount, 40, "full-width row tile count");
+  expect_u16(budget.byteCount, 1280, "full-width row byte count");
+  expect_u16(budget.rowSpanCount, 1, "full-width row contiguous span");
+  expect_u16(budget.fitsBudget, 1, "full-width row fits vblank budget");
+}
+
+static void dirty_tile_budget_rejects_full_frame_ntsc_vblank_budget(void) {
+  DirtyTileRange range = {0, 0, 40, 28};
+  DirtyTransferBudget budget;
+
+  expect_true(DR_TileRangeBudget(&range, 40, 32, 7524, &budget),
+              "full-frame budget valid");
+  expect_u16(budget.firstTile, 0, "full-frame first tile");
+  expect_u16(budget.tileCount, 1120, "full-frame tile count");
+  expect_u16(budget.byteCount, 35840, "full-frame byte count");
+  expect_u16(budget.rowSpanCount, 1, "full-frame contiguous span");
+  expect_u16(budget.fitsBudget, 0, "full-frame exceeds vblank budget");
+}
+
+static void dirty_tile_budget_rejects_empty_ranges(void) {
+  DirtyTileRange range = {4, 4, 4, 5};
+  DirtyTransferBudget budget;
+
+  expect_false(DR_TileRangeBudget(&range, 40, 32, 7524, &budget),
+               "empty tile budget rejected");
+}
+
 static void root_redraw_splits_menu_and_desktop(void) {
   DirtyRootRedraw plan;
   Rect dirty = rect_make(10, 5, 30, 50);
@@ -234,6 +281,10 @@ int main(void) {
   dirty_list_keeps_corner_touching_rects_separate();
   dirty_list_overflow_collapses_to_single_bounds();
   dirty_rect_maps_to_tile_range();
+  dirty_tile_budget_counts_partial_row_spans();
+  dirty_tile_budget_counts_full_width_as_contiguous_span();
+  dirty_tile_budget_rejects_full_frame_ntsc_vblank_budget();
+  dirty_tile_budget_rejects_empty_ranges();
   root_redraw_splits_menu_and_desktop();
   root_redraw_keeps_single_owner_regions();
   root_redraw_rejects_empty_dirty_rects();

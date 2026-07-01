@@ -25,6 +25,15 @@ typedef struct {
 } DirtyTileRange;
 
 typedef struct {
+  uint16_t firstTile;
+  uint16_t tileCount;
+  uint16_t byteCount;
+  uint16_t rowSpanCount;
+  uint8_t fitsBudget;
+  uint8_t _pad;
+} DirtyTransferBudget;
+
+typedef struct {
   DirtyRect *items;
   uint8_t capacity;
   uint8_t count;
@@ -52,6 +61,9 @@ uint8_t DR_RectSubtract(const Rect *src, const Rect *cut, Rect *out,
                         uint8_t maxOut);
 Boolean DR_RectToTileRange(const Rect *r, uint8_t tileW, uint8_t tileH,
                            DirtyTileRange *out);
+Boolean DR_TileRangeBudget(const DirtyTileRange *range, uint16_t planeTilesX,
+                           uint16_t bytesPerTile, uint16_t maxBytes,
+                           DirtyTransferBudget *out);
 void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
                        DirtyRootRedraw *out);
 void DR_PlanWindowRedraw(const Rect *dirty, const Rect *windowBounds,

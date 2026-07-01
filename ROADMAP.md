@@ -204,11 +204,17 @@ remains a later production policy.
 - [ ] Treat full-frame conversion as a bring-up path, not the final frame loop
 - [x] Add first HV/status probe around full-frame strip conversion/DMA
 - [ ] Turn HV/status samples into a documented frame-budget policy
+- [ ] Harden `DesktopTiming` probe automation so missing breakpoints/autoboot
+      failures return a bounded failure instead of hanging the harness
 - [ ] Decide the production update policy:
   - [ ] VBlank-only dirty-tile queue
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
-- [ ] Tie dirty rectangles to tile-strip transfer ranges
+- [x] Tie dirty rectangles to tile-strip transfer ranges
+  - [x] Add host-tested dirty tile transfer budgeting:
+        `DR_TileRangeBudget()` reports first tile, tile count, byte count,
+        row-span count, and whether a range fits a caller-supplied frame
+        budget
 
 Acceptance: the project has a documented frame budget and a transfer policy
 that matches Genesis VDP constraints.
@@ -264,7 +270,8 @@ that matches Genesis VDP constraints.
       fixed-font text proof passes
 - [x] Add host tests for dirty-rect clipping, half-open intersection,
       deterministic subtraction strips, edge-touch merge, corner-touch
-      separation, overflow behavior, and 8x8 tile range rounding
+      separation, overflow behavior, 8x8 tile range rounding, and dirty tile
+      transfer budgeting
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy

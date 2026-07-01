@@ -182,3 +182,11 @@ After Main releases the first returned frame, BlastEm reports MEM_MODE
 `CMD_RENDER_FRAME` with status `0x0003` and trace `0x7404`, and Main reads the
 repeated title row from VDP as `0xf11f/0x1f11`. This is still a bring-up
 single-bank proof; full alternating 1M double buffering is separate work.
+
+Dirty-transfer update on 2026-07-01: `DR_TileRangeBudget()` now gives the first
+host-tested bridge from dirty rectangles to Genesis VDP transfer planning. This
+is clean-room SegaOS code, not Megadev code: Megadev remains the boot/CD/BIOS
+reference, while this helper applies the measured Genesis VDP budget constraint
+to SegaOS dirty regions. `make host-tests` proves a small 2x2-tile dirty range
+is 4 tiles / 128 bytes and fits a 7,524-byte NTSC VBlank budget, while a full
+40x28 tile frame is 1,120 tiles / 35,840 bytes and does not.
