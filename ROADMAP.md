@@ -306,12 +306,20 @@ with in at least one emulator.
 
 ### Milestone F: Storage and OS Features
 - [ ] Add Sub CPU CD-ROM file access plan and API
-- [ ] Add BRAM wrappers for settings/documents
+- [ ] Add Backup RAM wrappers with a three-tier storage policy:
+  - [ ] CD-ROM/ISO9660 remains the read-only app, demo, and asset source
+  - [ ] external Backup RAM cartridge is the planned primary writable store
+        for small user documents, BASIC programs, imported text, and app data
+  - [ ] internal 8 KB Backup RAM is the fallback for preferences, launch state,
+        and emergency tiny documents
+- [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
+      blocks before designing the user-facing file manager
 - [ ] Decide app/resource packaging format on ISO9660
 - [ ] Add CD audio or PCM strategy only after storage ownership is clear
 
-Acceptance: applications can load or save at least one small asset/document
-through the chosen Sega CD storage path.
+Acceptance: applications can load from CD and save at least one small
+asset/document through the external Backup RAM cartridge path, with internal
+BRAM fallback behavior documented and tested.
 
 ### Milestone G: Compatibility and Release Hardening
 - [ ] ares v148+ boot and runtime test

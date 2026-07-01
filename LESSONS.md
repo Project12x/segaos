@@ -247,6 +247,12 @@ same failures.
 ## Visual Target
 
 - The immediate product goal remains a 68k Mac-like experience on Sega CD.
+- Plan product features as if an external Backup RAM cartridge-class writable
+  store is available. That changes the realistic target from demo-only saves
+  to a small but usable document workflow: text files, tokenized BASIC
+  programs, tiny databases, settings, and imported/exported app data. Internal
+  8 KB Backup RAM should remain the compatibility fallback, not the design
+  ceiling.
 - The current visible target is intentionally modest: checker desktop, menu
   separator, and a clean window starter frame with real SGDK-font menu, title,
   and body text.

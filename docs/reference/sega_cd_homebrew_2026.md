@@ -125,7 +125,11 @@ Use Megadev reconciliation as the bottom rung of a bring-up ladder:
    stable.
 4. Bring the desktop/apps back after boot, CPU handshake, Word RAM, framebuffer,
    and VDP timing are known-good.
-5. Add CD-ROM/BRAM/storage features after the core runtime is proven.
+5. Add CD-ROM/BRAM/storage features after the core runtime is proven. Plan
+   writable persistence around external Backup RAM cartridge-class storage, not
+   only the internal 8 KB BRAM: CD-ROM is the read-only app/resource source,
+   the external cartridge is the primary small-document store, and internal
+   BRAM is the fallback for preferences and emergency tiny saves.
 
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes

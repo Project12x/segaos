@@ -223,6 +223,14 @@ frame policy; the full alternating double-buffer and dirty-tile VBlank
 policies remain later stability work before returning to normal menu/cursor/app
 rendering.
 
+Storage planning now assumes an external Backup RAM cartridge-class writable
+store is available for real small-document workflows. CD-ROM/ISO9660 remains
+the read-only app, demo, and asset source; the external cartridge is the
+primary target for saved text, tokenized BASIC programs, tiny databases,
+preferences, and imported app data; internal 8 KB Backup RAM is the fallback
+for settings and emergency tiny saves. Exact cartridge presence/capacity still
+needs a SegaOS probe before the file manager and save UI are treated as stable.
+
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)
 before changing boot-disc code. See [LESSONS.md](LESSONS.md) before changing

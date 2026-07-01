@@ -116,7 +116,8 @@ The active strategy is a bring-up ladder:
 3. 4bpp framebuffer probe
 4. VDP timing budget
 5. Desktop foundations: text, clipping, root redraw, then window furniture
-6. Storage and OS features
+6. Storage and OS features, planned around external Backup RAM cartridge-class
+   writable persistence with internal BRAM as fallback
 7. Compatibility and release hardening
 
 ## Build Status
@@ -205,6 +206,11 @@ The active strategy is a bring-up ladder:
   VBlank-budgeted pass
 - Sub CPU blitter default: 4bpp, matching the Main CPU tile conversion path
 - Disc image: 150 cooked sectors, `MODE1/2048`, 32KB boot/system area
+- Storage planning assumption: CD-ROM/ISO9660 is the read-only app/resource
+  source; external Backup RAM cartridge-class storage is the primary target for
+  user documents, BASIC programs, imported text, and small app data; internal
+  8 KB Backup RAM is only the fallback for preferences, launch state, and tiny
+  emergency saves until a probe proves broader capacity and behavior
 
 ## Current Reference Baseline
 
