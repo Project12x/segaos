@@ -214,6 +214,7 @@ info:
 host-tests: dirs
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_dirty_rect.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_dirty_rect.exe
 	$(BUILD_DIR)/test_dirty_rect.exe
+	powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_probe_timeout.ps1 -HostCc "$(HOST_CC)"
 
 # ============================================================
 # Sub CPU Build Rules

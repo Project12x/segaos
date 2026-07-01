@@ -102,10 +102,12 @@ same failures.
   `make iso` after `BOOT_SAFE_VISUAL_PROBE=1` can keep probe-compiled Main CPU
   objects. The normal default Main CPU size observed after a forced rebuild is
   `2776` bytes.
-- Probe scripts that issue a raw GDB `continue` need bounded failure behavior.
-  During the 2026-07-01 dirty-transfer budget pass, `DesktopTiming` built and
-  verified its ISO but the GDB probe timed out twice without returning output.
-  Treat that as harness work, not as visual evidence either way.
+- Probe scripts that issue a raw GDB `continue` need bounded failure behavior
+  inside the script, not only an outer shell timeout. `probe_blastem_boot.ps1`
+  now accepts `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` if GDB
+  does not return, and has a fake-GDB host regression under `make host-tests`.
+  A fresh real `DesktopTiming` run now reaches phase `0x84ff` with
+  `probe_gdb_timeout=False`.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
   moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"

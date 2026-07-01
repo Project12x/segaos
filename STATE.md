@@ -130,10 +130,10 @@ The active strategy is a bring-up ladder:
 | Default text/title render isolation | Passing | `DESKTOP_INIT_PROBE=1 BOOT_SAFE_TITLE_PROBE=1` proves sampled default SGDK-font body text as `0xf11f/0x1f11` in both Word RAM and VDP tile data |
 | Desktop repeated-frame probe | Passing | `DESKTOP_REPEAT_PROBE=1` + `-Probe DesktopRepeat` proves a second boot-safe `CMD_RENDER_FRAME` after Main returns Word RAM; terminal phase `0x82ff`, repeat status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, repeated title VRAM `0xf11f/0x1f11` |
 | Desktop short loop probe | Passing | `DESKTOP_LOOP_PROBE=1` + `-Probe DesktopLoop` proves four additional single-bank render/upload/return cycles after the first frame; terminal phase `0x83ff`, loop count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, final title VRAM `0xf11f/0x1f11` |
-| Desktop upload timing probe | Needs harness hardening | Prior `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` evidence proved 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xeb95`, final VDP status `0x3208`, masks `0x007f/0x007f`; the 2026-07-01 dirty-budget rerun built and verified the timing ISO but the probe harness timed out before returning GDB output |
+| Desktop upload timing probe | Passing | `DESKTOP_TIMING_PROBE=1` + `-Probe DesktopTiming` proves 7 strip DMA transfers, HV movement on every strip, DMA clear after every strip, terminal phase `0x84ff`, HV `0xbc1d` to `0xeb95`, final VDP status `0x3208`, masks `0x007f/0x007f`, and `probe_gdb_timeout=False` |
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
-| Dirty rectangle host tests | Passing | `make host-tests` covers clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, and dirty tile transfer budgeting |
+| Dirty rectangle/probe host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -374,10 +374,12 @@ Runtime validation:
   now proves the dirty-region side can report tile/byte/span costs, but it does
   not yet define the VBlank queue, active-display policy, or double-buffer
   policy.
-- The `DesktopTiming` probe script needs a bounded failure path around the GDB
-  `continue` phase. In the 2026-07-01 dirty-budget sprint, both sandboxed and
-  escalated probe runs timed out without returning GDB output; this is harness
-  evidence, not a fresh rendering pass.
+- The `DesktopTiming` probe script now has a bounded failure path around the
+  GDB `continue` phase. `tools/probe_blastem_boot.ps1` accepts
+  `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` on timeout, and
+  `make host-tests` covers that path with generated fake BlastEm/GDB
+  executables. The fresh real `DesktopTiming` run returns
+  `probe_gdb_timeout=False`.
 
 Lower priority:
 

@@ -204,7 +204,7 @@ remains a later production policy.
 - [ ] Treat full-frame conversion as a bring-up path, not the final frame loop
 - [x] Add first HV/status probe around full-frame strip conversion/DMA
 - [ ] Turn HV/status samples into a documented frame-budget policy
-- [ ] Harden `DesktopTiming` probe automation so missing breakpoints/autoboot
+- [x] Harden `DesktopTiming` probe automation so missing breakpoints/autoboot
       failures return a bounded failure instead of hanging the harness
 - [ ] Decide the production update policy:
   - [ ] VBlank-only dirty-tile queue

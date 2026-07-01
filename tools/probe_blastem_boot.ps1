@@ -4,6 +4,7 @@ param(
   [string]$Cue = "build\segaos.cue",
   [string]$Elf = "build\main_cpu.elf",
   [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
+  [int]$GdbTimeoutSeconds = 60,
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
   [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "VdpText")]
@@ -27,6 +28,7 @@ function Get-HexBytesFromGdbLine([string[]]$Output, [string]$Address) {
   }
 
   $line = $Output | Where-Object {
+    $_ -and
     $_.ToLowerInvariant() -match "^\s*0x0*$addr\b.*:"
   } | Select-Object -First 1
 
@@ -41,6 +43,7 @@ function Get-HexBytesFromGdbLine([string[]]$Output, [string]$Address) {
 
 function Get-ProbeValue([string[]]$Output, [string]$Name) {
   $line = $Output | Where-Object {
+    $_ -and
     $_.ToLowerInvariant().StartsWith("$($Name.ToLowerInvariant())=")
   } | Select-Object -Last 1
 
@@ -72,6 +75,7 @@ function Get-NamedProbeValues([string[]]$Output, [string[]]$Names) {
     if (-not $value) {
       $prefix = "$($name.ToLowerInvariant())=$"
       $line = $Output | Where-Object {
+        $_ -and
         $_.ToLowerInvariant().StartsWith($prefix)
       } | Select-Object -Last 1
 
@@ -90,6 +94,18 @@ function Get-NamedProbeValues([string[]]$Output, [string[]]$Names) {
   return $values
 }
 
+function Join-NativeArguments([string[]]$Arguments) {
+  return (($Arguments | ForEach-Object {
+    if ($_ -eq "") {
+      '""'
+    } elseif ($_ -match '[\s"]') {
+      '"' + ($_ -replace '"', '\"') + '"'
+    } else {
+      $_
+    }
+  }) -join " ")
+}
+
 function Invoke-Gdb([string[]]$Commands) {
   $oldErrorActionPreference = $ErrorActionPreference
   $ErrorActionPreference = "Continue"
@@ -99,8 +115,69 @@ function Invoke-Gdb([string[]]$Commands) {
       $args += @("-ex", $command)
     }
     $args += $elfPath
-    $output = & $gdbPath @args 2>&1 | ForEach-Object { $_.ToString() }
-    $exitCode = $LASTEXITCODE
+
+    $argumentLine = Join-NativeArguments $args
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $gdbPath
+    $startInfo.Arguments = $argumentLine
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+    $startInfo.RedirectStandardOutput = $true
+    $startInfo.RedirectStandardError = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+    [void]$process.Start()
+
+    $timer = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $process.HasExited -and
+           $timer.Elapsed.TotalSeconds -lt $GdbTimeoutSeconds) {
+      Start-Sleep -Milliseconds 100
+      $process.Refresh()
+    }
+
+    $timedOut = -not $process.HasExited
+    if ($timedOut) {
+      try {
+        $process.Kill()
+      } catch {
+      }
+      try {
+        $process.WaitForExit(5000) | Out-Null
+      } catch {
+      }
+      $exitCode = 124
+    } else {
+      $process.WaitForExit()
+      $process.Refresh()
+      $exitCode = $process.ExitCode
+    }
+
+    $output = @()
+    $stdoutText = ""
+    $stderrText = ""
+    try {
+      $stdoutText = $process.StandardOutput.ReadToEnd()
+    } catch {
+    }
+    try {
+      $stderrText = $process.StandardError.ReadToEnd()
+    } catch {
+    }
+    if ($stdoutText) {
+      $output += ($stdoutText -split "`r?`n") | Where-Object { $_ -ne "" }
+    }
+    if ($stderrText) {
+      $output += ($stderrText -split "`r?`n") | Where-Object { $_ -ne "" }
+    }
+
+    if ($timedOut) {
+      $output += "probe_gdb_timeout=True"
+      $output += "probe_gdb_timeout_seconds=$GdbTimeoutSeconds"
+    } else {
+      $output += "probe_gdb_timeout=False"
+    }
+
     return @{ Output = $output; ExitCode = $exitCode }
   }
   finally {

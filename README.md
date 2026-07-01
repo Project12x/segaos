@@ -70,7 +70,7 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 
 # Measure the boot-safe full-frame upload path with VDP HV/status samples
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_TIMING_PROBE=1
-powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopTiming
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopTiming -GdbTimeoutSeconds 60
 
 # Prove minimal WM_NewWindow allocation/z-order drawing in the boot renderer
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1
@@ -83,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
-# Run host-side redraw and dirty-transfer budget tests
+# Run host-side redraw, dirty-transfer budget, and probe-timeout tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
