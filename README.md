@@ -60,6 +60,9 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Vdp
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BOOT_SAFE_VISUAL_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -StartKey Enter -ScreenshotKey P -Template segaos_debug_visual_p_%Y%m%d_%H%M%S.png
 
+# After a probe build, force the normal variant so shared objects are rebuilt
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
+
 # Run host-side redraw data-structure tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
@@ -134,7 +137,7 @@ boot-safe visual capture is now debugger-driven: build with
 `segaos_visual_probe_halt` and phase `0x76ff`,
 then resumes BlastEm so the emulator's internal `ui.screenshot` binding captures
 the app frame instead of a BIOS screen. The latest accepted default screenshot is
-`C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`; the
+`C:\tmp\segaos_screens_internal\segaos_root_redraw_20260630_211404.png`; the
 older block-canary frame at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is retained
 only as historical evidence. The
@@ -145,9 +148,10 @@ pre-fix sparse/corrupt capture
 are diagnostic references, not current visual passes.
 That boot-safe window is diagnostic, not the final UI. After the 68k desktop
 prior-art pass, the real-font correction, the palette-index transparency fix,
-default text restoration, and the host-tested dirty-rectangle/clipping pool, the
-next desktop gate is root desktop redraw through that contract before returning
-to minimal window furniture and normal menu/cursor/app rendering.
+default text restoration, and the host-tested dirty-rectangle/clipping pool, root
+desktop redraw now goes through the same dirty-rectangle/clipping contract. The
+next desktop gate is minimal window furniture through the dirty list before
+returning to normal menu/cursor/app rendering.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

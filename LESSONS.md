@@ -39,8 +39,10 @@ same failures.
   invalidations, keeps corner-only contact separate, subtracts one rect from
   another into deterministic strips, collapses overflow to one bounding rect,
   and maps dirty pixels to 8x8 tile ranges for the later VDP upload queue.
-- Root desktop redraw should be a separate contract from window furniture and
-  app content callbacks.
+- Root desktop redraw is now a separate tested contract from window furniture
+  and app content callbacks. `DR_PlanRootRedraw()` splits a dirty region at the
+  menu boundary, and `WM_DrawDesktopInRect()` redraws menu, root desktop,
+  separator, and screen border while preserving the caller's clip.
 - No maintained native Mega Drive desktop OS reference was found in this pass;
   that pushes SegaOS toward Sega CD hardware references plus 68k GEM/TOS
   desktop architecture, not toward inventing a GUI stack from scratch.
@@ -66,6 +68,11 @@ same failures.
   `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot`, require GDB
   to hit `segaos_visual_probe_halt` with phase `0x76ff`, then let BlastEm's
   internal `ui.screenshot` binding capture the resumed app frame.
+- When switching between probe builds and the normal build, use `-B` or clean
+  first. The current Makefile reuses shared object paths, so a plain
+  `make iso` after `BOOT_SAFE_VISUAL_PROBE=1` can keep probe-compiled Main CPU
+  objects. The normal default Main CPU size observed after a forced rebuild is
+  `2752` bytes.
 - Probe sample coordinates must stay tied to the rendered primitive. A stale
   text probe sampled the white body row at `y=73` after the sysfont probe text
   moved to `y=86`. The SGDK-font probe now checks both the tile-aligned "S"
@@ -143,7 +150,7 @@ same failures.
 - Latest accepted default internal screenshot, captured with
   `BOOT_SAFE_VISUAL_PROBE=1` and `-DebugAutoBoot` after GDB proved phase
   `0x76ff`:
-  `C:\tmp\segaos_screens_internal\segaos_dirty_rect_final_20260630_194506.png`.
+  `C:\tmp\segaos_screens_internal\segaos_root_redraw_20260630_211404.png`.
   The older block-canary frame at
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is only a
   historical reference.
@@ -158,8 +165,11 @@ same failures.
   acceptance evidence.
 - `WM_DrawDesktop()` can own the desktop/menu shell, but the boot-safe first
   render should stay compact until each added WM feature has a probe.
+- `WM_DrawDesktopInRect()` is the root redraw gate: keep it clip-preserving so
+  the Sub CPU dirty loop can draw root pixels and then continue with windows
+  under the same dirty clip.
 - Moving `WM_NewWindow()` into the boot render path regressed command-loop
   consumption before the first command was handled. Treat full WM allocation and
   z-order traversal as later rungs. Fixed-font text and the dirty rectangle pool
-  are now proven; the next isolated rungs are root desktop redraw and then
+  are now proven; root desktop redraw is now proven; the next isolated rung is
   minimal window furniture.

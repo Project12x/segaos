@@ -380,8 +380,8 @@ static void process_command(uint8_t cmd) {
       /* 1. Clip blitter to this dirty rect */
       BLT_SetClipRect(&dr->rect);
 
-      /* 2. Fill desktop pattern in dirty region */
-      BLT_FillRectPattern(&dr->rect, &PAT_GRAY_50);
+      /* 2. Redraw root desktop/menu pixels inside this dirty region */
+      WM_DrawDesktopInRect(&dr->rect);
 
       /* 3. Walk window list back-to-front (painter's algorithm) */
       for (win = WM_GetBottomWindow(); win; win = win->above) {

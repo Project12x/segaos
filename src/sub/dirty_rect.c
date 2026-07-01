@@ -118,6 +118,48 @@ Boolean DR_RectToTileRange(const Rect *r, uint8_t tileW, uint8_t tileH,
   return 1;
 }
 
+void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
+                       DirtyRootRedraw *out) {
+  Rect part;
+
+  if (!out)
+    return;
+
+  out->hasMenu = 0;
+  out->hasDesktop = 0;
+  out->menu.top = 0;
+  out->menu.left = 0;
+  out->menu.bottom = 0;
+  out->menu.right = 0;
+  out->desktop = out->menu;
+
+  if (!dirty || DR_RectIsEmpty(dirty))
+    return;
+
+  if (menuBarHeight < 0)
+    menuBarHeight = 0;
+
+  if (dirty->top < menuBarHeight) {
+    part = *dirty;
+    if (part.bottom > menuBarHeight)
+      part.bottom = menuBarHeight;
+    if (!DR_RectIsEmpty(&part)) {
+      out->menu = part;
+      out->hasMenu = 1;
+    }
+  }
+
+  if (dirty->bottom > menuBarHeight) {
+    part = *dirty;
+    if (part.top < menuBarHeight)
+      part.top = menuBarHeight;
+    if (!DR_RectIsEmpty(&part)) {
+      out->desktop = part;
+      out->hasDesktop = 1;
+    }
+  }
+}
+
 static Boolean dr_rect_can_merge(const Rect *a, const Rect *b) {
   Boolean horizontalOverlap;
   Boolean verticalOverlap;

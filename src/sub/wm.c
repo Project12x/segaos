@@ -465,10 +465,24 @@ void WM_EndUpdate(void) {
  * ============================================================ */
 
 void WM_DrawDesktop(void) {
+  Rect full;
+
+  full.left = 0;
+  full.top = 0;
+  full.right = WM_SCREEN_W;
+  full.bottom = WM_SCREEN_H;
+
+  BLT_ResetClip();
+  WM_DrawDesktopInRect(&full);
+}
+
+void WM_DrawDesktopInRect(const Rect *dirty) {
   /* Pattern 0 = white, 1 = 50% gray (checkerboard), 2 = 25% checker */
   Rect full;
-  Rect menu;
-  Rect desktop;
+  Rect savedClip;
+  Rect drawClip;
+  Rect requested;
+  DirtyRootRedraw redraw;
   uint8_t lightGray;
 
   lightGray = (BLT_GetMode() == BLT_MODE_2BIT) ? BLT_2_LIGHT_GRAY
@@ -479,30 +493,36 @@ void WM_DrawDesktop(void) {
   full.right = WM_SCREEN_W;
   full.bottom = WM_SCREEN_H;
 
-  menu.left = 0;
-  menu.top = 0;
-  menu.right = WM_SCREEN_W;
-  menu.bottom = WM_MENUBAR_H;
+  requested = dirty ? *dirty : full;
+  if (!DR_RectIntersect(&requested, &full, &requested))
+    return;
 
-  desktop.left = 0;
-  desktop.top = WM_MENUBAR_H;
-  desktop.right = WM_SCREEN_W;
-  desktop.bottom = WM_SCREEN_H;
+  BLT_GetClipRect(&savedClip);
+  if (!DR_RectIntersect(&requested, &savedClip, &drawClip))
+    return;
 
-  BLT_ResetClip();
-  BLT_FillRect(&full, BLT_GetWhite());
+  BLT_SetClipRect(&drawClip);
+  DR_PlanRootRedraw(&drawClip, WM_MENUBAR_H, &redraw);
 
-  if (wm.desktopPattern == 2) {
-    BLT_FillRectPattern2(&desktop, &PAT_GRAY_25, lightGray, BLT_GetWhite());
-  } else if (wm.desktopPattern == 0 || wm.desktopPattern == 1) {
-    BLT_FillRectPattern2(&desktop, &PAT_GRAY_50, lightGray, BLT_GetWhite());
-  } else {
-    BLT_FillRect(&desktop, BLT_GetWhite());
+  if (redraw.hasDesktop) {
+    if (wm.desktopPattern == 2) {
+      BLT_FillRectPattern2(&redraw.desktop, &PAT_GRAY_25, lightGray,
+                           BLT_GetWhite());
+    } else if (wm.desktopPattern == 0 || wm.desktopPattern == 1) {
+      BLT_FillRectPattern2(&redraw.desktop, &PAT_GRAY_50, lightGray,
+                           BLT_GetWhite());
+    } else {
+      BLT_FillRect(&redraw.desktop, BLT_GetWhite());
+    }
   }
 
-  BLT_FillRect(&menu, BLT_GetWhite());
+  if (redraw.hasMenu) {
+    BLT_FillRect(&redraw.menu, BLT_GetWhite());
+  }
+
   BLT_DrawHLine(0, WM_MENUBAR_H - 1, WM_SCREEN_W, BLT_BLACK);
   BLT_DrawRect(&full, BLT_BLACK);
+  BLT_SetClipRect(&savedClip);
 }
 
 void WM_SetDesktopPattern(uint8_t pattern) {

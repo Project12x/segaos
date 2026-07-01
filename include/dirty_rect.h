@@ -31,6 +31,13 @@ typedef struct {
   Rect bounds;
 } DirtyRectList;
 
+typedef struct {
+  Rect menu;
+  Rect desktop;
+  uint8_t hasMenu;
+  uint8_t hasDesktop;
+} DirtyRootRedraw;
+
 Boolean DR_RectIsEmpty(const Rect *r);
 Boolean DR_RectIntersect(const Rect *a, const Rect *b, Rect *out);
 void DR_RectUnion(const Rect *a, const Rect *b, Rect *out);
@@ -39,6 +46,8 @@ uint8_t DR_RectSubtract(const Rect *src, const Rect *cut, Rect *out,
                         uint8_t maxOut);
 Boolean DR_RectToTileRange(const Rect *r, uint8_t tileW, uint8_t tileH,
                            DirtyTileRange *out);
+void DR_PlanRootRedraw(const Rect *dirty, int16_t menuBarHeight,
+                       DirtyRootRedraw *out);
 
 void DR_InitList(DirtyRectList *list, DirtyRect *storage, uint8_t capacity,
                  const Rect *bounds);

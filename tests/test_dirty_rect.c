@@ -152,6 +152,46 @@ static void dirty_rect_maps_to_tile_range(void) {
   expect_u16(range.y1, 3, "tile y1");
 }
 
+static void root_redraw_splits_menu_and_desktop(void) {
+  DirtyRootRedraw plan;
+  Rect dirty = rect_make(10, 5, 30, 50);
+
+  DR_PlanRootRedraw(&dirty, 20, &plan);
+
+  expect_true(plan.hasMenu, "root split has menu");
+  expect_rect(plan.menu, rect_make(10, 5, 20, 50), "root split menu");
+  expect_true(plan.hasDesktop, "root split has desktop");
+  expect_rect(plan.desktop, rect_make(20, 5, 30, 50), "root split desktop");
+}
+
+static void root_redraw_keeps_single_owner_regions(void) {
+  DirtyRootRedraw plan;
+  Rect menuDirty = rect_make(0, 0, 12, 80);
+  Rect desktopDirty = rect_make(40, 90, 100, 220);
+
+  DR_PlanRootRedraw(&menuDirty, 20, &plan);
+  expect_true(plan.hasMenu, "menu-only root plan has menu");
+  expect_false(plan.hasDesktop, "menu-only root plan has no desktop");
+  expect_rect(plan.menu, menuDirty, "menu-only root rect");
+
+  DR_PlanRootRedraw(&desktopDirty, 20, &plan);
+  expect_false(plan.hasMenu, "desktop-only root plan has no menu");
+  expect_true(plan.hasDesktop, "desktop-only root plan has desktop");
+  expect_rect(plan.desktop, desktopDirty, "desktop-only root rect");
+}
+
+static void root_redraw_rejects_empty_dirty_rects(void) {
+  DirtyRootRedraw plan;
+  Rect empty = rect_make(10, 10, 10, 20);
+
+  plan.hasMenu = 1;
+  plan.hasDesktop = 1;
+  DR_PlanRootRedraw(&empty, 20, &plan);
+
+  expect_false(plan.hasMenu, "empty root plan has no menu");
+  expect_false(plan.hasDesktop, "empty root plan has no desktop");
+}
+
 int main(void) {
   clips_to_bounds_and_rejects_empty();
   intersection_uses_half_open_edges();
@@ -160,6 +200,9 @@ int main(void) {
   dirty_list_keeps_corner_touching_rects_separate();
   dirty_list_overflow_collapses_to_single_bounds();
   dirty_rect_maps_to_tile_range();
+  root_redraw_splits_menu_and_desktop();
+  root_redraw_keeps_single_owner_regions();
+  root_redraw_rejects_empty_dirty_rects();
 
   if (failures) {
     printf("%d dirty rect test(s) failed\n", failures);

@@ -193,6 +193,7 @@ void WM_EndUpdate(void);
 
 /* Desktop */
 void WM_DrawDesktop(void);
+void WM_DrawDesktopInRect(const Rect *dirty);
 void WM_SetDesktopPattern(uint8_t pattern);
 
 /* Lookup & Traversal */

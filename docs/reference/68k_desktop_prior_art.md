@@ -145,15 +145,21 @@ bounds clipping, deterministic subtraction strips, edge-touch merge,
 corner-touch separation, overflow collapse to a bounding rect, and 8x8
 tile-range rounding.
 
+Status update, 2026-06-30 final pass: the root desktop redraw rung is complete.
+`DR_PlanRootRedraw()` is clean-room SegaOS code that splits dirty root regions
+into menu and desktop portions, and `WM_DrawDesktopInRect()` redraws root pixels
+while preserving the caller's clip. The reference basis remains pattern-only
+from the GPL-family GEM/TOS notes above; no upstream source was copied or
+closely ported. `make host-tests`, `make iso`, and debugger-backed BlastEm
+internal screenshotting passed with the accepted frame at
+`C:\tmp\segaos_screens_internal\segaos_root_redraw_20260630_211404.png`.
+
 The remaining implementation rungs are:
 
-1. Root desktop redraw proof:
-   - redraw desktop fill/menu/root objects through the new contracts;
-   - no application windows yet.
-2. Minimal window furniture proof:
+1. Minimal window furniture proof:
    - draw one window frame/title/furniture through the dirty-rect list;
    - no app content callbacks yet.
-3. Application content and event routing:
+2. Application content and event routing:
    - add app-owned content rectangles;
    - route mouse/key events only after visible ownership and redraw are stable.
 
