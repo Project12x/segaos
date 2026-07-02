@@ -1152,6 +1152,8 @@ uint8_t BAS_RunProgramWithIO(const BasicProgram *program, BasicRuntime *runtime,
   uint8_t statementsExecuted = 0;
   uint8_t linesEmitted = 0;
   uint8_t pc = 0;
+  uint8_t returnStack[BAS_GOSUB_STACK_DEPTH];
+  uint8_t returnDepth = 0;
 
   bas_set_run_result(result, BAS_RUN_COMPLETE, 0, 0, 0);
   if (!program || !lineBuffer || lineBufferBytes == 0) {
@@ -1314,6 +1316,46 @@ uint8_t BAS_RunProgramWithIO(const BasicProgram *program, BasicRuntime *runtime,
         return 0;
       }
       pc = targetIndex;
+      continue;
+    }
+
+    if (token == BAS_TOK_GOSUB) {
+      uint16_t target;
+      uint8_t targetIndex = 0;
+
+      if (!bas_copy_payload_to_buffer(bytes, line->length, lineBuffer,
+                                      lineBufferBytes)) {
+        bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      if (!bas_parse_line_target(lineBuffer, &target)) {
+        bas_set_run_result(result, BAS_RUN_BAD_TARGET, statementsExecuted,
+                           linesEmitted, line->number);
+        return 0;
+      }
+      if (!bas_find_line(program, target, &targetIndex)) {
+        bas_set_run_result(result, BAS_RUN_MISSING_LINE, statementsExecuted,
+                           linesEmitted, line->number);
+        return 0;
+      }
+      if (returnDepth >= BAS_GOSUB_STACK_DEPTH) {
+        bas_set_run_result(result, BAS_RUN_GOSUB_STACK_OVERFLOW,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      returnStack[returnDepth++] = (uint8_t)(pc + 1U);
+      pc = targetIndex;
+      continue;
+    }
+
+    if (token == BAS_TOK_RETURN) {
+      if (returnDepth == 0) {
+        bas_set_run_result(result, BAS_RUN_RETURN_WITHOUT_GOSUB,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      pc = returnStack[--returnDepth];
       continue;
     }
 

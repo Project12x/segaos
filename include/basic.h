@@ -3,9 +3,9 @@
  *
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, simple expression values, and a tiny PRINT/END/GOTO/IF/INPUT
+ * decode, simple expression values, and a tiny PRINT/END/GOTO/GOSUB/IF/INPUT
  * runner. It does handle fixed A-Z integer LET variables, but not string
- * variables, subroutines, or display/storage hardware yet.
+ * variables or display/storage hardware yet.
  */
 
 #ifndef BASIC_H
@@ -20,6 +20,7 @@
 #define BAS_MAX_PROGRAM_STORAGE 2048U
 #define BAS_RUN_MAX_STEPS 128U
 #define BAS_VARIABLE_COUNT 26U
+#define BAS_GOSUB_STACK_DEPTH 8U
 
 typedef enum {
   BAS_TOK_RAW = 0,
@@ -110,7 +111,9 @@ typedef enum {
   BAS_RUN_BAD_ASSIGNMENT = 9,
   BAS_RUN_UNDEFINED_VARIABLE = 10,
   BAS_RUN_INPUT_UNAVAILABLE = 11,
-  BAS_RUN_BAD_INPUT = 12
+  BAS_RUN_BAD_INPUT = 12,
+  BAS_RUN_RETURN_WITHOUT_GOSUB = 13,
+  BAS_RUN_GOSUB_STACK_OVERFLOW = 14
 } BasicRunStatus;
 
 typedef struct {

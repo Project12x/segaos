@@ -261,9 +261,9 @@ same failures.
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
   sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,
   fixed A-Z integer `LET` variables fifth, integer `IF`/`THEN` branching sixth,
-  callback-backed integer `INPUT` seventh, broader statement execution eighth,
-  desktop I/O and storage last. The current BASIC core is clean-room SegaOS
-  code. No GEOS,
+  callback-backed integer `INPUT` seventh, fixed-depth `GOSUB`/`RETURN`
+  subroutines eighth, broader statement execution ninth, desktop I/O and
+  storage last. The current BASIC core is clean-room SegaOS code. No GEOS,
   GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source is copied or closely
   ported; this first primitive is small enough that a direct interpreter
   reference would add licensing/runtime mismatch before it adds value.

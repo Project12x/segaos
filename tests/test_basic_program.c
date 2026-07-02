@@ -396,6 +396,94 @@ static void runner_reports_missing_goto_target(void) {
   expect_u16(result.errorLine, 10, "missing GOTO line");
 }
 
+static void runner_gosub_returns_to_next_line(void) {
+  BasicLine lines[6];
+  uint8_t storage[160];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 6, storage, sizeof(storage));
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT \"A\""),
+              "store gosub first print");
+  expect_true(BAS_StoreSourceLine(&program, "20 GOSUB 100"),
+              "store gosub jump");
+  expect_true(BAS_StoreSourceLine(&program, "30 PRINT \"C\""),
+              "store gosub resumed print");
+  expect_true(BAS_StoreSourceLine(&program, "40 END"), "store gosub end");
+  expect_true(BAS_StoreSourceLine(&program, "100 PRINT \"B\""),
+              "store gosub subroutine print");
+  expect_true(BAS_StoreSourceLine(&program, "110 RETURN"),
+              "store gosub return");
+
+  expect_true(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                             sizeof(lineBuffer), &result),
+              "runner executes GOSUB");
+  expect_u8(result.status, BAS_RUN_HALTED, "GOSUB run status");
+  expect_u8(result.linesEmitted, 3, "GOSUB output count");
+  expect_str(runOutputLines[0], "A", "GOSUB first output");
+  expect_str(runOutputLines[1], "B", "GOSUB subroutine output");
+  expect_str(runOutputLines[2], "C", "GOSUB resumed output");
+}
+
+static void runner_reports_missing_gosub_target(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 GOSUB 999"),
+              "store missing gosub target");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects missing GOSUB target");
+  expect_u8(result.status, BAS_RUN_MISSING_LINE, "missing GOSUB status");
+  expect_u16(result.errorLine, 10, "missing GOSUB line");
+}
+
+static void runner_reports_return_without_gosub(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 RETURN"),
+              "store stray RETURN");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects stray RETURN");
+  expect_u8(result.status, BAS_RUN_RETURN_WITHOUT_GOSUB,
+            "stray RETURN status");
+  expect_u16(result.errorLine, 10, "stray RETURN line");
+}
+
+static void runner_reports_gosub_stack_overflow(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 GOSUB 10"),
+              "store recursive GOSUB");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects GOSUB overflow");
+  expect_u8(result.status, BAS_RUN_GOSUB_STACK_OVERFLOW,
+            "GOSUB overflow status");
+  expect_u16(result.errorLine, 10, "GOSUB overflow line");
+}
+
 static void runner_if_then_jumps_when_comparison_true(void) {
   BasicLine lines[6];
   uint8_t storage[160];
@@ -783,6 +871,10 @@ int main(void) {
   runner_reports_unsupported_statement_line();
   runner_goto_jumps_to_target_line();
   runner_reports_missing_goto_target();
+  runner_gosub_returns_to_next_line();
+  runner_reports_missing_gosub_target();
+  runner_reports_return_without_gosub();
+  runner_reports_gosub_stack_overflow();
   runner_if_then_jumps_when_comparison_true();
   runner_if_then_falls_through_when_comparison_false();
   runner_if_then_accepts_goto_target();

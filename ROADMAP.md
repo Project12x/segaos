@@ -338,8 +338,10 @@ with in at least one emulator.
         condition errors
   - [x] Callback-backed integer `INPUT` for A-Z variable assignment, with
         unavailable-input and bad-input errors
-  - [ ] Subroutines, string variables, arrays, and broader statement execution
-        after `THEN`
+  - [x] Literal-line `GOSUB`/`RETURN` subroutines with a fixed-depth return
+        stack, missing-target errors, stray-return errors, and stack-overflow
+        errors
+  - [ ] String variables, arrays, and broader statement execution after `THEN`
   - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
