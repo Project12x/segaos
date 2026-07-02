@@ -248,8 +248,9 @@ emitting printed values through the same caller-supplied sink. The runner also
 supports literal-line `GOTO` with a hard step cap to avoid runaway loops and
 fixed A-Z signed 16-bit integer variables through `LET`. The first `IF` path
 supports integer truth/comparison checks and literal `THEN` line targets,
-including `THEN GOTO`. It does not yet handle string variables, arrays,
-`INPUT`, subroutines, desktop display binding, or persistence.
+including `THEN GOTO`. `BAS_RunProgramWithIO()` adds a callback-backed
+integer `INPUT` seam for assigning A-Z variables. It does not yet handle string
+variables, arrays, subroutines, desktop display/input binding, or persistence.
 
 See [docs/reference/sega_cd_homebrew_2026.md](docs/reference/sega_cd_homebrew_2026.md)
 and [docs/reference/sega_cd_boot_disc.md](docs/reference/sega_cd_boot_disc.md)

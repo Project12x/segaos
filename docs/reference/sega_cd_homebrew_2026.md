@@ -261,7 +261,7 @@ statement execution seam. It runs stored program lines sequentially, supports
 `PRINT` of the current integer/string expression values, stops on `END`, routes
 output through the same callback shape as `LIST`, and reports unsupported
 statements or bad expressions with source line numbers. It is still clean-room
-SegaOS code and does not implement `INPUT`, desktop I/O, `LOAD`, or `SAVE`.
+SegaOS code and does not implement desktop I/O, `LOAD`, or `SAVE`.
 
 BASIC-GOTO update on 2026-07-01: `BAS_RunProgram()` now supports literal-line
 `GOTO` by resolving targets against the sorted program table. Host tests prove
@@ -274,9 +274,9 @@ A-Z signed 16-bit integer variable table. Host tests prove runtime set/get,
 runtime-backed expression lookup, `LET A = <integer expression>` assignment,
 undefined-variable errors, and string-assignment rejection. This is still a
 small OS-tooling seam, not a complete BASIC: no string variables, arrays,
-`INPUT`, subroutines, desktop I/O, `LOAD`, or `SAVE`. Reuse mode remains
-clean-room; no GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source was
-copied or closely ported.
+subroutines, desktop I/O, `LOAD`, or `SAVE`. Reuse mode remains clean-room; no
+GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source was copied or
+closely ported.
 
 BASIC-IF update on 2026-07-01: `BAS_RunProgram()` now supports a narrow
 `IF ... THEN ...` branch form. Conditions are integer-only: either truthiness
@@ -285,4 +285,13 @@ of an integer expression or comparisons using `=`, `<>`, `<`, `>`, `<=`, and
 optional `GOTO` before the target. Host tests prove true jumps, false
 fallthrough, `THEN GOTO`, missing-target errors, and bad-condition errors. This
 still does not execute arbitrary statements after `THEN` and does not add
-`INPUT`, string variables, arrays, subroutines, desktop I/O, `LOAD`, or `SAVE`.
+string variables, arrays, subroutines, desktop I/O, `LOAD`, or `SAVE`.
+
+BASIC-INPUT update on 2026-07-02: `BAS_RunProgramWithIO()` now adds the first
+input seam. `BasicInputSource` is a caller-supplied callback that writes one
+input line into the runner scratch buffer. `INPUT A` assigns an integer value
+to a fixed A-Z runtime variable, reports `BAS_RUN_INPUT_UNAVAILABLE` when no
+input source is present or the source declines a line, and reports
+`BAS_RUN_BAD_INPUT` for non-integer values. This is still not desktop input UI,
+prompt rendering, string input, arrays, subroutines, `LOAD`, or `SAVE`. Reuse
+mode remains clean-room.

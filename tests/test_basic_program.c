@@ -8,6 +8,12 @@ static uint8_t listedLineCount;
 static char runOutputLines[4][48];
 static uint8_t runOutputLineCount;
 
+typedef struct {
+  const char *const *lines;
+  uint8_t count;
+  uint8_t index;
+} BasicInputFixture;
+
 static void expect_true(uint8_t value, const char *name) {
   if (!value) {
     printf("FAIL: %s expected true\n", name);
@@ -91,6 +97,27 @@ static void clear_run_capture(void) {
   for (uint8_t y = 0; y < 4; y++) {
     runOutputLines[y][0] = 0;
   }
+}
+
+static uint8_t feed_input_line(char *out, uint16_t outBytes, void *user) {
+  BasicInputFixture *fixture = (BasicInputFixture *)user;
+  const char *line;
+  uint16_t i = 0;
+
+  if (!fixture || !out || outBytes == 0 || fixture->index >= fixture->count)
+    return 0;
+
+  line = fixture->lines[fixture->index];
+  while (line[i] && i + 1U < outBytes) {
+    out[i] = line[i];
+    i++;
+  }
+  if (line[i])
+    return 0;
+
+  out[i] = 0;
+  fixture->index++;
+  return 1;
 }
 
 static void parse_print_line_tokenizes_keyword(void) {
@@ -312,7 +339,7 @@ static void runner_reports_unsupported_statement_line(void) {
   char lineBuffer[32];
 
   BAS_InitProgram(&program, lines, 2, storage, sizeof(storage));
-  expect_true(BAS_StoreSourceLine(&program, "10 INPUT A"),
+  expect_true(BAS_StoreSourceLine(&program, "10 REM NOT YET"),
               "store unsupported runner line");
 
   expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
@@ -663,6 +690,82 @@ static void runner_rejects_string_assignment(void) {
   expect_u16(result.errorLine, 10, "string assignment line");
 }
 
+static void runner_input_assigns_integer_variable(void) {
+  static const char *const inputLines[] = {"40"};
+  BasicInputFixture input = {inputLines, 1, 0};
+  BasicLine lines[3];
+  uint8_t storage[96];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[48];
+  int16_t stored = 0;
+
+  BAS_InitProgram(&program, lines, 3, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  clear_run_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 INPUT A"),
+              "store input statement");
+  expect_true(BAS_StoreSourceLine(&program, "20 PRINT A + 2"),
+              "store input print");
+  expect_true(BAS_StoreSourceLine(&program, "30 END"), "store input end");
+
+  expect_true(BAS_RunProgramWithIO(&program, &runtime, capture_run_output,
+                                   feed_input_line, &input, lineBuffer,
+                                   sizeof(lineBuffer), &result),
+              "runner executes INPUT");
+  expect_u8(result.status, BAS_RUN_HALTED, "INPUT run status");
+  expect_u8(result.linesEmitted, 1, "INPUT output count");
+  expect_str(runOutputLines[0], "42", "INPUT output line");
+  expect_u8(input.index, 1, "INPUT consumed one line");
+  expect_true(BAS_RuntimeGetInteger(&runtime, 'A', &stored),
+              "get input variable");
+  expect_i16(stored, 40, "input variable value");
+}
+
+static void runner_input_reports_unavailable_source(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 INPUT A"),
+              "store unavailable input statement");
+
+  expect_false(BAS_RunProgram(&program, capture_run_output, 0, lineBuffer,
+                              sizeof(lineBuffer), &result),
+               "runner rejects unavailable input");
+  expect_u8(result.status, BAS_RUN_INPUT_UNAVAILABLE,
+            "unavailable input status");
+  expect_u16(result.errorLine, 10, "unavailable input line");
+}
+
+static void runner_input_reports_bad_integer(void) {
+  static const char *const inputLines[] = {"\"X\""};
+  BasicInputFixture input = {inputLines, 1, 0};
+  BasicLine lines[1];
+  uint8_t storage[32];
+  BasicProgram program;
+  BasicRuntime runtime;
+  BasicRunResult result;
+  char lineBuffer[32];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  BAS_InitRuntime(&runtime);
+  expect_true(BAS_StoreSourceLine(&program, "10 INPUT A"),
+              "store bad input statement");
+
+  expect_false(BAS_RunProgramWithIO(&program, &runtime, capture_run_output,
+                                    feed_input_line, &input, lineBuffer,
+                                    sizeof(lineBuffer), &result),
+               "runner rejects bad integer input");
+  expect_u8(result.status, BAS_RUN_BAD_INPUT, "bad input status");
+  expect_u16(result.errorLine, 10, "bad input line");
+}
+
 int main(void) {
   parse_print_line_tokenizes_keyword();
   program_stores_lines_sorted();
@@ -691,6 +794,9 @@ int main(void) {
   runner_let_sets_integer_variable();
   runner_reports_undefined_variable_line();
   runner_rejects_string_assignment();
+  runner_input_assigns_integer_variable();
+  runner_input_reports_unavailable_source();
+  runner_input_reports_bad_integer();
 
   if (failures) {
     printf("basic program tests failed: %d\n", failures);

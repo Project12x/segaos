@@ -1079,6 +1079,52 @@ static uint8_t bas_execute_let(BasicRuntime *runtime, const char *source,
   return 1;
 }
 
+static uint8_t bas_parse_input_target(const char *source, uint8_t *indexOut) {
+  const char *p = bas_skip_spaces(source);
+
+  if (!p || !bas_variable_index(*p, indexOut))
+    return 0;
+
+  p++;
+  p = bas_skip_spaces(p);
+  return (uint8_t)(*p == 0);
+}
+
+static uint8_t bas_execute_input(BasicRuntime *runtime, const char *targetText,
+                                 BasicInputSource input, void *user,
+                                 char *lineBuffer, uint16_t lineBufferBytes,
+                                 BasicRunStatus *status) {
+  uint8_t index;
+  BasicValue value;
+
+  if (status)
+    *status = BAS_RUN_BAD_ASSIGNMENT;
+  if (!runtime || !bas_parse_input_target(targetText, &index))
+    return 0;
+
+  if (!input) {
+    if (status)
+      *status = BAS_RUN_INPUT_UNAVAILABLE;
+    return 0;
+  }
+  if (!input(lineBuffer, lineBufferBytes, user)) {
+    if (status)
+      *status = BAS_RUN_INPUT_UNAVAILABLE;
+    return 0;
+  }
+
+  if (!BAS_EvaluateExpression(lineBuffer, &value) ||
+      value.kind != BAS_VALUE_INTEGER) {
+    if (status)
+      *status = BAS_RUN_BAD_INPUT;
+    return 0;
+  }
+
+  runtime->integerDefined[index] = 1;
+  runtime->integerValues[index] = value.integer;
+  return 1;
+}
+
 uint8_t BAS_RunProgram(const BasicProgram *program, BasicLineSink sink,
                        void *user, char *lineBuffer,
                        uint16_t lineBufferBytes, BasicRunResult *result) {
@@ -1094,6 +1140,15 @@ uint8_t BAS_RunProgramWithRuntime(const BasicProgram *program,
                                   void *user, char *lineBuffer,
                                   uint16_t lineBufferBytes,
                                   BasicRunResult *result) {
+  return BAS_RunProgramWithIO(program, runtime, sink, (BasicInputSource)0, user,
+                              lineBuffer, lineBufferBytes, result);
+}
+
+uint8_t BAS_RunProgramWithIO(const BasicProgram *program, BasicRuntime *runtime,
+                             BasicLineSink sink, BasicInputSource input,
+                             void *user, char *lineBuffer,
+                             uint16_t lineBufferBytes,
+                             BasicRunResult *result) {
   uint8_t statementsExecuted = 0;
   uint8_t linesEmitted = 0;
   uint8_t pc = 0;
@@ -1166,6 +1221,25 @@ uint8_t BAS_RunProgramWithRuntime(const BasicProgram *program,
         return 0;
       }
       linesEmitted++;
+      pc++;
+      continue;
+    }
+
+    if (token == BAS_TOK_INPUT) {
+      BasicRunStatus inputStatus = BAS_RUN_BAD_ASSIGNMENT;
+
+      if (!bas_copy_payload_to_buffer(bytes, line->length, lineBuffer,
+                                      lineBufferBytes)) {
+        bas_set_run_result(result, BAS_RUN_BUFFER_TOO_SMALL,
+                           statementsExecuted, linesEmitted, line->number);
+        return 0;
+      }
+      if (!bas_execute_input(runtime, lineBuffer, input, user, lineBuffer,
+                             lineBufferBytes, &inputStatus)) {
+        bas_set_run_result(result, inputStatus, statementsExecuted,
+                           linesEmitted, line->number);
+        return 0;
+      }
       pc++;
       continue;
     }

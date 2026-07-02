@@ -3,9 +3,9 @@
  *
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, simple expression values, and a tiny PRINT/END/GOTO/IF runner. It
- * does handle fixed A-Z integer LET variables, but not string variables,
- * input, subroutines, or display/storage hardware yet.
+ * decode, simple expression values, and a tiny PRINT/END/GOTO/IF/INPUT
+ * runner. It does handle fixed A-Z integer LET variables, but not string
+ * variables, subroutines, or display/storage hardware yet.
  */
 
 #ifndef BASIC_H
@@ -71,6 +71,7 @@ typedef enum {
 } BasicCommandKind;
 
 typedef uint8_t (*BasicLineSink)(const char *line, void *user);
+typedef uint8_t (*BasicInputSource)(char *out, uint16_t outBytes, void *user);
 
 typedef struct {
   BasicCommandKind kind;
@@ -107,7 +108,9 @@ typedef enum {
   BAS_RUN_MISSING_LINE = 7,
   BAS_RUN_STEP_LIMIT = 8,
   BAS_RUN_BAD_ASSIGNMENT = 9,
-  BAS_RUN_UNDEFINED_VARIABLE = 10
+  BAS_RUN_UNDEFINED_VARIABLE = 10,
+  BAS_RUN_INPUT_UNAVAILABLE = 11,
+  BAS_RUN_BAD_INPUT = 12
 } BasicRunStatus;
 
 typedef struct {
@@ -152,5 +155,10 @@ uint8_t BAS_RunProgramWithRuntime(const BasicProgram *program,
                                   void *user, char *lineBuffer,
                                   uint16_t lineBufferBytes,
                                   BasicRunResult *result);
+uint8_t BAS_RunProgramWithIO(const BasicProgram *program, BasicRuntime *runtime,
+                             BasicLineSink sink, BasicInputSource input,
+                             void *user, char *lineBuffer,
+                             uint16_t lineBufferBytes,
+                             BasicRunResult *result);
 
 #endif /* BASIC_H */

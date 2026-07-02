@@ -336,8 +336,10 @@ with in at least one emulator.
   - [x] Integer `IF`/`THEN` branching with truth/comparison conditions,
         bare line targets, `THEN GOTO`, missing-target errors, and bad
         condition errors
-  - [ ] `INPUT`, subroutines, string variables, arrays, and broader statement
-        execution after `THEN`
+  - [x] Callback-backed integer `INPUT` for A-Z variable assignment, with
+        unavailable-input and bad-input errors
+  - [ ] Subroutines, string variables, arrays, and broader statement execution
+        after `THEN`
   - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
