@@ -341,6 +341,8 @@ with in at least one emulator.
   - [x] Literal-line `GOSUB`/`RETURN` subroutines with a fixed-depth return
         stack, missing-target errors, stray-return errors, and stack-overflow
         errors
+  - [x] Fixed-format binary program image export/import for later storage
+        integration
   - [ ] String variables, arrays, and broader statement execution after `THEN`
   - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers

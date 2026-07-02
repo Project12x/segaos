@@ -244,6 +244,16 @@ The implemented scope is deliberately below an interpreter: numbered-line
 parsing, small keyword tokenization, sorted insert/replace/delete, compaction
 of caller-owned storage, and decode for later `LIST`/desktop UI work.
 
+BASIC-image update on 2026-07-02: `BAS_ExportProgramImage()` and
+`BAS_ImportProgramImage()` now provide the first fixed binary payload for
+future BASIC `SAVE`/`LOAD` work. The format is explicit bytes rather than a
+packed C struct: magic `SBAS`, version 1, line count, big-endian storage size,
+line table, then compact token storage. Host tests prove round-trip list
+output, required-size reporting for short export buffers, and bad-magic
+rejection without clearing the caller's existing program. This is not a BRAM
+driver, file manager, or shell `SAVE`/`LOAD` command yet. Reuse mode remains
+clean-room.
+
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input
 through the shell, callback-based `LIST` output in sorted program order, `NEW`

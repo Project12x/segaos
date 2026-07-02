@@ -3,9 +3,10 @@
  *
  * This is the first interpreter seam: line-number parsing, small keyword
  * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, simple expression values, and a tiny PRINT/END/GOTO/GOSUB/IF/INPUT
- * runner. It does handle fixed A-Z integer LET variables, but not string
- * variables or display/storage hardware yet.
+ * decode, fixed-format program image export/import, simple expression values,
+ * and a tiny PRINT/END/GOTO/GOSUB/IF/INPUT runner. It does handle fixed A-Z
+ * integer LET variables, but not string variables or display/storage hardware
+ * yet.
  */
 
 #ifndef BASIC_H
@@ -129,6 +130,11 @@ void BAS_InitProgram(BasicProgram *program, BasicLine *lines,
 void BAS_ClearProgram(BasicProgram *program);
 uint8_t BAS_ParseSourceLine(const char *source, BasicParsedLine *out);
 uint8_t BAS_StoreSourceLine(BasicProgram *program, const char *source);
+uint16_t BAS_ProgramImageSize(const BasicProgram *program);
+uint8_t BAS_ExportProgramImage(const BasicProgram *program, uint8_t *out,
+                               uint16_t outBytes, uint16_t *bytesWritten);
+uint8_t BAS_ImportProgramImage(BasicProgram *program, const uint8_t *image,
+                               uint16_t imageBytes);
 const BasicLine *BAS_GetLine(const BasicProgram *program, uint8_t index);
 const uint8_t *BAS_GetLineBytes(const BasicProgram *program,
                                 const BasicLine *line);

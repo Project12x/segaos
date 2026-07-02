@@ -668,6 +668,15 @@ static uint8_t bas_write_replacement_line(BasicLine *lines, uint8_t *storage,
   return 1;
 }
 
+static void bas_write_u16_be(uint8_t *out, uint16_t value) {
+  out[0] = (uint8_t)(value >> 8);
+  out[1] = (uint8_t)(value & 0xffU);
+}
+
+static uint16_t bas_read_u16_be(const uint8_t *in) {
+  return (uint16_t)(((uint16_t)in[0] << 8) | in[1]);
+}
+
 static uint8_t bas_repack_lines(BasicProgram *program,
                                 const BasicParsedLine *replacement,
                                 uint8_t replaceIndex,
@@ -830,6 +839,118 @@ uint8_t BAS_StoreSourceLine(BasicProgram *program, const char *source) {
     return 0;
 
   return bas_repack_lines(program, &parsed, index, 1, 0);
+}
+
+uint16_t BAS_ProgramImageSize(const BasicProgram *program) {
+  if (!program || !program->lines || !program->storage ||
+      program->lineCount > BAS_MAX_PROGRAM_LINES ||
+      program->storageUsed > BAS_MAX_PROGRAM_STORAGE)
+    return 0;
+  return (uint16_t)(8U + ((uint16_t)program->lineCount * 6U) +
+                    program->storageUsed);
+}
+
+uint8_t BAS_ExportProgramImage(const BasicProgram *program, uint8_t *out,
+                               uint16_t outBytes, uint16_t *bytesWritten) {
+  uint16_t required = BAS_ProgramImageSize(program);
+  uint16_t pos = 8;
+  uint16_t storagePos;
+
+  if (bytesWritten)
+    *bytesWritten = required;
+  if (!program || !program->lines || !program->storage || !out ||
+      required == 0 || outBytes < required)
+    return 0;
+
+  out[0] = 'S';
+  out[1] = 'B';
+  out[2] = 'A';
+  out[3] = 'S';
+  out[4] = 1;
+  out[5] = program->lineCount;
+  bas_write_u16_be(&out[6], program->storageUsed);
+
+  for (uint8_t i = 0; i < program->lineCount; i++) {
+    const BasicLine *line = &program->lines[i];
+
+    if ((uint32_t)line->offset + line->length > program->storageUsed ||
+        line->length == 0)
+      return 0;
+    bas_write_u16_be(&out[pos], line->number);
+    bas_write_u16_be(&out[pos + 2U], line->offset);
+    bas_write_u16_be(&out[pos + 4U], line->length);
+    pos = (uint16_t)(pos + 6U);
+  }
+
+  storagePos = pos;
+  for (uint16_t i = 0; i < program->storageUsed; i++) {
+    out[storagePos + i] = program->storage[i];
+  }
+
+  return 1;
+}
+
+uint8_t BAS_ImportProgramImage(BasicProgram *program, const uint8_t *image,
+                               uint16_t imageBytes) {
+  uint8_t lineCount;
+  uint16_t storageUsed;
+  uint16_t required;
+  uint16_t pos = 8;
+  uint16_t expectedOffset = 0;
+  uint16_t previousNumber = 0;
+  uint16_t storagePos;
+
+  if (!program || !program->lines || !program->storage || !image ||
+      imageBytes < 8)
+    return 0;
+  if (image[0] != 'S' || image[1] != 'B' || image[2] != 'A' ||
+      image[3] != 'S' || image[4] != 1)
+    return 0;
+
+  lineCount = image[5];
+  storageUsed = bas_read_u16_be(&image[6]);
+  if (lineCount > program->lineCapacity || lineCount > BAS_MAX_PROGRAM_LINES ||
+      storageUsed > program->storageCapacity ||
+      storageUsed > BAS_MAX_PROGRAM_STORAGE)
+    return 0;
+
+  required = (uint16_t)(8U + ((uint16_t)lineCount * 6U) + storageUsed);
+  if (imageBytes < required)
+    return 0;
+
+  for (uint8_t i = 0; i < lineCount; i++) {
+    uint16_t number = bas_read_u16_be(&image[pos]);
+    uint16_t offset = bas_read_u16_be(&image[pos + 2U]);
+    uint16_t length = bas_read_u16_be(&image[pos + 4U]);
+
+    if (number == 0 || number > BAS_MAX_LINE_NUMBER ||
+        (i > 0 && number <= previousNumber) || length == 0 ||
+        offset != expectedOffset ||
+        (uint32_t)offset + length > storageUsed)
+      return 0;
+
+    previousNumber = number;
+    expectedOffset = (uint16_t)(offset + length);
+    pos = (uint16_t)(pos + 6U);
+  }
+  if (expectedOffset != storageUsed)
+    return 0;
+
+  storagePos = (uint16_t)(8U + ((uint16_t)lineCount * 6U));
+  for (uint16_t i = 0; i < storageUsed; i++) {
+    program->storage[i] = image[storagePos + i];
+  }
+
+  pos = 8;
+  for (uint8_t i = 0; i < lineCount; i++) {
+    program->lines[i].number = bas_read_u16_be(&image[pos]);
+    program->lines[i].offset = bas_read_u16_be(&image[pos + 2U]);
+    program->lines[i].length = bas_read_u16_be(&image[pos + 4U]);
+    pos = (uint16_t)(pos + 6U);
+  }
+  program->lineCount = lineCount;
+  program->storageUsed = storageUsed;
+  return 1;
 }
 
 const BasicLine *BAS_GetLine(const BasicProgram *program, uint8_t index) {

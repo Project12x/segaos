@@ -190,6 +190,103 @@ static void empty_body_deletes_line(void) {
   expect_u16(program.storageUsed, 0, "storage used after delete");
 }
 
+static void program_image_round_trips_tokenized_program(void) {
+  BasicLine lines[4];
+  BasicLine importedLines[4];
+  uint8_t storage[128];
+  uint8_t importedStorage[128];
+  uint8_t image[192];
+  BasicProgram program;
+  BasicProgram imported;
+  uint16_t written = 0;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 4, storage, sizeof(storage));
+  BAS_InitProgram(&imported, importedLines, 4, importedStorage,
+                  sizeof(importedStorage));
+  clear_list_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "20 GOTO 40"),
+              "store image line 20");
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT \"A\""),
+              "store image line 10");
+  expect_true(BAS_StoreSourceLine(&program, "30 LET A = 5"),
+              "store image line 30");
+  expect_true(BAS_StoreSourceLine(&program, "40 END"),
+              "store image line 40");
+
+  expect_u16(BAS_ProgramImageSize(&program),
+             (uint16_t)(8U + (program.lineCount * 6U) + program.storageUsed),
+             "program image size");
+  expect_true(BAS_ExportProgramImage(&program, image, sizeof(image), &written),
+              "export program image");
+  expect_u16(written, BAS_ProgramImageSize(&program),
+             "exported program image bytes");
+  expect_true(BAS_ImportProgramImage(&imported, image, written),
+              "import program image");
+
+  expect_true(BAS_ListProgram(&imported, capture_list_line, 0, lineBuffer,
+                              sizeof(lineBuffer), 0),
+              "list imported program");
+  expect_u8(listedLineCount, 4, "imported listed line count");
+  expect_str(listedLines[0], "10 PRINT \"A\"", "imported first line");
+  expect_str(listedLines[1], "20 GOTO 40", "imported second line");
+  expect_str(listedLines[2], "30 LET A = 5", "imported third line");
+  expect_str(listedLines[3], "40 END", "imported fourth line");
+}
+
+static void program_image_reports_required_export_size(void) {
+  BasicLine lines[1];
+  uint8_t storage[32];
+  uint8_t image[4];
+  BasicProgram program;
+  uint16_t written = 0;
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  expect_true(BAS_StoreSourceLine(&program, "10 END"),
+              "store small image program");
+
+  expect_false(BAS_ExportProgramImage(&program, image, sizeof(image),
+                                      &written),
+               "reject undersized image export");
+  expect_u16(written, BAS_ProgramImageSize(&program),
+             "undersized export required bytes");
+}
+
+static void program_image_rejects_bad_magic_without_clearing_program(void) {
+  BasicLine lines[1];
+  BasicLine importedLines[1];
+  uint8_t storage[32];
+  uint8_t importedStorage[32];
+  uint8_t image[64];
+  BasicProgram program;
+  BasicProgram imported;
+  uint16_t written = 0;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 1, storage, sizeof(storage));
+  BAS_InitProgram(&imported, importedLines, 1, importedStorage,
+                  sizeof(importedStorage));
+  clear_list_capture();
+
+  expect_true(BAS_StoreSourceLine(&program, "10 END"),
+              "store image source before corrupt import");
+  expect_true(BAS_StoreSourceLine(&imported, "10 PRINT \"KEEP\""),
+              "store image destination before corrupt import");
+  expect_true(BAS_ExportProgramImage(&program, image, sizeof(image), &written),
+              "export before corrupt import");
+  image[0] = 0;
+
+  expect_false(BAS_ImportProgramImage(&imported, image, written),
+               "reject corrupt image magic");
+  expect_true(BAS_ListProgram(&imported, capture_list_line, 0, lineBuffer,
+                              sizeof(lineBuffer), 0),
+              "list destination after corrupt import");
+  expect_u8(listedLineCount, 1, "corrupt import preserves line count");
+  expect_str(listedLines[0], "10 PRINT \"KEEP\"",
+             "corrupt import preserves program");
+}
+
 static void rejects_invalid_or_oversized_source(void) {
   BasicParsedLine parsed;
   BasicLine lines[1];
@@ -860,6 +957,9 @@ int main(void) {
   keyword_prefix_stays_raw();
   replacing_line_compacts_storage();
   empty_body_deletes_line();
+  program_image_round_trips_tokenized_program();
+  program_image_reports_required_export_size();
+  program_image_rejects_bad_magic_without_clearing_program();
   rejects_invalid_or_oversized_source();
   shell_stores_lines_and_lists_program();
   shell_new_clears_program();

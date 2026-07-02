@@ -240,8 +240,9 @@ The first BASIC code seam is also now in place. `src/sub/basic.c` is a
 clean-room, fixed-storage program buffer and tiny shell: it parses numbered
 source lines, tokenizes a small keyword set, stores lines in sorted order,
 replaces or deletes existing lines, compacts caller-owned storage, decodes
-stored lines, accepts shell line entry, lists programs through a caller-supplied
-sink, clears programs with `NEW`, and evaluates the first simple values:
+stored lines, exports/imports a fixed-format binary program image for later
+storage integration, accepts shell line entry, lists programs through a
+caller-supplied sink, clears programs with `NEW`, and evaluates the first simple values:
 signed 16-bit integer `+`/`-` expressions and quoted string literals. The
 first `RUN` path executes stored lines sequentially for `PRINT` and `END`,
 emitting printed values through the same caller-supplied sink. The runner also
