@@ -246,13 +246,25 @@ of caller-owned storage, and decode for later `LIST`/desktop UI work.
 
 BASIC-image update on 2026-07-02: `BAS_ExportProgramImage()` and
 `BAS_ImportProgramImage()` now provide the first fixed binary payload for
-future BASIC `SAVE`/`LOAD` work. The format is explicit bytes rather than a
-packed C struct: magic `SBAS`, version 1, line count, big-endian storage size,
-line table, then compact token storage. Host tests prove round-trip list
-output, required-size reporting for short export buffers, and bad-magic
-rejection without clearing the caller's existing program. This is not a BRAM
-driver, file manager, or shell `SAVE`/`LOAD` command yet. Reuse mode remains
-clean-room.
+BASIC `SAVE`/`LOAD` work. The format is explicit bytes rather than a packed C
+struct: magic `SBAS`, version 1, line count, big-endian storage size, line
+table, then compact token storage. Host tests prove round-trip list output,
+required-size reporting for short export buffers, and bad-magic rejection
+without clearing the caller's existing program. This is not a BRAM driver or
+file manager. Reuse mode remains clean-room.
+
+BASIC-storage-shell update on 2026-07-02:
+`BAS_SubmitConsoleLineWithStorage()` now recognizes `SAVE` and `LOAD` using a
+caller-supplied `BasicStorageIO` callback table plus caller-owned scratch image
+buffer. `SAVE` exports the `SBAS` program image and hands it to the save
+callback. `LOAD` reads bytes from the load callback, validates/imports the
+image, and leaves the existing program intact when import fails. Host tests
+prove successful save callback output, successful load replacement, and corrupt
+load rejection without clearing the current program. This still deliberately
+avoids direct BRAM or external-cart hardware calls; the desktop/storage layer
+must route the callbacks through `STG_PlanSave()` and later drivers. Reuse mode
+remains clean-room; no GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter
+source was copied or closely ported.
 
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input

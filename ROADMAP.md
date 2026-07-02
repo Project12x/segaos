@@ -343,8 +343,9 @@ with in at least one emulator.
         errors
   - [x] Fixed-format binary program image export/import for later storage
         integration
+  - [x] Storage-callback `LOAD` and `SAVE` command shell behavior over the
+        fixed-format BASIC program image
   - [ ] String variables, arrays, and broader statement execution after `THEN`
-  - [ ] `LOAD` and `SAVE` command shell behavior
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
         BRAM/external-cart drivers

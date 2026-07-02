@@ -14,6 +14,14 @@ typedef struct {
   uint8_t index;
 } BasicInputFixture;
 
+typedef struct {
+  uint8_t bytes[192];
+  uint16_t bytesUsed;
+  uint8_t saveCalls;
+  uint8_t loadCalls;
+  uint8_t failLoad;
+} BasicStorageFixture;
+
 static void expect_true(uint8_t value, const char *name) {
   if (!value) {
     printf("FAIL: %s expected true\n", name);
@@ -117,6 +125,39 @@ static uint8_t feed_input_line(char *out, uint16_t outBytes, void *user) {
 
   out[i] = 0;
   fixture->index++;
+  return 1;
+}
+
+static uint8_t capture_program_image(const uint8_t *image, uint16_t imageBytes,
+                                     void *user) {
+  BasicStorageFixture *fixture = (BasicStorageFixture *)user;
+
+  if (!fixture || !image || imageBytes > sizeof(fixture->bytes))
+    return 0;
+
+  for (uint16_t i = 0; i < imageBytes; i++) {
+    fixture->bytes[i] = image[i];
+  }
+  fixture->bytesUsed = imageBytes;
+  fixture->saveCalls++;
+  return 1;
+}
+
+static uint8_t feed_program_image(uint8_t *image, uint16_t imageBytes,
+                                  uint16_t *bytesRead, void *user) {
+  BasicStorageFixture *fixture = (BasicStorageFixture *)user;
+
+  if (bytesRead)
+    *bytesRead = 0;
+  if (!fixture || !image || !bytesRead || fixture->failLoad ||
+      fixture->bytesUsed > imageBytes)
+    return 0;
+
+  for (uint16_t i = 0; i < fixture->bytesUsed; i++) {
+    image[i] = fixture->bytes[i];
+  }
+  *bytesRead = fixture->bytesUsed;
+  fixture->loadCalls++;
   return 1;
 }
 
@@ -378,6 +419,138 @@ static void shell_run_executes_print_program(void) {
   expect_u8(runOutputLineCount, 2, "captured run output count");
   expect_str(runOutputLines[0], "HELLO", "first run output line");
   expect_str(runOutputLines[1], "17", "second run output line");
+}
+
+static void shell_save_exports_program_image_to_storage_callback(void) {
+  BasicLine lines[4];
+  uint8_t storageBytes[96];
+  uint8_t imageScratch[192];
+  BasicProgram program;
+  BasicStorageFixture storage = {0};
+  BasicStorageIO storageIo;
+  BasicCommandResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&program, lines, 4, storageBytes, sizeof(storageBytes));
+  expect_true(BAS_StoreSourceLine(&program, "10 PRINT \"SAVE\""),
+              "store line before shell SAVE");
+  expect_true(BAS_StoreSourceLine(&program, "20 END"),
+              "store end before shell SAVE");
+
+  storageIo.save = capture_program_image;
+  storageIo.load = feed_program_image;
+  storageIo.user = &storage;
+  storageIo.imageBuffer = imageScratch;
+  storageIo.imageBufferBytes = sizeof(imageScratch);
+
+  expect_true(BAS_SubmitConsoleLineWithStorage(
+                  &program, "SAVE", capture_list_line, 0, lineBuffer,
+                  sizeof(lineBuffer), &storageIo, &result),
+              "shell SAVE command");
+  expect_u8(result.kind, BAS_CMD_SAVE, "save command kind");
+  expect_u16(result.bytesTransferred, BAS_ProgramImageSize(&program),
+             "save image byte count");
+  expect_u8(storage.saveCalls, 1, "save callback count");
+  expect_u16(storage.bytesUsed, BAS_ProgramImageSize(&program),
+             "saved image bytes used");
+  expect_u8(storage.bytes[0], 'S', "save image magic S");
+  expect_u8(storage.bytes[1], 'B', "save image magic B");
+  expect_u8(storage.bytes[2], 'A', "save image magic A");
+  expect_u8(storage.bytes[3], 'S', "save image magic final S");
+}
+
+static void shell_load_imports_program_image_from_storage_callback(void) {
+  BasicLine sourceLines[4];
+  BasicLine destLines[4];
+  uint8_t sourceStorage[96];
+  uint8_t destStorage[96];
+  uint8_t imageScratch[192];
+  BasicProgram source;
+  BasicProgram dest;
+  BasicStorageFixture storage = {0};
+  BasicStorageIO storageIo;
+  BasicCommandResult result;
+  uint16_t written = 0;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&source, sourceLines, 4, sourceStorage,
+                  sizeof(sourceStorage));
+  BAS_InitProgram(&dest, destLines, 4, destStorage, sizeof(destStorage));
+  clear_list_capture();
+
+  expect_true(BAS_StoreSourceLine(&source, "10 PRINT \"LOAD\""),
+              "store source line before LOAD");
+  expect_true(BAS_StoreSourceLine(&source, "20 END"),
+              "store source end before LOAD");
+  expect_true(BAS_ExportProgramImage(&source, storage.bytes,
+                                     sizeof(storage.bytes), &written),
+              "prepare stored image before LOAD");
+  storage.bytesUsed = written;
+
+  expect_true(BAS_StoreSourceLine(&dest, "10 PRINT \"OLD\""),
+              "store old line before LOAD");
+
+  storageIo.save = capture_program_image;
+  storageIo.load = feed_program_image;
+  storageIo.user = &storage;
+  storageIo.imageBuffer = imageScratch;
+  storageIo.imageBufferBytes = sizeof(imageScratch);
+
+  expect_true(BAS_SubmitConsoleLineWithStorage(
+                  &dest, "LOAD", capture_list_line, 0, lineBuffer,
+                  sizeof(lineBuffer), &storageIo, &result),
+              "shell LOAD command");
+  expect_u8(result.kind, BAS_CMD_LOAD, "load command kind");
+  expect_u16(result.bytesTransferred, written, "load image byte count");
+  expect_u8(storage.loadCalls, 1, "load callback count");
+
+  expect_true(BAS_ListProgram(&dest, capture_list_line, 0, lineBuffer,
+                              sizeof(lineBuffer), 0),
+              "list program after shell LOAD");
+  expect_u8(listedLineCount, 2, "loaded shell line count");
+  expect_str(listedLines[0], "10 PRINT \"LOAD\"", "loaded first line");
+  expect_str(listedLines[1], "20 END", "loaded second line");
+}
+
+static void shell_load_failure_preserves_existing_program(void) {
+  BasicLine destLines[4];
+  uint8_t destStorage[96];
+  uint8_t imageScratch[192];
+  BasicProgram dest;
+  BasicStorageFixture storage = {0};
+  BasicStorageIO storageIo;
+  BasicCommandResult result;
+  char lineBuffer[48];
+
+  BAS_InitProgram(&dest, destLines, 4, destStorage, sizeof(destStorage));
+  clear_list_capture();
+  expect_true(BAS_StoreSourceLine(&dest, "10 PRINT \"KEEP\""),
+              "store old line before failed LOAD");
+
+  storage.bytes[0] = 0;
+  storage.bytes[1] = 'B';
+  storage.bytes[2] = 'A';
+  storage.bytes[3] = 'S';
+  storage.bytesUsed = 8;
+
+  storageIo.save = capture_program_image;
+  storageIo.load = feed_program_image;
+  storageIo.user = &storage;
+  storageIo.imageBuffer = imageScratch;
+  storageIo.imageBufferBytes = sizeof(imageScratch);
+
+  expect_false(BAS_SubmitConsoleLineWithStorage(
+                   &dest, "LOAD", capture_list_line, 0, lineBuffer,
+                   sizeof(lineBuffer), &storageIo, &result),
+               "shell rejects corrupt LOAD image");
+  expect_u8(result.kind, BAS_CMD_LOAD, "failed load command kind");
+  expect_u8(result.ok, 0, "failed load result ok");
+  expect_true(BAS_ListProgram(&dest, capture_list_line, 0, lineBuffer,
+                              sizeof(lineBuffer), 0),
+              "list program after failed shell LOAD");
+  expect_u8(listedLineCount, 1, "failed load keeps line count");
+  expect_str(listedLines[0], "10 PRINT \"KEEP\"",
+             "failed load preserves program");
 }
 
 static void evaluates_integer_expressions(void) {
@@ -964,6 +1137,9 @@ int main(void) {
   shell_stores_lines_and_lists_program();
   shell_new_clears_program();
   shell_run_executes_print_program();
+  shell_save_exports_program_image_to_storage_callback();
+  shell_load_imports_program_image_from_storage_callback();
+  shell_load_failure_preserves_existing_program();
   evaluates_integer_expressions();
   evaluates_integer_variables_with_runtime();
   evaluates_string_literals();

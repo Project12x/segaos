@@ -2,11 +2,11 @@
  * basic.h - Clean-room SegaOS BASIC program buffer.
  *
  * This is the first interpreter seam: line-number parsing, small keyword
- * tokenization, sorted storage, replace/delete, LIST/NEW shell commands,
- * decode, fixed-format program image export/import, simple expression values,
- * and a tiny PRINT/END/GOTO/GOSUB/IF/INPUT runner. It does handle fixed A-Z
- * integer LET variables, but not string variables or display/storage hardware
- * yet.
+ * tokenization, sorted storage, replace/delete, LIST/NEW/SAVE/LOAD shell
+ * commands, decode, fixed-format program image export/import, simple
+ * expression values, and a tiny PRINT/END/GOTO/GOSUB/IF/INPUT runner. It does
+ * handle fixed A-Z integer LET variables, but not string variables or concrete
+ * display/storage hardware yet.
  */
 
 #ifndef BASIC_H
@@ -68,17 +68,33 @@ typedef enum {
   BAS_CMD_LIST = 2,
   BAS_CMD_NEW = 3,
   BAS_CMD_RUN = 4,
-  BAS_CMD_UNSUPPORTED = 5,
-  BAS_CMD_ERROR = 6
+  BAS_CMD_SAVE = 5,
+  BAS_CMD_LOAD = 6,
+  BAS_CMD_UNSUPPORTED = 7,
+  BAS_CMD_ERROR = 8
 } BasicCommandKind;
 
 typedef uint8_t (*BasicLineSink)(const char *line, void *user);
 typedef uint8_t (*BasicInputSource)(char *out, uint16_t outBytes, void *user);
+typedef uint8_t (*BasicProgramSaveSink)(const uint8_t *image,
+                                        uint16_t imageBytes, void *user);
+typedef uint8_t (*BasicProgramLoadSource)(uint8_t *image,
+                                          uint16_t imageBufferBytes,
+                                          uint16_t *imageBytes, void *user);
+
+typedef struct {
+  BasicProgramSaveSink save;
+  BasicProgramLoadSource load;
+  void *user;
+  uint8_t *imageBuffer;
+  uint16_t imageBufferBytes;
+} BasicStorageIO;
 
 typedef struct {
   BasicCommandKind kind;
   uint8_t ok;
   uint8_t linesEmitted;
+  uint16_t bytesTransferred;
 } BasicCommandResult;
 
 typedef enum {
@@ -148,6 +164,10 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
                               BasicLineSink sink, void *user,
                               char *lineBuffer, uint16_t lineBufferBytes,
                               BasicCommandResult *result);
+uint8_t BAS_SubmitConsoleLineWithStorage(
+    BasicProgram *program, const char *input, BasicLineSink sink, void *user,
+    char *lineBuffer, uint16_t lineBufferBytes, const BasicStorageIO *storage,
+    BasicCommandResult *result);
 void BAS_InitRuntime(BasicRuntime *runtime);
 uint8_t BAS_RuntimeSetInteger(BasicRuntime *runtime, char name, int16_t value);
 uint8_t BAS_RuntimeGetInteger(const BasicRuntime *runtime, char name,

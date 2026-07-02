@@ -134,12 +134,14 @@ static uint8_t bas_command_equals(const char *input, const char *command) {
 
 static void bas_set_command_result(BasicCommandResult *result,
                                    BasicCommandKind kind, uint8_t ok,
-                                   uint8_t linesEmitted) {
+                                   uint8_t linesEmitted,
+                                   uint16_t bytesTransferred) {
   if (!result)
     return;
   result->kind = kind;
   result->ok = ok;
   result->linesEmitted = linesEmitted;
+  result->bytesTransferred = bytesTransferred;
 }
 
 static void bas_set_run_result(BasicRunResult *result, BasicRunStatus status,
@@ -1088,36 +1090,89 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
                               BasicLineSink sink, void *user,
                               char *lineBuffer, uint16_t lineBufferBytes,
                               BasicCommandResult *result) {
+  return BAS_SubmitConsoleLineWithStorage(program, input, sink, user,
+                                          lineBuffer, lineBufferBytes,
+                                          (const BasicStorageIO *)0, result);
+}
+
+static uint8_t bas_save_program_image(BasicProgram *program,
+                                      const BasicStorageIO *storage,
+                                      uint16_t *bytesTransferred) {
+  uint16_t written = 0;
+
+  if (bytesTransferred)
+    *bytesTransferred = 0;
+  if (!storage || !storage->save || !storage->imageBuffer ||
+      storage->imageBufferBytes == 0)
+    return 0;
+  if (!BAS_ExportProgramImage(program, storage->imageBuffer,
+                              storage->imageBufferBytes, &written))
+    return 0;
+  if (!storage->save(storage->imageBuffer, written, storage->user))
+    return 0;
+
+  if (bytesTransferred)
+    *bytesTransferred = written;
+  return 1;
+}
+
+static uint8_t bas_load_program_image(BasicProgram *program,
+                                      const BasicStorageIO *storage,
+                                      uint16_t *bytesTransferred) {
+  uint16_t bytesRead = 0;
+
+  if (bytesTransferred)
+    *bytesTransferred = 0;
+  if (!storage || !storage->load || !storage->imageBuffer ||
+      storage->imageBufferBytes == 0)
+    return 0;
+  if (!storage->load(storage->imageBuffer, storage->imageBufferBytes,
+                     &bytesRead, storage->user))
+    return 0;
+  if (bytesRead == 0 ||
+      !BAS_ImportProgramImage(program, storage->imageBuffer, bytesRead))
+    return 0;
+
+  if (bytesTransferred)
+    *bytesTransferred = bytesRead;
+  return 1;
+}
+
+uint8_t BAS_SubmitConsoleLineWithStorage(
+    BasicProgram *program, const char *input, BasicLineSink sink, void *user,
+    char *lineBuffer, uint16_t lineBufferBytes, const BasicStorageIO *storage,
+    BasicCommandResult *result) {
   const char *p;
   uint8_t ok;
   uint8_t emitted = 0;
+  uint16_t bytesTransferred = 0;
 
-  bas_set_command_result(result, BAS_CMD_ERROR, 0, 0);
+  bas_set_command_result(result, BAS_CMD_ERROR, 0, 0, 0);
   if (!program || !input)
     return 0;
 
   p = bas_skip_spaces(input);
   if (*p == 0) {
-    bas_set_command_result(result, BAS_CMD_EMPTY, 1, 0);
+    bas_set_command_result(result, BAS_CMD_EMPTY, 1, 0, 0);
     return 1;
   }
 
   if (*p >= '0' && *p <= '9') {
     ok = BAS_StoreSourceLine(program, p);
-    bas_set_command_result(result, BAS_CMD_PROGRAM_LINE, ok, 0);
+    bas_set_command_result(result, BAS_CMD_PROGRAM_LINE, ok, 0, 0);
     return ok;
   }
 
   if (bas_command_equals(p, "LIST")) {
     ok = BAS_ListProgram(program, sink, user, lineBuffer, lineBufferBytes,
                          &emitted);
-    bas_set_command_result(result, BAS_CMD_LIST, ok, emitted);
+    bas_set_command_result(result, BAS_CMD_LIST, ok, emitted, 0);
     return ok;
   }
 
   if (bas_command_equals(p, "NEW")) {
     BAS_ClearProgram(program);
-    bas_set_command_result(result, BAS_CMD_NEW, 1, 0);
+    bas_set_command_result(result, BAS_CMD_NEW, 1, 0, 0);
     return 1;
   }
 
@@ -1126,11 +1181,23 @@ uint8_t BAS_SubmitConsoleLine(BasicProgram *program, const char *input,
 
     ok = BAS_RunProgram(program, sink, user, lineBuffer, lineBufferBytes,
                         &runResult);
-    bas_set_command_result(result, BAS_CMD_RUN, ok, runResult.linesEmitted);
+    bas_set_command_result(result, BAS_CMD_RUN, ok, runResult.linesEmitted, 0);
     return ok;
   }
 
-  bas_set_command_result(result, BAS_CMD_UNSUPPORTED, 0, 0);
+  if (bas_command_equals(p, "SAVE")) {
+    ok = bas_save_program_image(program, storage, &bytesTransferred);
+    bas_set_command_result(result, BAS_CMD_SAVE, ok, 0, bytesTransferred);
+    return ok;
+  }
+
+  if (bas_command_equals(p, "LOAD")) {
+    ok = bas_load_program_image(program, storage, &bytesTransferred);
+    bas_set_command_result(result, BAS_CMD_LOAD, ok, 0, bytesTransferred);
+    return ok;
+  }
+
+  bas_set_command_result(result, BAS_CMD_UNSUPPORTED, 0, 0, 0);
   return 0;
 }
 
