@@ -356,6 +356,7 @@ try {
       $desktopNames = @(
         "segaos_desktop_main_phase",
         "segaos_desktop_stat0",
+        "segaos_desktop_stat1",
         "segaos_desktop_trace",
         "segaos_desktop_done_status",
         "segaos_desktop_wait_polls"
@@ -433,6 +434,7 @@ try {
       $desktopNames = @(
         "segaos_desktop_main_phase",
         "segaos_desktop_stat0",
+        "segaos_desktop_stat1",
         "segaos_desktop_trace",
         "segaos_desktop_done_status",
         "segaos_desktop_wait_polls",
@@ -737,6 +739,7 @@ try {
       $desktopNames = @(
         "segaos_desktop_main_phase",
         "segaos_desktop_stat0",
+        "segaos_desktop_stat1",
         "segaos_desktop_trace",
         "segaos_desktop_done_status",
         "segaos_desktop_wait_polls",
@@ -755,6 +758,7 @@ try {
       $desktopNames = @(
         "segaos_desktop_main_phase",
         "segaos_desktop_stat0",
+        "segaos_desktop_stat1",
         "segaos_desktop_trace",
         "segaos_desktop_done_status",
         "segaos_desktop_wait_polls",
@@ -894,6 +898,7 @@ try {
       $expectedValues = [ordered]@{
         segaos_desktop_main_phase = "0x88ff"
         segaos_desktop_stat0 = "0x0002"
+        segaos_desktop_stat1 = "0x0004"
         segaos_desktop_trace = "0x7404"
         segaos_desktop_done_status = "0x0003"
         segaos_desktop_pump_result = "0x0001"

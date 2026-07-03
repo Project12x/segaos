@@ -60,6 +60,7 @@ volatile uint16_t segaos_smoke_done_status;
 void segaos_desktop_init_halt(void) __attribute__((noinline, used));
 #ifdef DESKTOP_PUMP_PROBE
 static void desktop_pump_probe(void);
+static void desktop_pump_probe_init_vdp(void);
 #elif defined(DESKTOP_SCHEDULER_PROBE)
 static void desktop_scheduler_probe(void);
 #else
@@ -382,7 +383,11 @@ static void boot_sequence(void) {
 #endif
 
   /* Step 4: Initialize VDP (standalone, no SGDK dependency) */
+#ifdef DESKTOP_PUMP_PROBE
+  desktop_pump_probe_init_vdp();
+#else
   VDP_Init();
+#endif
 
 #ifdef BOOT_PROBE
   /*
@@ -600,6 +605,50 @@ static void desktop_scheduler_probe_upload(void) {
 #endif
 
 #ifdef DESKTOP_PUMP_PROBE
+static void desktop_pump_probe_init_vdp(void) {
+  (void)VDP_CTRL_PORT;
+
+  VDP_SET_REG(VDP_REG_MODE1, 0x04);
+  VDP_SET_REG(VDP_REG_MODE2, 0x14);
+  VDP_SET_REG(VDP_REG_PLANEA, VRAM_PLANE_A >> 10);
+  VDP_SET_REG(VDP_REG_PLANEB, VRAM_PLANE_B >> 13);
+  VDP_SET_REG(VDP_REG_SPRITE, VRAM_SPRITES >> 9);
+  VDP_SET_REG(VDP_REG_BGCOLOR, 0x00);
+  VDP_SET_REG(VDP_REG_MODE3, 0x00);
+  VDP_SET_REG(VDP_REG_MODE4, 0x81);
+  VDP_SET_REG(VDP_REG_HSCROLL, VRAM_HSCROLL >> 10);
+  VDP_SET_REG(VDP_REG_AUTOINC, 0x02);
+  VDP_SET_REG(VDP_REG_SCROLLSZ, 0x01);
+  VDP_SET_REG(VDP_REG_WINX, 0x00);
+  VDP_SET_REG(VDP_REG_WINY, 0x00);
+  VDP_SET_REG(VDP_REG_MODE2, 0x74);
+}
+
+static void desktop_pump_probe_init_display(void) {
+  uint16_t tile = 0;
+  uint16_t y;
+
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_CRAM_WRITE(0);
+  VDP_DATA_PORT = 0x0000;
+  VDP_DATA_PORT = 0x0000;
+  VDP_CRAM_WRITE(14);
+  VDP_DATA_PORT = 0x0aaa;
+  VDP_DATA_PORT = 0x0666;
+  VDP_CRAM_WRITE(30);
+  VDP_DATA_PORT = 0x0eee;
+
+  for (y = 0; y < FB_TILES_Y; y++) {
+    uint16_t x;
+
+    VDP_VRAM_WRITE((uint16_t)(VRAM_PLANE_A + (y << 7)));
+    for (x = 0; x < FB_TILES_X; x++) {
+      VDP_DATA_PORT = TILE_ENTRY(0, 0, 0, 0, tile);
+      tile++;
+    }
+  }
+}
+
 static void desktop_pump_probe_upload_frame(void) {
   FrameUploadPump pump;
   uint16_t slice;
@@ -825,13 +874,15 @@ static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
 static void desktop_pump_probe(void) {
   uint16_t frame;
 
+  desktop_pump_probe_init_display();
   segaos_desktop_pump_frame_count = 0;
   for (frame = 0; frame < DESKTOP_PUMP_PROBE_FRAMES; frame++) {
     segaos_desktop_main_phase = (uint16_t)(0x8800U | frame);
-    main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+    main_send_cmd(CMD_RENDER_FRAME, (uint16_t)(frame + 1U), 0, 320, 224);
     segaos_desktop_done_status =
         desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
     segaos_desktop_stat0 = main_read_result(0);
+    segaos_desktop_stat1 = main_read_result(1);
     segaos_desktop_trace = main_read_result(7);
 
     if (segaos_desktop_done_status != STATUS_DONE ||
@@ -852,6 +903,10 @@ static void desktop_pump_probe(void) {
   }
 
   segaos_desktop_main_phase = 0x88ff;
+#ifdef BOOT_SAFE_VISUAL_PROBE
+  segaos_visual_probe_phase = 0x76ff;
+  segaos_visual_probe_halt();
+#endif
   segaos_desktop_init_halt();
 }
 #elif defined(DESKTOP_SCHEDULER_PROBE)

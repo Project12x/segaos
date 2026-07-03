@@ -20,7 +20,9 @@ param(
   [switch]$DebugAutoBoot,
   [string]$Elf = "build\main_cpu.elf",
   [string]$Gdb = "C:\SDKS\SGDK\bin\gdb.exe",
-  [string]$DebugBreakSymbol = "segaos_visual_probe_halt"
+  [string]$DebugBreakSymbol = "segaos_visual_probe_halt",
+  [string]$DebugPhaseSymbol = "segaos_visual_probe_phase",
+  [string]$DebugExpectedPhase = "0x76ff"
 )
 
 $ErrorActionPreference = "Stop"
@@ -260,7 +262,7 @@ public static class NativeInput {
       "-ex",
       "continue",
       "-ex",
-      "p/x (unsigned short)segaos_visual_probe_phase",
+      "p/x (unsigned short)$DebugPhaseSymbol",
       # Keep BlastEm running after the proof point; a stopped GDB target does
       # not reliably process the UI screenshot binding.
       "-ex",
@@ -280,13 +282,13 @@ public static class NativeInput {
       $ErrorActionPreference = $oldErrorActionPreference
     }
     $hitBreakpoint = (($gdbOutput -join "`n") -match "Breakpoint \d+, .*${DebugBreakSymbol}")
-    $phaseOk = (($gdbOutput -join "`n") -match "0x76ff")
+    $phaseOk = (($gdbOutput -join "`n") -match [regex]::Escape($DebugExpectedPhase))
     Write-Output "debug_gdb_exit=$gdbExit"
     Write-Output "debug_breakpoint_hit=$hitBreakpoint"
     Write-Output "debug_phase_ok=$phaseOk"
     if ($gdbExit -ne 0 -or -not $hitBreakpoint -or -not $phaseOk) {
       $gdbOutput | ForEach-Object { Write-Output $_ }
-      throw "Debug auto-boot did not reach $DebugBreakSymbol with phase 0x76ff"
+      throw "Debug auto-boot did not reach $DebugBreakSymbol with $DebugPhaseSymbol $DebugExpectedPhase"
     }
     Get-BlastEmWindowHandle $proc | Out-Null
   } else {

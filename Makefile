@@ -267,6 +267,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_frame_scheduler.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_frame_upload_pump.c src/main/frame_upload_pump.c src/main/frame_scheduler.c -o $(BUILD_DIR)/test_frame_upload_pump.exe
 	$(BUILD_DIR)/test_frame_upload_pump.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_frame_marker.c -o $(BUILD_DIR)/test_boot_frame_marker.exe
+	$(BUILD_DIR)/test_boot_frame_marker.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe
 	$(BUILD_DIR)/test_storage_policy.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_external_cart_probe.c src/sub/external_cart.c src/sub/storage.c -o $(BUILD_DIR)/test_external_cart_probe.exe

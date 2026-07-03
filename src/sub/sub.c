@@ -14,6 +14,9 @@
 
 #include "boot_probe.h"
 #include "common.h"
+#ifdef DESKTOP_PUMP_PROBE
+#include "boot_frame_marker.h"
+#endif
 #ifndef BOOT_PROBE
 #ifdef BASIC_BRAM_PROBE
 #include "basic_bram_smoke.h"
@@ -81,6 +84,9 @@ static const uint8_t cursorBitmap[] = {
 static BramBiosContext basicBramProbeContext;
 static BramBiosOps basicBramProbeOps;
 static BasicBramSmokeResult basicBramProbeResult;
+#endif
+#if defined(BOOT_SAFE_DESKTOP) && defined(DESKTOP_PUMP_PROBE)
+static uint16_t bootPumpFrameIndex;
 #endif
 #endif
 
@@ -192,7 +198,16 @@ static void boot_draw_window_body(void) {
   BLT_FillRect(&divider, BLT_BLACK);
   BLT_DrawString(56, 96, "68K desktop shell", SysFont_Get(), BLT_BLACK);
   BLT_DrawString(56, 112, "Word RAM -> VDP", SysFont_Get(), BLT_BLACK);
+#ifdef DESKTOP_PUMP_PROBE
+  {
+    char marker[BOOT_FRAME_MARKER_LEN];
+
+    BootFrameMarker_Format(bootPumpFrameIndex, marker);
+    BLT_DrawString(56, 128, marker, SysFont_Get(), BLT_BLACK);
+  }
+#else
   BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
+#endif
 }
 
 #ifndef DESKTOP_WM_PROBE
@@ -474,6 +489,9 @@ static void process_command(uint8_t cmd) {
 
   case CMD_RENDER_FRAME: {
 #ifdef BOOT_SAFE_DESKTOP
+#ifdef DESKTOP_PUMP_PROBE
+    bootPumpFrameIndex = sub_read_param(0);
+#endif
     sub_write_result(0, SUB_STATE_RENDERING);
     sub_write_result(7, 0x7401);
 
@@ -485,6 +503,9 @@ static void process_command(uint8_t cmd) {
 
     sub_return_wram();
     sub_write_result(7, 0x7404);
+#ifdef DESKTOP_PUMP_PROBE
+    sub_write_result(1, bootPumpFrameIndex);
+#endif
     sub_write_result(0, SUB_STATE_READY);
     sub_done();
     break;

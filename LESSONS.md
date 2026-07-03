@@ -123,6 +123,15 @@ same failures.
   `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot`, require GDB
   to hit `segaos_visual_probe_halt` with phase `0x76ff`, then let BlastEm's
   internal `ui.screenshot` binding capture the resumed app frame.
+- For probe screenshots that already halt at a non-visual debug symbol, use the
+  capture script's configurable debug check instead of adding another halt path.
+  `DESKTOP_PUMP_PROBE=1` captures at `segaos_desktop_init_halt` with
+  `-DebugPhaseSymbol segaos_desktop_main_phase -DebugExpectedPhase 0x88ff`.
+- A GDB-only pump proof can still produce a black screenshot if the harness
+  skips display setup. The repeated compact-pump proof needs active Plane A
+  entries and the black/gray/white CRAM colors, but it does not need the full
+  `VDP_Init()` CRAM/VSRAM clearing path. A pump-local minimal VDP init kept the
+  visual proof inside the 3,584-byte IP envelope.
 - When switching between probe builds and the normal build, use `-B` or clean
   first. The current Makefile reuses shared object paths, so a plain
   `make iso` after `BOOT_SAFE_VISUAL_PROBE=1` can keep probe-compiled Main CPU
@@ -391,14 +400,17 @@ same failures.
   A direct `FUP_Init()` + `FUP_StartFrame()` + `FUP_Tick()` target probe measured
   Main IP at 3,948 bytes, above the 3,584-byte physical range. The compact
   planner path (`FUP_BeginFrame()` + `FUP_PlanNextQueueCompact()`) now has a
-  size-fit target proof: `DESKTOP_PUMP_PROBE=1` measures Main IP at 3,460 bytes,
+  size-fit target proof: `DESKTOP_PUMP_PROBE=1` measures Main IP at 3,516 bytes
+  after adding a pump-local minimal VDP init and active Plane A/palette setup,
   uploads all five slices of a 1,120-tile frame for four complete frames,
-  returns Word RAM after each final slice, and proves Sub can accept each next
-  `CMD_RENDER_FRAME`.
+  returns Word RAM after each final slice, proves Sub can accept each next
+  `CMD_RENDER_FRAME`, and captures the fourth visible frame marker at
+  `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`.
 - `DESKTOP_PUMP_PROBE=1` is the current strongest transfer-policy bridge. It
-  still skips mouse init and framebuffer tilemap/palette setup to fit the boot
-  IP envelope, but it proves the rule the live loop must preserve repeatedly:
-  do not return Word RAM until the final scheduled upload slice has completed.
+  still skips mouse init to fit the boot IP envelope, but it now initializes the
+  minimal display state needed for visible proof. It proves the rule the live
+  loop must preserve repeatedly: do not return Word RAM until the final
+  scheduled upload slice has completed.
 - Do not move the compact pump into the older `DESKTOP_LOOP_PROBE` scaffolding
   as-is. That attempt measured Main IP at 4,332 bytes because the loop probe
   kept older initialization/status scaffolding while linking the queue scheduler

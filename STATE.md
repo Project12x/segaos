@@ -113,7 +113,11 @@ entire 1,120-tile frame for four complete render/upload/return cycles in
 BlastEm/GDB: each frame uses four 235-tile uploads plus one final 180-tile
 upload, Main returns Word RAM only after the final slice, and Sub accepts the
 next `CMD_RENDER_FRAME` with status `0x0003`, trace `0x7404`, and MEM_MODE
-`0x2a06`.
+`0x2a06`. The pump proof now also passes a frame number through
+`CMD_RENDER_FRAME` parameter 0, has the Sub render it as `Frame 4` with the
+real SGDK-derived font on the fourth cycle, and captures the final visible
+frame through BlastEm's internal screenshot path at
+`C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -176,7 +180,7 @@ Backup RAM policy. The demo goal is recorded in
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
 | Desktop scheduler upload probe | Passing | `DESKTOP_SCHEDULER_PROBE=1` + `-Probe DesktopScheduler` proves two successive 235-tile compact-pump planner slices through `FB_UpdateTileQueue()` after a real Sub-rendered frame; terminal phase `0x87ff`, slice0 next `0x00eb`, slice1 first `0x00eb`, slice1 next `0x01d6`, poisoned VRAM `0x0ee0` restored to WRAM `0xf11f` |
-| Desktop full pump upload probe | Passing | `DESKTOP_PUMP_PROBE=1` + `-Probe DesktopPump` proves four compact-pump render/upload/return cycles; terminal phase `0x88ff`, pump result `0x0001`, frame count `0x0004`, per-frame slice count `0x0005`, final span `0x03ac/0x00b4`, MEM_MODE `0x2a06`, final status `0x0003`, trace `0x7404` |
+| Desktop full pump upload probe | Passing | `DESKTOP_PUMP_PROBE=1` + `-Probe DesktopPump` proves four compact-pump render/upload/return cycles; terminal phase `0x88ff`, pump result `0x0001`, frame count/status word `0x0004`, per-frame slice count `0x0005`, final span `0x03ac/0x00b4`, MEM_MODE `0x2a06`, final status `0x0003`, trace `0x7404`; debugger-backed screenshot captures the fourth frame marker at `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png` |
 | BASIC internal-BRAM runtime probe | Passing | `BASIC_BRAM_PROBE=1` + `-Probe BasicBram` proves live Sub BIOS internal BRAM access in BlastEm: formatted status `0x0003`, 2 total/free 4K blocks before the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary `0x0211`, and terminal trace `0x75ff` |
 | Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, frame-scheduler cursor slicing, compact frame-upload pump planning, frame-upload pump state transitions, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the pump-backed default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png` |
@@ -230,10 +234,12 @@ Backup RAM policy. The demo goal is recorded in
   boot-sector limit while preserving pump-owned cursor state,
   `FS_PlanTileCursorFrame()`, and `FB_UpdateTileQueue()` on the target. The
   measured margin is 16 bytes.
-- Boot-safe full pump upload probe usage: Main IP 3,460 bytes / SP 11,836 text
+- Boot-safe full pump upload probe usage: Main IP 3,516 bytes / SP 11,944 text
   bytes observed locally with `DESKTOP_PUMP_PROBE=1`; this size-fit diagnostic
-  proves the compact planner can upload all five frame slices for four complete
-  render/upload/return cycles inside the BIOS-loaded IP window.
+  uses a pump-local minimal VDP init plus active Plane A/palette setup, proves
+  the compact planner can upload all five frame slices for four complete
+  render/upload/return cycles inside the BIOS-loaded IP window, and supports
+  the debugger-backed `Frame 4` visual capture.
 - BASIC internal-BRAM probe usage: Main IP 3,112 text bytes / 5,168 BSS bytes
   and SP 24,446 text bytes / 15,318 BSS bytes observed locally with
   `BASIC_BRAM_PROBE=1`; the probe remains opt-in because it intentionally links
@@ -270,7 +276,10 @@ Backup RAM policy. The demo goal is recorded in
   size-fit target proof path until the live Main loader has more room
 - Target pump bridge: `DESKTOP_PUMP_PROBE=1` proves the compact planner can
   drive all five uploads through `FB_UpdateTileQueue()`, return Word RAM only
-  after the final slice, and repeat that policy for four complete frames
+  after the final slice, and repeat that policy for four complete frames. This
+  harness now uses a pump-local minimal VDP init plus active Plane A/palette
+  setup so the same proof can be captured visibly without overflowing the
+  3,584-byte IP boot slot
 - Sub CPU blitter default: 4bpp, matching the Main CPU tile conversion path
 - Disc image: 150 cooked sectors, `MODE1/2048`, 32KB boot/system area
 - Storage planning assumption: CD-ROM/ISO9660 is the read-only app/resource
@@ -409,7 +418,9 @@ Key adopted assumptions:
 - `DESKTOP_PUMP_PROBE=1` proves the next frame-policy step: the compact
   scheduler path uploads the whole frame as five queued tile spans, returns
   Word RAM only after completion, and repeats that policy for four complete
-  render/upload/return frames.
+  render/upload/return frames. It now also initializes enough VDP display state
+  for a visible fourth-frame marker capture without taking the full default
+  `VDP_Init()` size cost.
 - The framebuffer probe uses that handoff for a deterministic 4bpp tile:
   Sub writes `$1234/$5678` to linear row 0 and `$9abc/$def0` to row 1, Main
   reads those words through `$200000`, runs `FB_UpdateFrame()`, and reads the

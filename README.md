@@ -258,8 +258,13 @@ into the 3,584-byte IP boot slot; the measured scheduler-probe Main IP is
 the size-fit full-frame bridge with `FUP_PlanNextQueueCompact()`: across four
 complete frames, Main uploads four 235-tile slices plus one 180-tile final
 slice per frame, returns Word RAM only after each final slice, and Sub accepts
-the next render command. That repeated pump-probe Main IP measures 3,460
-bytes. `src/main/frame_upload_pump.c` still adds the
+the next render command. The pump harness also passes a frame number in
+`CMD_RENDER_FRAME` parameter 0, renders the fourth-frame marker with the real
+SGDK-derived font, and captures it through BlastEm's internal screenshot path
+at `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`.
+That repeated pump-probe Main IP measures 3,516 bytes with its pump-local
+minimal VDP init and active Plane A/palette setup.
+`src/main/frame_upload_pump.c` still adds the
 host-tested callback state machine that will own that cursor in the live loop:
 one tick plans and uploads one budgeted queue, the pump rejects a new frame
 while an upload is active or waiting for Word RAM return, and a failed upload
