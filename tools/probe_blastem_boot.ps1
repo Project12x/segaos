@@ -7,7 +7,7 @@ param(
   [int]$GdbTimeoutSeconds = 60,
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "DesktopDirtyQueue", "DesktopScheduler", "BasicBram", "VdpText")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "DesktopDirtyQueue", "DesktopScheduler", "DesktopPump", "BasicBram", "VdpText")]
   [string]$Probe = "Ip"
 )
 
@@ -314,7 +314,7 @@ try {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$name"
     }
-  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat" -or $Probe -eq "DesktopLoop" -or $Probe -eq "DesktopTiming" -or $Probe -eq "DesktopWm" -or $Probe -eq "DesktopDirtyQueue" -or $Probe -eq "DesktopScheduler") {
+  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat" -or $Probe -eq "DesktopLoop" -or $Probe -eq "DesktopTiming" -or $Probe -eq "DesktopWm" -or $Probe -eq "DesktopDirtyQueue" -or $Probe -eq "DesktopScheduler" -or $Probe -eq "DesktopPump") {
     $desktopNames = @(
       "segaos_desktop_main_phase",
       "segaos_desktop_sub_flag",
@@ -427,6 +427,20 @@ try {
         "segaos_desktop_scheduler_slice1_wram_word",
         "segaos_desktop_scheduler_slice1_before_word",
         "segaos_desktop_scheduler_slice1_vram_word"
+      )
+    }
+    if ($Probe -eq "DesktopPump") {
+      $desktopNames = @(
+        "segaos_desktop_main_phase",
+        "segaos_desktop_stat0",
+        "segaos_desktop_trace",
+        "segaos_desktop_done_status",
+        "segaos_desktop_wait_polls",
+        "segaos_desktop_pump_result",
+        "segaos_desktop_pump_slice_count",
+        "segaos_desktop_pump_final_first_tile",
+        "segaos_desktop_pump_final_tile_count",
+        "segaos_desktop_pump_mem_after_return"
       )
     }
 
@@ -678,7 +692,7 @@ try {
     if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
       exit 1
     }
-  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat" -or $Probe -eq "DesktopLoop" -or $Probe -eq "DesktopTiming" -or $Probe -eq "DesktopWm" -or $Probe -eq "DesktopDirtyQueue" -or $Probe -eq "DesktopScheduler") {
+  } elseif ($Probe -eq "DesktopInit" -or $Probe -eq "DesktopRepeat" -or $Probe -eq "DesktopLoop" -or $Probe -eq "DesktopTiming" -or $Probe -eq "DesktopWm" -or $Probe -eq "DesktopDirtyQueue" -or $Probe -eq "DesktopScheduler" -or $Probe -eq "DesktopPump") {
     $joined = $gdbOutput -join "`n"
     $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_desktop_init_halt")
     $desktopNames = @(
@@ -734,6 +748,20 @@ try {
         "segaos_desktop_scheduler_slice1_wram_word",
         "segaos_desktop_scheduler_slice1_before_word",
         "segaos_desktop_scheduler_slice1_vram_word"
+      )
+    }
+    if ($Probe -eq "DesktopPump") {
+      $desktopNames = @(
+        "segaos_desktop_main_phase",
+        "segaos_desktop_stat0",
+        "segaos_desktop_trace",
+        "segaos_desktop_done_status",
+        "segaos_desktop_wait_polls",
+        "segaos_desktop_pump_result",
+        "segaos_desktop_pump_slice_count",
+        "segaos_desktop_pump_final_first_tile",
+        "segaos_desktop_pump_final_tile_count",
+        "segaos_desktop_pump_mem_after_return"
       )
     }
     if ($Probe -eq "DesktopRepeat") {
@@ -860,6 +888,19 @@ try {
       $expectedValues["segaos_desktop_scheduler_slice1_tile_count"] = "0x00eb"
       $expectedValues["segaos_desktop_scheduler_slice1_next_tile"] = "0x01d6"
     }
+    if ($Probe -eq "DesktopPump") {
+      $expectedValues = [ordered]@{
+        segaos_desktop_main_phase = "0x88ff"
+        segaos_desktop_stat0 = "0x0002"
+        segaos_desktop_trace = "0x7404"
+        segaos_desktop_done_status = "0x0003"
+        segaos_desktop_pump_result = "0x0001"
+        segaos_desktop_pump_slice_count = "0x0005"
+        segaos_desktop_pump_final_first_tile = "0x03ac"
+        segaos_desktop_pump_final_tile_count = "0x00b4"
+        segaos_desktop_pump_mem_after_return = "0x2a06"
+      }
+    }
 
     $failed = @()
     foreach ($name in $expectedValues.Keys) {
@@ -945,6 +986,12 @@ try {
       if (-not $schedulerSlice1Ok) {
         $failed += "segaos_desktop_scheduler_slice1_word"
       }
+    }
+    if ($Probe -eq "DesktopPump") {
+      Write-Output "desktop_pump result=$($desktopValues["segaos_desktop_pump_result"]) slices=$($desktopValues["segaos_desktop_pump_slice_count"])"
+      Write-Output "desktop_pump_final first=$($desktopValues["segaos_desktop_pump_final_first_tile"]) tiles=$($desktopValues["segaos_desktop_pump_final_tile_count"])"
+      Write-Output "desktop_pump_return mem_after=$($desktopValues["segaos_desktop_pump_mem_after_return"])"
+      Write-Output "desktop_pump_second status=$($desktopValues["segaos_desktop_done_status"]) trace=$($desktopValues["segaos_desktop_trace"]) stat0=$($desktopValues["segaos_desktop_stat0"])"
     }
 
     if ($desktopValues["segaos_desktop_text_probe_enabled"] -eq "0x0001") {

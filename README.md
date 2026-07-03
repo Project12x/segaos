@@ -94,6 +94,10 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_SCHEDULER_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopScheduler -GdbTimeoutSeconds 60
 
+# Prove a full compact frame-upload pump, Word RAM return, and second render
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_PUMP_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopPump -GdbTimeoutSeconds 60
+
 # Prove BASIC SAVE/LOAD through the live internal BRAM BIOS adapter
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BASIC_BRAM_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe BasicBram
@@ -250,12 +254,16 @@ restored to the Word RAM value `0xf11f`. The probe now uses the compact
 `FrameUploadPump` planner (`FUP_BeginFrame()` + `FUP_PlanNextQueue()`) so the
 target path owns cursor/queue state without linking the larger callback pump
 into the 3,584-byte IP boot slot; the measured scheduler-probe Main IP is
-3,568 bytes, leaving 16 bytes of margin. `src/main/frame_upload_pump.c` still
-adds the host-tested callback state machine that will own that cursor in the
-live loop: one tick plans and uploads one budgeted queue, the pump rejects a
-new frame while an upload is active or waiting for Word RAM return, and a
-failed upload rewinds the cursor instead of marking the frame returnable. This
-is still a narrow policy seam, not the production VBlank loop. The full alternating
+3,568 bytes, leaving 16 bytes of margin. `DESKTOP_PUMP_PROBE=1` then proves
+the size-fit full-frame bridge with `FUP_PlanNextQueueCompact()`: Main uploads
+four 235-tile slices plus one 180-tile final slice, returns Word RAM only after
+that final slice, and Sub completes a second render. That pump-probe Main IP
+measures 3,528 bytes. `src/main/frame_upload_pump.c` still adds the
+host-tested callback state machine that will own that cursor in the live loop:
+one tick plans and uploads one budgeted queue, the pump rejects a new frame
+while an upload is active or waiting for Word RAM return, and a failed upload
+rewinds the cursor instead of marking the frame returnable. This is still a
+narrow policy seam, not the production VBlank loop. The full alternating
 double-buffer and live dirty-tile VBlank policies remain later stability work
 before returning to normal menu/cursor/app rendering.
 

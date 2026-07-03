@@ -251,9 +251,13 @@ remains a later production policy.
     - [x] Emulator-proven scheduler cursor driving two successive 235-tile
           queue uploads through `FB_UpdateTileQueue()` after a real
           Sub-rendered desktop frame
+    - [x] Emulator-proven compact frame-upload pump across the full 1,120-tile
+          frame: four 235-tile slices plus one 180-tile final slice, followed
+          by Main returning Word RAM and Sub completing a second render
     - [x] Host-tested compact `FrameUploadPump` planner
-          (`FUP_BeginFrame()` + `FUP_PlanNextQueue()`) with target proof inside
-          the 3,584-byte IP boot slot
+          (`FUP_BeginFrame()` + `FUP_PlanNextQueue()` /
+          `FUP_PlanNextQueueCompact()`) with target proof inside the
+          3,584-byte IP boot slot
     - [x] Host-tested frame upload pump state machine that advances one
           budgeted queue per tick and gates Word RAM return until upload
           completion

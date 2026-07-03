@@ -130,6 +130,26 @@ static void compact_queue_planner_matches_budgeted_slices(void) {
   expect_u16(result.nextTile, 470, "compact slice 1 next");
 }
 
+static void compact_no_result_planner_reaches_return_ready(void) {
+  FrameUploadPump pump;
+  uint8_t slice;
+
+  expect_true(FUP_BeginFrame(&pump, 0, FB_TILE_COUNT, 7524, FB_BYTES_PER_TILE),
+              "begin no-result full frame");
+
+  for (slice = 0; slice < 5; slice++) {
+    expect_true(FUP_PlanNextQueueCompact(&pump),
+                "no-result compact slice plan");
+    expect_u8(pump.queue.count, 1, "no-result compact queue count");
+  }
+
+  expect_true(FUP_ShouldReturnWordRam(&pump),
+              "no-result compact ready to return");
+  expect_u16(pump.upload.firstTile, 940, "no-result final first");
+  expect_u16(pump.upload.tileCount, 180, "no-result final tiles");
+  expect_u16(pump.cursor.nextTile, 1120, "no-result final next");
+}
+
 static void refuses_new_frame_until_return_is_acknowledged(void) {
   FrameUploadPump pump;
   UploadSpy spy = {0};
@@ -166,6 +186,7 @@ static void failed_upload_enters_error_without_return_ready(void) {
 int main(void) {
   full_frame_becomes_return_ready_after_budgeted_uploads();
   compact_queue_planner_matches_budgeted_slices();
+  compact_no_result_planner_reaches_return_ready();
   refuses_new_frame_until_return_is_acknowledged();
   failed_upload_enters_error_without_return_ready();
 

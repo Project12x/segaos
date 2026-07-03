@@ -87,6 +87,23 @@ static inline uint8_t FUP_PlanNextQueue(FrameUploadPump *pump,
   return 1;
 }
 
+static inline uint8_t FUP_PlanNextQueueCompact(FrameUploadPump *pump) {
+  if (!pump || pump->state != FUP_STATE_UPLOADING)
+    return 0;
+
+  if (!FS_PlanTileCursorFrame(&pump->cursor, &pump->queue, pump->bytesPerTile,
+                              0)) {
+    pump->state = FUP_STATE_ERROR;
+    pump->lastError = FUP_ERROR_PLAN_FAILED;
+    return 0;
+  }
+
+  if (!pump->cursor.active)
+    pump->state = FUP_STATE_READY_TO_RETURN;
+
+  return 1;
+}
+
 void FUP_Init(FrameUploadPump *pump, uint16_t budgetBytes,
               uint16_t bytesPerTile);
 uint8_t FUP_StartFrame(FrameUploadPump *pump, uint16_t firstTile,

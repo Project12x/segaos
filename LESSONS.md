@@ -114,6 +114,7 @@ same failures.
   10. Short multi-frame single-bank render/upload loop probe
   11. Full-frame upload HV/status timing probe
   12. Minimal `WM_NewWindow()` allocation/z-order render probe
+  13. Full compact frame-upload pump, Word RAM return, and second render probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -389,9 +390,14 @@ same failures.
 - The full callback pump is too large for this specific boot-sector diagnostic.
   A direct `FUP_Init()` + `FUP_StartFrame()` + `FUP_Tick()` target probe measured
   Main IP at 3,948 bytes, above the 3,584-byte physical range. The compact
-  planner path (`FUP_BeginFrame()` + `FUP_PlanNextQueue()`) measured 3,568 bytes,
-  only 16 bytes under the limit. Treat that margin as exhausted until there is a
-  Main-side loader/overlay plan or a deliberate size reduction.
+  planner path (`FUP_BeginFrame()` + `FUP_PlanNextQueueCompact()`) now has a
+  size-fit target proof: `DESKTOP_PUMP_PROBE=1` measures Main IP at 3,528 bytes,
+  uploads all five slices of a 1,120-tile frame, returns Word RAM, and proves
+  Sub can complete a second `CMD_RENDER_FRAME`.
+- `DESKTOP_PUMP_PROBE=1` is the current strongest transfer-policy bridge. It
+  still skips mouse init and framebuffer tilemap/palette setup to fit the boot
+  IP envelope, but it proves the rule the live loop must preserve: do not
+  return Word RAM until the final scheduled upload slice has completed.
 - `src/main/frame_upload_pump.c` is now the host-tested owner for the future
   live callback path. Use it instead of open-coding cursor advancement in
   `main_loop()` once the live image has room: `FUP_Tick()` plans and uploads one
