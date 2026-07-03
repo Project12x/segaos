@@ -98,6 +98,10 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_PUMP_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopPump -GdbTimeoutSeconds 60
 
+# Prove the boot-safe default main_loop can drive four render/upload/return cycles
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BOOT_SAFE_LIVE_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe BootSafeLive -GdbTimeoutSeconds 60
+
 # Prove BASIC SAVE/LOAD through the live internal BRAM BIOS adapter
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BASIC_BRAM_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe BasicBram
@@ -258,12 +262,20 @@ into the 3,584-byte IP boot slot; the measured scheduler-probe Main IP is
 the size-fit full-frame bridge with `FUP_PlanNextQueueCompact()`: across four
 complete frames, Main uploads four 235-tile slices plus one 180-tile final
 slice per frame, returns Word RAM only after each final slice, and Sub accepts
-the next render command. The pump harness also passes a frame number in
-`CMD_RENDER_FRAME` parameter 0, renders the fourth-frame marker with the real
-SGDK-derived font, and captures it through BlastEm's internal screenshot path
-at `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`.
-That repeated pump-probe Main IP measures 3,516 bytes with its pump-local
-minimal VDP init and active Plane A/palette setup.
+the next render command. The pump harness passes the frame number in
+`CMD_RENDER_FRAME` parameter 0, but the latest screenshot audit found the
+captured marker at
+`C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png` is
+still `Frame 1`, not the GDB-proven fourth frame. Treat that as evidence that
+the repeated command/upload path runs, not as evidence that the visible latest
+1M bank policy is solved. `BOOT_SAFE_LIVE_PROBE=1` now moves the same four-cycle
+proof into the default boot-safe `main_loop()` and passes
+`tools\probe_blastem_boot.ps1 -Probe BootSafeLive` with phase `0x89ff` and
+frame count `0x0004`; its current bank-0 screenshot remains visually stale at
+`Frame 0`:
+`C:\tmp\segaos_screens_internal\segaos_live_loop_bank0_20260703_181510.png`.
+Blindly uploading `WRAM_BANK1_MAIN` produces corruption, so latest-frame bank
+selection/conversion is back on the roadmap.
 `src/main/frame_upload_pump.c` still adds the
 host-tested callback state machine that will own that cursor in the live loop:
 one tick plans and uploads one budgeted queue, the pump rejects a new frame

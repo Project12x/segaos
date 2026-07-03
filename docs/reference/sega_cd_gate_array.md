@@ -41,6 +41,12 @@ therefore accepts either RET or DMNA in 1M mode. This proves a two-frame
 single-bank render/upload loop in BlastEm, not a full alternating double-buffer
 policy.
 
+2026-07-03 caution: repeated command/upload/return probes now reach their GDB
+terminal phases, but screenshot review shows bank-0 visible output can remain
+stale (`Frame 0`/`Frame 1`) after later frame counts complete. A blind
+`WRAM_BANK1_MAIN` upload is corrupt, so 1M bank 1 should not be treated as the
+same linear 4bpp source as bank 0 until its mapping/conversion policy is proven.
+
 ## GA Reg 02 — CDC Mode
 Sub CPU address: $FF8004
 

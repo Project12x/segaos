@@ -7,7 +7,7 @@ param(
   [int]$GdbTimeoutSeconds = 60,
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "DesktopDirtyQueue", "DesktopScheduler", "DesktopPump", "BasicBram", "VdpText")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "DesktopDirtyQueue", "DesktopScheduler", "DesktopPump", "BootSafeLive", "BasicBram", "VdpText")]
   [string]$Probe = "Ip"
 )
 
@@ -453,6 +453,21 @@ try {
       "info registers pc sp"
     )
     foreach ($name in $desktopNames) {
+      $gdbCommands += "echo $name="
+      $gdbCommands += "p/x (unsigned short)$name"
+    }
+  } elseif ($Probe -eq "BootSafeLive") {
+    $bootLiveNames = @(
+      "segaos_boot_live_phase",
+      "segaos_boot_live_frame_count"
+    )
+
+    $gdbCommands += @(
+      "break segaos_boot_live_probe_halt",
+      "continue",
+      "info registers pc sp"
+    )
+    foreach ($name in $bootLiveNames) {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$name"
     }
@@ -1058,6 +1073,35 @@ try {
         $failed += "segaos_desktop_title_vram"
       }
     }
+    Write-Output "probe_gdb_exit=$gdbExit"
+    Write-Output "probe_breakpoint_hit=$hitBreakpoint"
+
+    if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
+      exit 1
+    }
+  } elseif ($Probe -eq "BootSafeLive") {
+    $joined = $gdbOutput -join "`n"
+    $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_boot_live_probe_halt")
+    $bootLiveNames = @(
+      "segaos_boot_live_phase",
+      "segaos_boot_live_frame_count"
+    )
+    $bootLiveValues = Get-NamedProbeValues $gdbOutput $bootLiveNames
+    $expectedValues = [ordered]@{
+      segaos_boot_live_phase = "0x89ff"
+      segaos_boot_live_frame_count = "0x0004"
+    }
+
+    $failed = @()
+    foreach ($name in $expectedValues.Keys) {
+      $actualValue = $bootLiveValues[$name]
+      $ok = $actualValue -eq $expectedValues[$name]
+      Write-Output "boot_live_check_$name=$ok expected=$($expectedValues[$name]) actual=$actualValue"
+      if (-not $ok) {
+        $failed += $name
+      }
+    }
+
     Write-Output "probe_gdb_exit=$gdbExit"
     Write-Output "probe_breakpoint_hit=$hitBreakpoint"
 

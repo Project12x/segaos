@@ -115,6 +115,7 @@ same failures.
   11. Full-frame upload HV/status timing probe
   12. Minimal `WM_NewWindow()` allocation/z-order render probe
   13. Repeated compact frame-upload pump, Word RAM return, and Sub render probe
+  14. Default `main_loop()` live render/upload/return probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -173,6 +174,19 @@ same failures.
   first frame, four additional render/upload/return cycles complete with loop
   count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, and
   final title-row VRAM `0xf11f/0x1f11`.
+- `DESKTOP_PUMP_PROBE=1` and `BOOT_SAFE_LIVE_PROBE=1` now prove repeated
+  command/upload/return progress through GDB symbols, but their screenshots
+  exposed the unsolved latest-bank problem. The pump screenshot at
+  `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`
+  shows `Frame 1`, not the fourth frame. The live-loop bank-0 capture at
+  `C:\tmp\segaos_screens_internal\segaos_live_loop_bank0_20260703_181510.png`
+  shows the initial `Frame 0` despite GDB proving frame count `0x0004`.
+- Do not blindly upload `WRAM_BANK1_MAIN` as a linear framebuffer. The
+  `BOOT_SAFE_LIVE_PROBE=1` bank-1 experiment reached GDB phase `0x89ff` but
+  produced a corrupted screenshot at
+  `C:\tmp\segaos_screens_internal\segaos_live_loop_bank1_20260703_180902.png`.
+  Bank 1 needs a documented mapping/conversion policy before it can become a
+  visible frame source.
 - Do not assume full alternating 1M double buffering is solved. The proven path
   is still the boot-safe single-bank `$0C0000`/`$200000` handoff, not a
   production long-running frame scheduler.
@@ -408,9 +422,16 @@ same failures.
   `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`.
 - `DESKTOP_PUMP_PROBE=1` is the current strongest transfer-policy bridge. It
   still skips mouse init to fit the boot IP envelope, but it now initializes the
-  minimal display state needed for visible proof. It proves the rule the live
-  loop must preserve repeatedly: do not return Word RAM until the final
-  scheduled upload slice has completed.
+  minimal display state needed for screenshot audits. It proves the rule the
+  live loop must preserve repeatedly: do not return Word RAM until the final
+  scheduled upload slice has completed. It does not yet prove that the newest
+  rendered frame is the one visible on screen.
+- `BOOT_SAFE_LIVE_PROBE=1` is the first proof that the default boot-safe
+  `main_loop()` can continue after the first frame and drive four
+  render/upload/return cycles. Current evidence is GDB phase `0x89ff`, frame
+  count `0x0004`, and Main IP size 3,524 bytes. Its visible bank-0 output is
+  stale, so the next demo-facing frame task is latest-bank selection/conversion,
+  not more UI widgets.
 - Do not move the compact pump into the older `DESKTOP_LOOP_PROBE` scaffolding
   as-is. That attempt measured Main IP at 4,332 bytes because the loop probe
   kept older initialization/status scaffolding while linking the queue scheduler

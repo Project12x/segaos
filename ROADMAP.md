@@ -46,8 +46,11 @@ computer, not just display a desktop-themed picture. See
 - [x] Verify one-way Sub bank-0 return timing in emulator
 - [x] Verify two-frame single-bank return/reacquire timing in emulator
 - [x] Verify short multi-frame single-bank render/upload/return timing in emulator
+- [x] Verify default boot-safe `main_loop()` can drive four render/upload/return
+      cycles after the first frame
 - [x] Add first HV/status timing probe for the full-frame upload path
 - [ ] Confirm which Main CPU Word RAM window should be displayed after each swap
+      and how bank 1 must be converted before VDP upload
 - [ ] DMA timing refinement (VBlank vs active display)
 
 ## Bring-Up Ladder
@@ -256,6 +259,8 @@ remains a later production policy.
           by Main returning Word RAM only after the final slice
     - [x] Emulator-proven repeated compact pump cycle: four complete
           render/upload/return frames inside the BIOS-loaded IP window
+    - [x] Emulator-proven default `main_loop()` cycle: four render/upload/return
+          frames after the first boot-safe desktop frame
     - [x] Host-tested compact `FrameUploadPump` planner
           (`FUP_BeginFrame()` + `FUP_PlanNextQueue()` /
           `FUP_PlanNextQueueCompact()`) with target proof inside the
@@ -266,8 +271,9 @@ remains a later production policy.
     - [x] Default boot-safe first frame now uploads through the compact pump
           path and has a debugger-backed BlastEm internal screenshot
     - [ ] Production live-loop pump integration that schedules visible queued
-          tile spans at a measured flush point and returns Word RAM only after
-          the final uploaded slice
+          tile spans at a measured flush point, displays the newest returned
+          frame instead of a stale bank, and returns Word RAM only after the
+          final uploaded slice
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
 - [x] Tie dirty rectangles to tile-strip transfer ranges
@@ -343,6 +349,8 @@ that matches Genesis VDP constraints.
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy
+- [ ] Prove latest visible frame selection: current bank-0 screenshots are
+      stale (`Frame 0`/`Frame 1`) and blind bank-1 upload is corrupt
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 
 Acceptance: a full desktop session can be booted, rendered, and interacted

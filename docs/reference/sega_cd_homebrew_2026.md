@@ -442,13 +442,20 @@ extends that evidence across the whole frame and across repeated frames: Main
 uploads four 235-tile queues plus one final 180-tile queue per frame, returns
 Word RAM only after each final slice, and proves four complete
 render/upload/return cycles with terminal phase `0x88ff` and frame count
-`0x0004`. The repeated size-fit pump build measured 3,460 bytes, while the
-direct callback-pump target attempt measured 3,948 bytes and an attempt to
-force the compact pump through the older `DESKTOP_LOOP_PROBE` scaffolding
-measured 4,332 bytes. Both overflow cases exceed the physical IP range, so the
-lean `DesktopPump` harness remains the target pump evidence path for now. This
-is target evidence for the scheduler/upload contract, not the final
-long-running VBlank policy. `src/main/frame_upload_pump.c` now adds the
+`0x0004`. Screenshot review on 2026-07-03 found that this does not yet prove
+the newest frame is visible: the captured pump frame still reads `Frame 1`.
+`BOOT_SAFE_LIVE_PROBE=1` moves the repeated-cycle proof into the default
+boot-safe `main_loop()` and reaches phase `0x89ff` with frame count `0x0004`,
+but its bank-0 screenshot remains at `Frame 0`. A direct bank-1 upload
+experiment produced corruption, so bank 1 needs a documented mapping/conversion
+policy before it is used as a visible framebuffer source. The repeated size-fit
+pump build measured 3,460 bytes, while the direct callback-pump target attempt
+measured 3,948 bytes and an attempt to force the compact pump through the older
+`DESKTOP_LOOP_PROBE` scaffolding measured 4,332 bytes. Both overflow cases
+exceed the physical IP range, so the lean `DesktopPump` harness remains the
+target pump evidence path for now. This is target evidence for the
+scheduler/upload contract, not the final visible long-running VBlank/bank
+policy. `src/main/frame_upload_pump.c` now adds the
 host-tested callback state machine for that future policy: it starts a rendered
 frame cursor, advances one budgeted upload queue per tick, waits to signal Word
 RAM return until the final slice completes, rejects overlapping frame starts,

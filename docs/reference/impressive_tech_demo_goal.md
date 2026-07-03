@@ -70,6 +70,10 @@ render/upload/return cycle four times in BlastEm/GDB. The default boot-safe
 first frame now uses that compact pump path and has a debugger-backed BlastEm
 screenshot at
 `C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png`.
-The next demo-facing step is using the same rule for repeated visible desktop
-updates so BASIC/text/image windows can change without falling back to one-shot
-full-frame uploads.
+`BOOT_SAFE_LIVE_PROBE=1` proves the default boot-safe `main_loop()` can drive
+four post-boot render/upload/return cycles in GDB, ending at phase `0x89ff` and
+frame count `0x0004`. The visible latest-frame policy is still open: bank-0
+screenshots remain stale (`Frame 0`/`Frame 1`), and blind bank-1 upload is
+corrupt. The next demo-facing step is not more widgets; it is proving the
+latest returned frame can be displayed reliably so BASIC/text/image windows can
+change without falling back to one-shot full-frame uploads.

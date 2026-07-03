@@ -24,6 +24,7 @@ DESKTOP_DIRTY_QUEUE_PROBE ?= 0
 DESKTOP_SCHEDULER_PROBE ?= 0
 DESKTOP_PUMP_PROBE ?= 0
 BASIC_BRAM_PROBE ?= 0
+BOOT_SAFE_LIVE_PROBE ?= 0
 BOOT_SAFE_TEXT_PROBE ?= 0
 BOOT_SAFE_TITLE_PROBE ?= 0
 BOOT_SAFE_VISUAL_PROBE ?= 0
@@ -99,6 +100,10 @@ endif
 ifeq ($(BASIC_BRAM_PROBE),1)
 CFLAGS_SUB  += -DBASIC_BRAM_PROBE
 CFLAGS_MAIN += -DBASIC_BRAM_PROBE
+endif
+ifeq ($(BOOT_SAFE_LIVE_PROBE),1)
+CFLAGS_SUB  += -DBOOT_SAFE_LIVE_PROBE
+CFLAGS_MAIN += -DBOOT_SAFE_LIVE_PROBE -Os
 endif
 ifeq ($(BOOT_SAFE_TEXT_PROBE),1)
 CFLAGS_SUB  += -DBOOT_SAFE_TEXT_PROBE
@@ -236,6 +241,7 @@ info:
 	@echo "DESKTOP_SCHEDULER_PROBE: $(DESKTOP_SCHEDULER_PROBE)"
 	@echo "DESKTOP_PUMP_PROBE: $(DESKTOP_PUMP_PROBE)"
 	@echo "BASIC_BRAM_PROBE: $(BASIC_BRAM_PROBE)"
+	@echo "BOOT_SAFE_LIVE_PROBE: $(BOOT_SAFE_LIVE_PROBE)"
 	@echo "BOOT_SAFE_TEXT_PROBE: $(BOOT_SAFE_TEXT_PROBE)"
 	@echo "BOOT_SAFE_TITLE_PROBE: $(BOOT_SAFE_TITLE_PROBE)"
 	@echo "BOOT_SAFE_VISUAL_PROBE: $(BOOT_SAFE_VISUAL_PROBE)"
@@ -269,6 +275,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_frame_upload_pump.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_frame_marker.c -o $(BUILD_DIR)/test_boot_frame_marker.exe
 	$(BUILD_DIR)/test_boot_frame_marker.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_live_probe.c -o $(BUILD_DIR)/test_boot_live_probe.exe
+	$(BUILD_DIR)/test_boot_live_probe.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe
 	$(BUILD_DIR)/test_storage_policy.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_external_cart_probe.c src/sub/external_cart.c src/sub/storage.c -o $(BUILD_DIR)/test_external_cart_probe.exe

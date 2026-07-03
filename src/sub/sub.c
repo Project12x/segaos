@@ -14,8 +14,11 @@
 
 #include "boot_probe.h"
 #include "common.h"
-#ifdef DESKTOP_PUMP_PROBE
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
 #include "boot_frame_marker.h"
+#endif
+#ifdef BOOT_SAFE_LIVE_PROBE
+#include "boot_live_probe.h"
 #endif
 #ifndef BOOT_PROBE
 #ifdef BASIC_BRAM_PROBE
@@ -85,8 +88,9 @@ static BramBiosContext basicBramProbeContext;
 static BramBiosOps basicBramProbeOps;
 static BasicBramSmokeResult basicBramProbeResult;
 #endif
-#if defined(BOOT_SAFE_DESKTOP) && defined(DESKTOP_PUMP_PROBE)
-static uint16_t bootPumpFrameIndex;
+#if defined(BOOT_SAFE_DESKTOP) &&                                             \
+    (defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE))
+static uint16_t bootFrameMarkerIndex;
 #endif
 #endif
 
@@ -198,17 +202,31 @@ static void boot_draw_window_body(void) {
   BLT_FillRect(&divider, BLT_BLACK);
   BLT_DrawString(56, 96, "68K desktop shell", SysFont_Get(), BLT_BLACK);
   BLT_DrawString(56, 112, "Word RAM -> VDP", SysFont_Get(), BLT_BLACK);
-#ifdef DESKTOP_PUMP_PROBE
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
   {
     char marker[BOOT_FRAME_MARKER_LEN];
 
-    BootFrameMarker_Format(bootPumpFrameIndex, marker);
+    BootFrameMarker_Format(bootFrameMarkerIndex, marker);
     BLT_DrawString(56, 128, marker, SysFont_Get(), BLT_BLACK);
   }
 #else
   BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
 #endif
 }
+
+#ifdef BOOT_SAFE_LIVE_PROBE
+static void boot_draw_live_probe_sentinel(void) {
+  Rect marker;
+  uint8_t color = (uint8_t)(bootFrameMarkerIndex & 0x000fU);
+
+  marker.left = BOOT_LIVE_PROBE_SENTINEL_X;
+  marker.top = BOOT_LIVE_PROBE_SENTINEL_Y;
+  marker.right = (int16_t)(marker.left + BOOT_LIVE_PROBE_SENTINEL_W);
+  marker.bottom = (int16_t)(marker.top + BOOT_LIVE_PROBE_SENTINEL_H);
+
+  BLT_FillRect(&marker, color);
+}
+#endif
 
 #ifndef DESKTOP_WM_PROBE
 static void boot_draw_boot_window(void) {
@@ -362,6 +380,9 @@ static void render_boot_safe_desktop(void) {
 #else
     boot_draw_boot_window();
 #endif
+#ifdef BOOT_SAFE_LIVE_PROBE
+    boot_draw_live_probe_sentinel();
+#endif
   }
 
   BLT_ResetClip();
@@ -489,8 +510,8 @@ static void process_command(uint8_t cmd) {
 
   case CMD_RENDER_FRAME: {
 #ifdef BOOT_SAFE_DESKTOP
-#ifdef DESKTOP_PUMP_PROBE
-    bootPumpFrameIndex = sub_read_param(0);
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
+    bootFrameMarkerIndex = sub_read_param(0);
 #endif
     sub_write_result(0, SUB_STATE_RENDERING);
     sub_write_result(7, 0x7401);
@@ -503,8 +524,8 @@ static void process_command(uint8_t cmd) {
 
     sub_return_wram();
     sub_write_result(7, 0x7404);
-#ifdef DESKTOP_PUMP_PROBE
-    sub_write_result(1, bootPumpFrameIndex);
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
+    sub_write_result(1, bootFrameMarkerIndex);
 #endif
     sub_write_result(0, SUB_STATE_READY);
     sub_done();

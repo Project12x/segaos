@@ -12,6 +12,9 @@
  */
 
 #include "common.h"
+#ifdef BOOT_SAFE_LIVE_PROBE
+#include "boot_live_probe.h"
+#endif
 #include "boot_probe.h"
 #include "frame_upload_pump.h"
 #include "frame_scheduler.h"
@@ -21,6 +24,7 @@
 #include "vdp.h"
 
 #define MAIN_FRAME_UPLOAD_BUDGET_NTSC 7524U
+#define BOOT_SAFE_LIVE_PROBE_FRAMES 4U
 
 /*
  * NOTE: The BIOS has already:
@@ -60,7 +64,6 @@ volatile uint16_t segaos_smoke_done_status;
 void segaos_desktop_init_halt(void) __attribute__((noinline, used));
 #ifdef DESKTOP_PUMP_PROBE
 static void desktop_pump_probe(void);
-static void desktop_pump_probe_init_vdp(void);
 #elif defined(DESKTOP_SCHEDULER_PROBE)
 static void desktop_scheduler_probe(void);
 #else
@@ -161,6 +164,10 @@ volatile uint16_t segaos_desktop_loop_title_vram_word0;
 volatile uint16_t segaos_desktop_loop_title_vram_word1;
 #endif
 #endif
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
+static void boot_safe_probe_init_vdp(void);
+static void boot_safe_probe_init_display(void);
+#endif
 #ifdef BASIC_BRAM_PROBE
 void segaos_basic_bram_probe_halt(void) __attribute__((noinline, used));
 static void basic_bram_probe(void);
@@ -179,6 +186,11 @@ volatile uint16_t segaos_basic_bram_result7;
 #ifdef BOOT_SAFE_VISUAL_PROBE
 void segaos_visual_probe_halt(void) __attribute__((noinline, used));
 volatile uint16_t segaos_visual_probe_phase;
+#endif
+#ifdef BOOT_SAFE_LIVE_PROBE
+void segaos_boot_live_probe_halt(void) __attribute__((noinline, used));
+volatile uint16_t segaos_boot_live_phase;
+volatile uint16_t segaos_boot_live_frame_count;
 #endif
 #ifdef VDP_TEXT_PROBE
 void segaos_vdp_text_probe(void);
@@ -383,8 +395,8 @@ static void boot_sequence(void) {
 #endif
 
   /* Step 4: Initialize VDP (standalone, no SGDK dependency) */
-#ifdef DESKTOP_PUMP_PROBE
-  desktop_pump_probe_init_vdp();
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
+  boot_safe_probe_init_vdp();
 #else
   VDP_Init();
 #endif
@@ -399,11 +411,13 @@ static void boot_sequence(void) {
 #endif
 
   /* Step 5: Set up framebuffer tilemap + palette */
-#if !defined(DESKTOP_SCHEDULER_PROBE) && !defined(DESKTOP_PUMP_PROBE)
+#ifdef BOOT_SAFE_LIVE_PROBE
+  boot_safe_probe_init_display();
+#elif !defined(DESKTOP_SCHEDULER_PROBE) && !defined(DESKTOP_PUMP_PROBE)
   FB_Init();
 #endif
 #if !defined(DESKTOP_DIRTY_QUEUE_PROBE) && !defined(DESKTOP_SCHEDULER_PROBE) && \
-    !defined(DESKTOP_PUMP_PROBE)
+    !defined(DESKTOP_PUMP_PROBE) && !defined(BOOT_SAFE_LIVE_PROBE)
   FB_ShowBootPattern();
 #endif
 
@@ -436,6 +450,13 @@ static void boot_sequence(void) {
 
 #ifdef BOOT_SAFE_VISUAL_PROBE
 void segaos_visual_probe_halt(void) {
+  while (1) {
+  }
+}
+#endif
+
+#ifdef BOOT_SAFE_LIVE_PROBE
+void segaos_boot_live_probe_halt(void) {
   while (1) {
   }
 }
@@ -479,6 +500,52 @@ static void runtime_smoke_probe(void) {
 
 void segaos_runtime_smoke_halt(void) {
   while (1) {
+  }
+}
+#endif
+
+#if defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE)
+static void boot_safe_probe_init_vdp(void) {
+  (void)VDP_CTRL_PORT;
+
+  VDP_SET_REG(VDP_REG_MODE1, 0x04);
+  VDP_SET_REG(VDP_REG_MODE2, 0x14);
+  VDP_SET_REG(VDP_REG_PLANEA, VRAM_PLANE_A >> 10);
+  VDP_SET_REG(VDP_REG_PLANEB, VRAM_PLANE_B >> 13);
+  VDP_SET_REG(VDP_REG_SPRITE, VRAM_SPRITES >> 9);
+  VDP_SET_REG(VDP_REG_BGCOLOR, 0x00);
+  VDP_SET_REG(VDP_REG_MODE3, 0x00);
+  VDP_SET_REG(VDP_REG_MODE4, 0x81);
+  VDP_SET_REG(VDP_REG_HSCROLL, VRAM_HSCROLL >> 10);
+  VDP_SET_REG(VDP_REG_AUTOINC, 0x02);
+  VDP_SET_REG(VDP_REG_SCROLLSZ, 0x01);
+  VDP_SET_REG(VDP_REG_WINX, 0x00);
+  VDP_SET_REG(VDP_REG_WINY, 0x00);
+  VDP_SET_REG(VDP_REG_MODE2, 0x74);
+}
+
+static void boot_safe_probe_init_display(void) {
+  uint16_t tile = 0;
+  uint16_t y;
+
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_CRAM_WRITE(0);
+  VDP_DATA_PORT = 0x0000;
+  VDP_DATA_PORT = 0x0000;
+  VDP_CRAM_WRITE(14);
+  VDP_DATA_PORT = 0x0aaa;
+  VDP_DATA_PORT = 0x0666;
+  VDP_CRAM_WRITE(30);
+  VDP_DATA_PORT = 0x0eee;
+
+  for (y = 0; y < FB_TILES_Y; y++) {
+    uint16_t x;
+
+    VDP_VRAM_WRITE((uint16_t)(VRAM_PLANE_A + (y << 7)));
+    for (x = 0; x < FB_TILES_X; x++) {
+      VDP_DATA_PORT = TILE_ENTRY(0, 0, 0, 0, tile);
+      tile++;
+    }
   }
 }
 #endif
@@ -605,50 +672,6 @@ static void desktop_scheduler_probe_upload(void) {
 #endif
 
 #ifdef DESKTOP_PUMP_PROBE
-static void desktop_pump_probe_init_vdp(void) {
-  (void)VDP_CTRL_PORT;
-
-  VDP_SET_REG(VDP_REG_MODE1, 0x04);
-  VDP_SET_REG(VDP_REG_MODE2, 0x14);
-  VDP_SET_REG(VDP_REG_PLANEA, VRAM_PLANE_A >> 10);
-  VDP_SET_REG(VDP_REG_PLANEB, VRAM_PLANE_B >> 13);
-  VDP_SET_REG(VDP_REG_SPRITE, VRAM_SPRITES >> 9);
-  VDP_SET_REG(VDP_REG_BGCOLOR, 0x00);
-  VDP_SET_REG(VDP_REG_MODE3, 0x00);
-  VDP_SET_REG(VDP_REG_MODE4, 0x81);
-  VDP_SET_REG(VDP_REG_HSCROLL, VRAM_HSCROLL >> 10);
-  VDP_SET_REG(VDP_REG_AUTOINC, 0x02);
-  VDP_SET_REG(VDP_REG_SCROLLSZ, 0x01);
-  VDP_SET_REG(VDP_REG_WINX, 0x00);
-  VDP_SET_REG(VDP_REG_WINY, 0x00);
-  VDP_SET_REG(VDP_REG_MODE2, 0x74);
-}
-
-static void desktop_pump_probe_init_display(void) {
-  uint16_t tile = 0;
-  uint16_t y;
-
-  VDP_SET_REG(VDP_REG_AUTOINC, 2);
-  VDP_CRAM_WRITE(0);
-  VDP_DATA_PORT = 0x0000;
-  VDP_DATA_PORT = 0x0000;
-  VDP_CRAM_WRITE(14);
-  VDP_DATA_PORT = 0x0aaa;
-  VDP_DATA_PORT = 0x0666;
-  VDP_CRAM_WRITE(30);
-  VDP_DATA_PORT = 0x0eee;
-
-  for (y = 0; y < FB_TILES_Y; y++) {
-    uint16_t x;
-
-    VDP_VRAM_WRITE((uint16_t)(VRAM_PLANE_A + (y << 7)));
-    for (x = 0; x < FB_TILES_X; x++) {
-      VDP_DATA_PORT = TILE_ENTRY(0, 0, 0, 0, tile);
-      tile++;
-    }
-  }
-}
-
 static void desktop_pump_probe_upload_frame(void) {
   FrameUploadPump pump;
   uint16_t slice;
@@ -874,7 +897,7 @@ static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
 static void desktop_pump_probe(void) {
   uint16_t frame;
 
-  desktop_pump_probe_init_display();
+  boot_safe_probe_init_display();
   segaos_desktop_pump_frame_count = 0;
   for (frame = 0; frame < DESKTOP_PUMP_PROBE_FRAMES; frame++) {
     segaos_desktop_main_phase = (uint16_t)(0x8800U | frame);
@@ -1378,7 +1401,39 @@ static void main_loop(void) {
     VDP_WaitVSync();
 
 #ifdef BOOT_SAFE_DESKTOP
+#ifdef BOOT_SAFE_LIVE_PROBE
+    uint16_t liveFrame;
+    uint8_t liveStatus;
+
+    if (!BootLiveProbe_ShouldRender(segaos_boot_live_frame_count,
+                                    BOOT_SAFE_LIVE_PROBE_FRAMES)) {
+      segaos_boot_live_phase = 0x89ff;
+      segaos_boot_live_probe_halt();
+    }
+
+    liveFrame = BootLiveProbe_NextFrame(segaos_boot_live_frame_count);
+    segaos_boot_live_phase = (uint16_t)(0x8900U | liveFrame);
+    main_send_cmd(CMD_RENDER_FRAME, liveFrame, 0, 320, 224);
+    liveStatus = main_wait_done();
+
+    if (liveStatus != STATUS_DONE || main_read_result(0) != SUB_STATE_READY ||
+        main_read_result(1) != liveFrame || main_read_result(7) != 0x7404) {
+      segaos_boot_live_phase = 0x89fe;
+      segaos_boot_live_probe_halt();
+    }
+
+    if (!main_upload_frame_budgeted(WRAM_BANK0_MAIN)) {
+      segaos_boot_live_phase = 0x89fd;
+      segaos_boot_live_probe_halt();
+    }
+
+    VDP_WaitDMA();
+    main_return_wram_to_sub();
+    segaos_boot_live_frame_count = liveFrame;
     continue;
+#else
+    continue;
+#endif
 #endif
 
     /* Poll Mega Mouse and forward input to Sub CPU */
