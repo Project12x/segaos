@@ -10,8 +10,9 @@ Pinned source for this repo's notes:
 
 License: MIT. Current SegaOS reuse modes: direct-copy for Megadev
 `lib/security.c` with attribution in `src/main/security.c`, close-port or
-pattern-only for the SP header/linker/control-fixture shape, and clean-room for
-SegaOS-specific probe/control logic unless a file says otherwise.
+pattern-only for the SP header/linker/control-fixture shape, pattern-only /
+clean-room for the BRAM Sub BIOS vector ABI, and clean-room for SegaOS-specific
+probe/control logic unless a file says otherwise.
 
 ### Architecture & Design
 - [sega_cd_homebrew_2026.md](sega_cd_homebrew_2026.md) — June 2026 toolchain/homebrew update and SegaOS implications

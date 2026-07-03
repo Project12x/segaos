@@ -302,6 +302,20 @@ filename/pattern normalization, formatted/unformatted probe mapping, internal
 directory call-through. This is not the live inline Sub BIOS vector call layer
 yet and does not probe an external Backup RAM cart.
 
+BRAM-BIOS-adapter update on 2026-07-02: `src/sub/bram_bios.c` now binds a
+`BramBiosContext` to `BramBiosOps`, and `src/sub/bram_bios_68k.s` contains the
+raw Sub CPU `$005F16` calls for internal Backup RAM. Reference-code-first
+record remains Megadev repo `https://github.com/drojaazu/megadev`, commit
+`7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`, MIT license, inspected files
+`lib/sub/bram.def.h`, `lib/sub/bram.h`, and `lib/sub/sub.macro.s`. Reuse mode
+is pattern-only / clean-room for SegaOS source: the adapter follows the
+documented register ABI and carry-flag semantics but does not copy Megadev's
+inline C assembly wrappers. Host tests fake the raw call layer and prove
+context buffer ownership plus callback routing for init/stat/search/read/write
+and directory calls. The forced ISO build assembles the target raw-call file.
+This still does not bind BASIC `SAVE`/`LOAD` or the desktop file manager to
+BRAM, and it does not probe an external Backup RAM cartridge.
+
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input
 through the shell, callback-based `LIST` output in sorted program order, `NEW`

@@ -319,7 +319,11 @@ with in at least one emulator.
   - [x] Host-tested BRAM BIOS wrapper contract for filename normalization,
         `BRMINIT`/`BRMSTAT` probing, directory/free-space/read/write semantics,
         and internal-BRAM `StorageVolumeInfo` mapping
-  - [ ] Live Sub CPU BRAM BIOS vector calls for directory/free-space/read/write
+  - [x] Live Sub CPU internal-BRAM BIOS vector adapter for
+        `BRMINIT`/`BRMSTAT`/`BRMSERCH`/`BRMREAD`/`BRMWRITE`/`BRMDIR`, kept
+        behind `BramBiosOps`
+  - [ ] Bind BASIC/file-manager storage callbacks to the internal-BRAM adapter
+        and later external-cart driver
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
       blocks before designing the user-facing file manager
 - [ ] Add a BASIC interpreter/tooling rung:

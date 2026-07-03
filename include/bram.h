@@ -88,6 +88,11 @@ typedef struct {
   void *user;
 } BramBiosOps;
 
+typedef struct {
+  uint8_t work[BRM_WORK_BUFFER_BYTES];
+  uint8_t strings[BRM_STRING_BUFFER_BYTES];
+} BramBiosContext;
+
 uint8_t BRM_MakeFilename(const char *source, BramFilename *out);
 uint8_t BRM_MakePattern(const char *source, char out[BRM_FILENAME_BUFFER_BYTES]);
 uint16_t BRM_NormalBlocksForBytes(uint16_t bytes);
@@ -104,5 +109,7 @@ BramResult BRM_ReadFile(const BramBiosOps *ops, const BramFilename *filename,
 BramResult BRM_ReadDirectory(const BramBiosOps *ops, const char *pattern,
                              uint8_t *dirBuffer, uint16_t dirBytes,
                              uint16_t skip);
+void BRM_ClearBiosContext(BramBiosContext *context);
+uint8_t BRM_InitInternalBiosOps(BramBiosContext *context, BramBiosOps *ops);
 
 #endif /* BRAM_H */

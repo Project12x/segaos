@@ -124,10 +124,10 @@ The active strategy is a bring-up ladder:
 ## Build Status
 | Target | Status | Notes |
 |--------|--------|-------|
-| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,808 text bytes / 2,292 BSS bytes observed locally with the SGDK-font starter window, dirty-rect module, and target-compiled but unreferenced BASIC core; full app SP is deferred |
+| Sub CPU (`build/sub_cpu.bin`) | Builds | Boot-safe desktop default: 11,808 text bytes / 2,292 BSS bytes observed locally with the SGDK-font starter window, dirty-rect module, target-compiled but unreferenced BASIC core, and target-assembled internal BRAM BIOS raw-call stubs; full app SP is deferred |
 | Main CPU (`build/main_cpu.bin`) | Builds | 2,856 text bytes observed locally with US security block in the forced normal default build |
 | CPU-only build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub main` |
-| Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 22,544 text bytes / 8,488 BSS bytes |
+| Full app Sub build | Passing | `C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile sub BOOT_SAFE_DESKTOP=0` now excludes `runtime_smoke.c`; observed 24,088 text bytes / 8,500 BSS bytes |
 | Disc image (`build/segaos.iso/.cue`) | Builds and verifies | `make iso` writes cooked `MODE1/2048` ISO/CUE and runs verifier |
 | Emulator IP probe | Passing | BlastEm + USA BIOS + SGDK GDB hit `$00FF0000` and read US security bytes |
 | Megadev dual-CPU control | Passing | `tools/build_megadev_dualcpu_control.ps1` + `-Probe MegadevControl` proves the builder/security path can boot a Megadev-shaped SP and report from Sub code |
@@ -145,7 +145,7 @@ The active strategy is a bring-up ladder:
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -216,15 +216,17 @@ The active strategy is a bring-up ladder:
 - Storage policy seam: `STG_PlanSave()` is host-tested. It prefers external
   cart saves, allows internal BRAM only for prefs/tiny text/BASIC fallback
   saves, enforces reserve space, and rejects image documents without the
-  external cart path. Hardware BRAM BIOS wrappers and real capacity probes are
-  still pending.
+  external cart path. Internal BRAM Sub BIOS vector calls now exist behind
+  `BramBiosOps`; external-cart capacity probes are still pending.
 - BRAM wrapper seam: `BRM_Probe()`, `BRM_ReadFile()`, `BRM_WriteFile()`, and
   `BRM_ReadDirectory()` are host-tested against injectable BIOS operations.
   The contract follows Megadev's MIT BRAM definitions at
   `7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`: `BURAM` vector `$005F16`,
   4KB `BRMINIT`/`BRMSTAT` units, normal 0x40-byte file blocks, 11-byte
-  NUL-terminated BIOS filenames, and 16-byte directory entries. This is the
-  wrapper contract, not live inline Sub BIOS calls yet.
+  NUL-terminated BIOS filenames, and 16-byte directory entries. The
+  target-side adapter is `BRM_InitInternalBiosOps()`, backed by
+  `src/sub/bram_bios_68k.s` raw calls for `BRMINIT`, `BRMSTAT`,
+  `BRMSERCH`, `BRMREAD`, `BRMWRITE`, and `BRMDIR`.
 - BASIC storage adapter seam: `BAS_StorageInitAdapter()` and
   `BAS_StorageBindIO()` are host-tested as the first bridge from BASIC
   `SAVE`/`LOAD` callbacks to `STG_PlanSave()`. `SAVE` plans a BASIC document
@@ -267,7 +269,9 @@ Megadev 1.2.0:
 - Reuse mode: pattern-only for boot-layout/build references; direct-copy for
   `src/main/security.c` from Megadev `lib/security.c`; close-port/pattern-only
   for the SP module header and jump-table contract from `lib/sub/sp_header.s`;
-  control-build/pattern-only for Megadev `hello_world` IP/SP behavior
+  pattern-only/clean-room for the BRAM Sub BIOS vector ABI in
+  `src/sub/bram_bios_68k.s`; control-build/pattern-only for Megadev
+  `hello_world` IP/SP behavior
 - Inspected files: `README.md`, `VERSION`, `LICENSE`, `docs/manual.md`,
   `docs/boot.md`, `docs/disc.md`, `docs/cdrom.md`, `docs/megacd_dev.md`,
   `docs/modules.md`, `docs/program_design.md`, `new_project/README.md`,
@@ -276,7 +280,8 @@ Megadev 1.2.0:
   `lib/sub/gate_arr.def.h`, `lib/main/gate_arr.h`, `lib/sub/gate_arr.h`,
   `lib/main/gate_arr.macros.s`, `lib/sub/sub.macro.s`,
   `lib/main/mmd.h`, `lib/main/mmd.macros.s`, `lib/main/memmap.def.h`,
-  `lib/build.def.h`, `lib/sub/bios.def.h`, `lib/sub/cdboot.def.h`,
+  `lib/build.def.h`, `lib/sub/bios.def.h`, `lib/sub/bram.def.h`,
+  `lib/sub/bram.h`, `lib/sub/cdboot.def.h`,
   `examples/hello_world/src/ip.s`,
   `examples/hello_world/src/sp.s`, `new_project/src/ip.s`,
   `new_project/src/sp.s`
@@ -390,6 +395,7 @@ SGDK DMA queue source:
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Storage Policy | Sub/host | `src/sub/storage.c` | Host-tested save-target policy for external Backup RAM cart preference and internal BRAM fallback limits |
 | BRAM Wrapper | Sub/host | `src/sub/bram.c` | Host-tested BRAM BIOS contract wrapper for probe/stat/read/write/directory semantics through injectable ops |
+| BRAM BIOS Adapter | Sub/host | `src/sub/bram_bios.c`, `src/sub/bram_bios_68k.s` | Host-tested callback binding plus target-assembled raw Sub BIOS `$005F16` calls for internal Backup RAM |
 | BASIC Storage Adapter | Sub/host | `src/sub/basic_storage.c` | Host-tested bridge from BASIC `SAVE`/`LOAD` byte callbacks to `STG_PlanSave()` and selected-volume read/write callbacks |
 | BASIC Core | Sub/host | `src/sub/basic.c` | Clean-room fixed-storage BASIC program buffer and shell/evaluator/runner seam with numbered-line parsing, keyword tokenization, sorted insert/replace/delete, compaction, decode, binary image export/import, line entry, `LIST`, `NEW`, callback-backed `SAVE`/`LOAD`, simple integer/string values, sequential `PRINT`/`END`, literal-line `GOTO`, fixed A-Z integer `LET` variables, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, and fixed-depth `GOSUB`/`RETURN` |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
