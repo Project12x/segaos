@@ -247,7 +247,14 @@ internal-BRAM probe into `StorageVolumeInfo`. `src/sub/bram_bios.c` and
 that contract: host tests prove the callback routing and buffer ownership, and
 the forced ISO build assembles the raw `$005F16` `BRMINIT`/`BRMSTAT`/
 `BRMSERCH`/`BRMREAD`/`BRMWRITE`/`BRMDIR` stubs. BASIC `SAVE`/`LOAD` still need
-to be bound to this driver and the external Backup RAM cartridge path.
+to be bound to the external Backup RAM cartridge path. Internal-BRAM BASIC
+binding now exists as `src/sub/basic_bram_storage.c`: it probes the formatted
+internal volume, exposes `BasicStorageWrite`/`BasicStorageRead` callbacks for
+the existing policy adapter, writes the current shell program under the fixed
+BIOS-safe `BASIC` filename, and pads saves to the BIOS 0x40-byte block size
+from a static scratch buffer so the BIOS never reads beyond the exported image.
+The BASIC importer tolerates the padded block-size read because the `SBAS`
+image header carries the actual line table and storage length.
 
 The first BASIC code seam is also now in place. `src/sub/basic.c` is a
 clean-room, fixed-storage program buffer and tiny shell: it parses numbered

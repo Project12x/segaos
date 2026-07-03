@@ -316,6 +316,22 @@ and directory calls. The forced ISO build assembles the target raw-call file.
 This still does not bind BASIC `SAVE`/`LOAD` or the desktop file manager to
 BRAM, and it does not probe an external Backup RAM cartridge.
 
+BASIC-BRAM-storage update on 2026-07-03: `src/sub/basic_bram_storage.c` now
+connects BASIC's generic `SAVE`/`LOAD` byte callbacks to the internal BRAM
+wrapper. Reuse mode is clean-room over SegaOS' own `BramBiosOps` contract;
+Megadev remains the pinned pattern reference for the underlying Sub BIOS BRAM
+ABI, but no Megadev BASIC or storage adapter source was copied or closely
+ported. Host tests prove filename normalization, internal-volume probing for
+the storage policy adapter, rejected external-cart targets, `BRM_WriteFile()`
+routing with a fixed `BASIC` filename, `BRM_ReadFile()` routing, and a shell
+`SAVE`/`LOAD` round trip through `BasicStorageAdapter` with no external cart
+present. Because the BRAM BIOS reports file size in 0x40-byte normal blocks,
+the bridge pads exported `SBAS` images from a static scratch buffer before
+write; reads may report the padded block size, and the BASIC importer accepts
+that because the image header carries the exact line table and storage length.
+This is still not a named-file UI and does not implement the external Backup
+RAM cartridge path.
+
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input
 through the shell, callback-based `LIST` output in sorted program order, `NEW`

@@ -139,6 +139,7 @@ ifeq ($(BOOT_SAFE_DESKTOP),1)
 SUB_ASM_SRCS += $(SUB_DIR)/bram_bios_68k.s
 SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/basic.c \
+               $(SUB_DIR)/basic_bram_storage.c \
                $(SUB_DIR)/basic_storage.c \
                $(SUB_DIR)/bram.c \
                $(SUB_DIR)/bram_bios.c \
@@ -235,6 +236,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_basic_program.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_basic_storage.c src/sub/basic.c src/sub/basic_storage.c src/sub/storage.c -o $(BUILD_DIR)/test_basic_storage.exe
 	$(BUILD_DIR)/test_basic_storage.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_basic_bram_storage.c src/sub/basic.c src/sub/basic_storage.c src/sub/basic_bram_storage.c src/sub/bram.c src/sub/storage.c -o $(BUILD_DIR)/test_basic_bram_storage.exe
+	$(BUILD_DIR)/test_basic_bram_storage.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_framebuffer.c src/main/framebuffer.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_framebuffer.exe
 	$(BUILD_DIR)/test_framebuffer.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe

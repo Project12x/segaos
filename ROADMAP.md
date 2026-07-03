@@ -322,8 +322,10 @@ with in at least one emulator.
   - [x] Live Sub CPU internal-BRAM BIOS vector adapter for
         `BRMINIT`/`BRMSTAT`/`BRMSERCH`/`BRMREAD`/`BRMWRITE`/`BRMDIR`, kept
         behind `BramBiosOps`
-  - [ ] Bind BASIC/file-manager storage callbacks to the internal-BRAM adapter
-        and later external-cart driver
+  - [x] Bind BASIC storage callbacks to the internal-BRAM adapter using a fixed
+        BIOS-safe `BASIC` file and block-padded writes
+  - [ ] Bind BASIC/file-manager storage callbacks to the later external-cart
+        driver and named-file UI
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
       blocks before designing the user-facing file manager
 - [ ] Add a BASIC interpreter/tooling rung:
@@ -356,8 +358,10 @@ with in at least one emulator.
         preference and tiny internal-BRAM fallback limits
   - [ ] String variables, arrays, and broader statement execution after `THEN`
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
-  - [ ] Connect BASIC `LOAD`/`SAVE` storage callbacks to later
-        BRAM/external-cart read/write drivers
+  - [x] Connect BASIC `LOAD`/`SAVE` storage callbacks to the internal-BRAM
+        read/write bridge
+  - [ ] Connect BASIC `LOAD`/`SAVE` storage callbacks to the later
+        external-cart read/write driver
 - [ ] Decide app/resource packaging format on ISO9660
 - [ ] Add CD audio or PCM strategy only after storage ownership is clear
 

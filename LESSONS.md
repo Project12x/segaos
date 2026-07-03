@@ -113,6 +113,11 @@ same failures.
   `make iso` after `BOOT_SAFE_VISUAL_PROBE=1` can keep probe-compiled Main CPU
   objects. The normal default Main CPU size observed after a forced rebuild is
   `2776` bytes.
+- Do not verify two Makefile targets that write the same `build/*` outputs in
+  parallel. In particular, `make iso` and
+  `make sub BOOT_SAFE_DESKTOP=0` both write `build/sub_cpu.bin`; running them
+  at the same time can make the ISO pack the wrong Sub binary even when each
+  compile step individually passes.
 - Probe scripts that issue a raw GDB `continue` need bounded failure behavior
   inside the script, not only an outer shell timeout. `probe_blastem_boot.ps1`
   now accepts `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` if GDB
@@ -263,6 +268,12 @@ same failures.
   `src/sub/bram_bios_68k.s` is the only code that calls `$005F16` directly.
   `storage.c` owns save-target policy. Do not let BASIC, file-manager, or
   desktop UI code call raw BRAM memory or the `$005F16` vector directly.
+- BRAM file sizes are block sizes, not exact document lengths. For BASIC
+  `SAVE`, pad the exported `SBAS` image to 0x40-byte normal BRAM blocks from a
+  static scratch buffer before calling `BRM_WriteFile()`. For `LOAD`, it is
+  acceptable for the callback to report the padded block-size read because
+  `BAS_ImportProgramImage()` uses the `SBAS` header to compute the exact
+  required image bytes.
 - Build BASIC as an OS tool in narrow stages: program buffer plus shell line
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
   sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,
