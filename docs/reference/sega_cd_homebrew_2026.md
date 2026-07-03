@@ -431,4 +431,11 @@ cursor advances a pending tile span into a `DirtyTileQueue` under a caller's
 byte budget; host tests prove a full 1,120-tile frame becomes four 235-tile
 NTSC-budgeted frames plus a final 180-tile frame. This is the frame-policy
 planning rung before the live desktop loop calls `FB_UpdateTileQueue()` at a
-measured VBlank/update point.
+measured VBlank/update point. `DESKTOP_SCHEDULER_PROBE=1` now proves the first
+target integration step in BlastEm/GDB: after a real Sub `CMD_RENDER_FRAME`,
+Main calls `FS_PlanTileCursorFrame()` twice, uploads both 235-tile slices
+through `FB_UpdateTileQueue()`, reaches phase `0x87ff`, and verifies a poisoned
+VRAM word in the second slice changes from `0x0ee0` back to the Word RAM value
+`0xf11f`. The probe uses a narrow Main path to fit the Megadev-compatible
+3,584-byte IP window; it is target evidence for the scheduler/upload contract,
+not the final long-running VBlank policy.

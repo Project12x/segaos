@@ -264,9 +264,10 @@ Do not advance the full desktop/app loop just because the minimal
 `WM_NewWindow()` probe and short multi-frame loop probe are green. The
 single-bank handoff, several repeated render/upload cycles, and the narrow WM
 allocation/z-order render path are proven, and the full-frame upload path has a
-first HV/status timing probe. Alternating double buffering, dirty-tile VBlank
-budgeting, and the final long-running desktop scheduler still need their own
-policy before the desktop loop is treated as stable.
+first HV/status timing probe. The scheduler cursor can now feed two successive
+dirty-tile queue uploads in the opt-in target probe, but alternating double
+buffering and the final long-running VBlank desktop scheduler still need their
+own policy before the desktop loop is treated as stable.
 
 Additional diagnostic modes:
 
@@ -312,6 +313,12 @@ C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
 
 powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
   -Probe DesktopWm
+
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
+  DESKTOP_SCHEDULER_PROBE=1
+
+powershell.exe -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 `
+  -Probe DesktopScheduler -GdbTimeoutSeconds 60
 
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso `
   DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1

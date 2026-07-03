@@ -80,6 +80,10 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_DIRTY_QUEUE_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopDirtyQueue
 
+# Prove the frame scheduler can feed two successive dirty tile queue uploads
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_SCHEDULER_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopScheduler -GdbTimeoutSeconds 60
+
 # Prove BASIC SAVE/LOAD through the live internal BRAM BIOS adapter
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BASIC_BRAM_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe BasicBram
@@ -227,9 +231,15 @@ IP boot-sector limit. The next desktop gate is still a measured long-running
 frame policy. `src/main/frame_scheduler.c` now adds the first host-tested
 scheduler cursor: a large pending tile span can be advanced across
 byte-budgeted frames, so a full-frame fallback progresses through 235-tile
-NTSC-budgeted slices instead of repeating the same first slice. The full
-alternating double-buffer and live dirty-tile VBlank policies remain later
-stability work before returning to normal menu/cursor/app rendering.
+NTSC-budgeted slices instead of repeating the same first slice.
+`DESKTOP_SCHEDULER_PROBE=1` now proves the first target integration step in
+BlastEm/GDB: after a real Sub-rendered desktop frame, Main schedules and
+uploads two successive 235-tile slices through `FB_UpdateTileQueue()`, reaches
+phase `0x87ff`, and verifies a poisoned VRAM word in the second slice is
+restored to the Word RAM value `0xf11f`. This is still a narrow diagnostic
+proof, not the production VBlank loop. The full alternating double-buffer and
+live dirty-tile VBlank policies remain later stability work before returning to
+normal menu/cursor/app rendering.
 
 Storage planning now assumes an external Backup RAM cartridge-class writable
 store is available for real small-document workflows. CD-ROM/ISO9660 remains

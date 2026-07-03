@@ -14,6 +14,27 @@ static void fs_clear_result(FrameScheduleResult *result) {
   result->nextTile = 0;
 }
 
+static void fs_clear_queue(DirtyTileQueue *queue) {
+  uint8_t i;
+
+  if (!queue)
+    return;
+
+  queue->count = 0;
+  queue->byteCount = 0;
+  queue->budgetExceeded = 0;
+  queue->overflow = 0;
+
+  if (!queue->items)
+    return;
+
+  for (i = 0; i < queue->capacity; i++) {
+    queue->items[i].firstTile = 0;
+    queue->items[i].tileCount = 0;
+    queue->items[i].byteCount = 0;
+  }
+}
+
 void FS_ClearTileCursor(FrameTileCursor *cursor) {
   if (!cursor)
     return;
@@ -44,15 +65,15 @@ static uint16_t fs_min_u16(uint16_t a, uint16_t b) {
 uint8_t FS_PlanTileCursorFrame(FrameTileCursor *cursor, DirtyTileQueue *queue,
                                uint16_t bytesPerTile,
                                FrameScheduleResult *result) {
-  uint32_t endTile;
-  uint32_t remaining;
-  uint32_t fitTiles;
+  uint16_t endTile;
+  uint16_t remaining;
+  uint16_t fitTiles;
   uint16_t queuedTiles;
   uint16_t queuedBytes;
 
   fs_clear_result(result);
   if (queue)
-    DR_ClearTileQueue(queue);
+    fs_clear_queue(queue);
 
   if (!cursor || !queue || bytesPerTile == 0)
     return 0;
@@ -65,10 +86,11 @@ uint8_t FS_PlanTileCursorFrame(FrameTileCursor *cursor, DirtyTileQueue *queue,
     return 1;
   }
 
-  endTile = (uint32_t)cursor->firstTile + (uint32_t)cursor->tileCount;
-  if ((uint32_t)cursor->nextTile < (uint32_t)cursor->firstTile ||
-      (uint32_t)cursor->nextTile >= endTile) {
-    cursor->nextTile = (uint16_t)endTile;
+  endTile = (uint16_t)(cursor->firstTile + cursor->tileCount);
+  if (endTile < cursor->firstTile)
+    endTile = 0xffffU;
+  if (cursor->nextTile < cursor->firstTile || cursor->nextTile >= endTile) {
+    cursor->nextTile = endTile;
     cursor->active = 0;
     if (result) {
       result->complete = 1;
@@ -77,40 +99,35 @@ uint8_t FS_PlanTileCursorFrame(FrameTileCursor *cursor, DirtyTileQueue *queue,
     return 1;
   }
 
-  remaining = endTile - (uint32_t)cursor->nextTile;
+  remaining = (uint16_t)(endTile - cursor->nextTile);
   if (!queue->items || queue->capacity == 0) {
     queue->overflow = 1;
     if (result) {
       result->overflow = 1;
-      result->remainingTiles = (remaining > 0xffffU) ? 0xffffU
-                                                     : (uint16_t)remaining;
+      result->remainingTiles = remaining;
       result->nextTile = cursor->nextTile;
     }
     return 0;
   }
 
   if (queue->maxBytes != 0) {
-    fitTiles = (uint32_t)(queue->maxBytes / bytesPerTile);
+    fitTiles = (uint16_t)(queue->maxBytes / bytesPerTile);
   } else {
-    fitTiles = (uint32_t)(0xffffU / bytesPerTile);
+    fitTiles = (uint16_t)(0xffffU / bytesPerTile);
   }
 
   if (fitTiles == 0) {
     queue->budgetExceeded = 1;
     if (result) {
       result->budgetLimited = 1;
-      result->remainingTiles = (remaining > 0xffffU) ? 0xffffU
-                                                     : (uint16_t)remaining;
+      result->remainingTiles = remaining;
       result->nextTile = cursor->nextTile;
     }
     return 0;
   }
 
-  queuedTiles = fs_min_u16((uint16_t)((remaining > 0xffffU) ? 0xffffU
-                                                            : remaining),
-                           (uint16_t)((fitTiles > 0xffffU) ? 0xffffU
-                                                           : fitTiles));
-  queuedBytes = (uint16_t)((uint32_t)queuedTiles * bytesPerTile);
+  queuedTiles = fs_min_u16(remaining, fitTiles);
+  queuedBytes = (uint16_t)(queuedTiles * bytesPerTile);
 
   queue->items[0].firstTile = cursor->nextTile;
   queue->items[0].tileCount = queuedTiles;
@@ -120,8 +137,8 @@ uint8_t FS_PlanTileCursorFrame(FrameTileCursor *cursor, DirtyTileQueue *queue,
   queue->budgetExceeded = (queuedTiles < remaining) ? 1 : 0;
   queue->overflow = 0;
 
-  cursor->nextTile = (uint16_t)((uint32_t)cursor->nextTile + queuedTiles);
-  remaining = endTile - (uint32_t)cursor->nextTile;
+  cursor->nextTile = (uint16_t)(cursor->nextTile + queuedTiles);
+  remaining = (uint16_t)(endTile - cursor->nextTile);
   if (remaining == 0) {
     cursor->active = 0;
   }

@@ -363,3 +363,12 @@ same failures.
 - `DESKTOP_TIMING_PROBE=1` gives the first timing evidence for the same
   boot-safe direct renderer. It is not permission to skip the VDP transfer
   policy decision before reintroducing broad desktop/app rendering.
+- `DESKTOP_SCHEDULER_PROBE=1` is the current target proof between the
+  host-tested frame scheduler and the production VBlank loop. It runs a real
+  Sub `CMD_RENDER_FRAME`, calls `FS_PlanTileCursorFrame()`, pushes two
+  successive 235-tile queues through `FB_UpdateTileQueue()`, and verifies a
+  poisoned second-slice VRAM word changes from `0x0ee0` back to the Word RAM
+  value `0xf11f`. Keep this as a narrow diagnostic path: it skips mouse init
+  and framebuffer tilemap/palette setup to fit the 3,584-byte IP envelope, so
+  the next real milestone is moving the same cursor/queue path into the
+  measured live desktop flush point.

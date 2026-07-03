@@ -226,6 +226,9 @@ remains a later production policy.
     - [x] Host-tested frame scheduler cursor that carries oversized tile spans
           across byte-budgeted frames instead of re-uploading the same first
           slice
+    - [x] Emulator-proven scheduler cursor driving two successive 235-tile
+          queue uploads through `FB_UpdateTileQueue()` after a real
+          Sub-rendered desktop frame
     - [ ] Production VBlank-scheduled flush of queued tile spans to VRAM
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions

@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "boot_probe.h"
+#include "frame_scheduler.h"
 #include "framebuffer.h"
 #include "input.h"
 #include "mouse.h"
@@ -52,8 +53,12 @@ volatile uint16_t segaos_smoke_done_status;
 #endif
 #ifdef DESKTOP_INIT_PROBE
 void segaos_desktop_init_halt(void) __attribute__((noinline, used));
+#ifdef DESKTOP_SCHEDULER_PROBE
+static void desktop_scheduler_probe(void);
+#else
 static void desktop_init_probe(void);
 static void desktop_init_capture_status(void);
+#endif
 static uint8_t desktop_probe_wait_done(uint32_t poll_limit);
 
 volatile uint16_t segaos_desktop_main_phase;
@@ -106,6 +111,17 @@ volatile uint16_t segaos_desktop_dirty_queue_wram_word0;
 volatile uint16_t segaos_desktop_dirty_queue_wram_word1;
 volatile uint16_t segaos_desktop_dirty_queue_vram_word0;
 volatile uint16_t segaos_desktop_dirty_queue_vram_word1;
+#endif
+#ifdef DESKTOP_SCHEDULER_PROBE
+volatile uint16_t segaos_desktop_scheduler_result;
+volatile uint16_t segaos_desktop_scheduler_slice0_tile_count;
+volatile uint16_t segaos_desktop_scheduler_slice0_next_tile;
+volatile uint16_t segaos_desktop_scheduler_slice1_first_tile;
+volatile uint16_t segaos_desktop_scheduler_slice1_tile_count;
+volatile uint16_t segaos_desktop_scheduler_slice1_next_tile;
+volatile uint16_t segaos_desktop_scheduler_slice1_wram_word;
+volatile uint16_t segaos_desktop_scheduler_slice1_before_word;
+volatile uint16_t segaos_desktop_scheduler_slice1_vram_word;
 #endif
 #ifdef DESKTOP_REPEAT_PROBE
 volatile uint16_t segaos_desktop_repeat_status;
@@ -255,6 +271,8 @@ int main(void) {
   runtime_smoke_probe();
 #elif defined(BASIC_BRAM_PROBE)
   basic_bram_probe();
+#elif defined(DESKTOP_SCHEDULER_PROBE)
+  desktop_scheduler_probe();
 #elif defined(DESKTOP_INIT_PROBE)
   desktop_init_probe();
 #elif defined(BOOT_PROBE)
@@ -319,7 +337,7 @@ static void boot_sequence(void) {
         (uint8_t)((mem | MEM_MODE_1M | MEM_MODE_RET) & ~MEM_MODE_DMNA);
   }
 
-#ifndef DESKTOP_DIRTY_QUEUE_PROBE
+#if !defined(DESKTOP_DIRTY_QUEUE_PROBE) && !defined(DESKTOP_SCHEDULER_PROBE)
   /* Step 3: Initialize Mega Mouse on controller port 1 */
   Mouse_Init(1);
 #endif
@@ -337,8 +355,10 @@ static void boot_sequence(void) {
 #endif
 
   /* Step 5: Set up framebuffer tilemap + palette */
+#ifndef DESKTOP_SCHEDULER_PROBE
   FB_Init();
-#ifndef DESKTOP_DIRTY_QUEUE_PROBE
+#endif
+#if !defined(DESKTOP_DIRTY_QUEUE_PROBE) && !defined(DESKTOP_SCHEDULER_PROBE)
   FB_ShowBootPattern();
 #endif
 
@@ -440,8 +460,10 @@ void segaos_runtime_smoke_halt(void) {
    (DESKTOP_TITLE_PROBE_TILE_ROW * 4U))
 #define DESKTOP_TITLE_PROBE_TILE_INDEX                                         \
   ((DESKTOP_TITLE_PROBE_TILE_Y * FB_TILES_X) + DESKTOP_TITLE_PROBE_TILE_X)
+#define DESKTOP_SCHEDULER_PROBE_BUDGET 7524U
 
-#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE)
+#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||  \
+    defined(DESKTOP_SCHEDULER_PROBE)
 static uint16_t desktop_title_read_wram_word(uint16_t word_index) {
   volatile const uint16_t *title_wram =
       (volatile const uint16_t *)(WRAM_BANK0_MAIN +
@@ -452,12 +474,92 @@ static uint16_t desktop_title_read_wram_word(uint16_t word_index) {
 #endif
 
 #if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE) ||       \
-    defined(DESKTOP_LOOP_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE)
+    defined(DESKTOP_LOOP_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||     \
+    defined(DESKTOP_SCHEDULER_PROBE)
 static uint16_t desktop_title_read_vram_word(uint16_t word_index) {
   VDP_SET_REG(VDP_REG_AUTOINC, 2);
   VDP_VRAM_READ((uint16_t)(DESKTOP_TITLE_PROBE_VRAM_OFFSET +
                            (word_index << 1)));
   return VDP_DATA_PORT;
+}
+#endif
+
+#ifdef DESKTOP_SCHEDULER_PROBE
+static void desktop_title_write_vram_word(uint16_t word_index,
+                                          uint16_t value) {
+  VDP_WaitDMA();
+  VDP_SET_REG(VDP_REG_AUTOINC, 2);
+  VDP_VRAM_WRITE((uint16_t)(DESKTOP_TITLE_PROBE_VRAM_OFFSET +
+                            (word_index << 1)));
+  VDP_DATA_PORT = value;
+}
+
+static void desktop_scheduler_probe_upload(void) {
+  FrameTileCursor cursor;
+  DirtyTileUpload upload;
+  DirtyTileQueue queue;
+  uint16_t poison;
+
+  segaos_desktop_scheduler_result = 0;
+  cursor.firstTile = 0;
+  cursor.tileCount = FB_TILE_COUNT;
+  cursor.nextTile = 0;
+  cursor.active = 1;
+  cursor._pad = 0;
+
+  queue.items = &upload;
+  queue.capacity = 1;
+  queue.count = 0;
+  queue.maxBytes = DESKTOP_SCHEDULER_PROBE_BUDGET;
+  queue.byteCount = 0;
+  queue.budgetExceeded = 0;
+  queue.overflow = 0;
+
+  if (!FS_PlanTileCursorFrame(&cursor, &queue, FB_BYTES_PER_TILE, 0) ||
+      queue.count != 1) {
+    segaos_desktop_scheduler_result = 0x00e1;
+    return;
+  }
+
+  segaos_desktop_scheduler_slice0_tile_count = upload.tileCount;
+  segaos_desktop_scheduler_slice0_next_tile = cursor.nextTile;
+
+  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &queue)) {
+    segaos_desktop_scheduler_result = 0x00e2;
+    return;
+  }
+
+  if (!FS_PlanTileCursorFrame(&cursor, &queue, FB_BYTES_PER_TILE, 0) ||
+      queue.count != 1) {
+    segaos_desktop_scheduler_result = 0x00e3;
+    return;
+  }
+
+  segaos_desktop_scheduler_slice1_first_tile = upload.firstTile;
+  segaos_desktop_scheduler_slice1_tile_count = upload.tileCount;
+  segaos_desktop_scheduler_slice1_next_tile = cursor.nextTile;
+
+  segaos_desktop_scheduler_slice1_wram_word = desktop_title_read_wram_word(0);
+  poison = (uint16_t)(segaos_desktop_scheduler_slice1_wram_word ^ 0xffffU);
+  desktop_title_write_vram_word(0, poison);
+  segaos_desktop_scheduler_slice1_before_word = desktop_title_read_vram_word(0);
+
+  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &queue)) {
+    segaos_desktop_scheduler_result = 0x00e4;
+    return;
+  }
+
+  VDP_WaitDMA();
+  segaos_desktop_scheduler_slice1_vram_word = desktop_title_read_vram_word(0);
+  if (segaos_desktop_scheduler_slice1_before_word ==
+          segaos_desktop_scheduler_slice1_wram_word ||
+      segaos_desktop_scheduler_slice1_vram_word !=
+          segaos_desktop_scheduler_slice1_wram_word) {
+    segaos_desktop_scheduler_result = 0x00e5;
+    return;
+  }
+
+  segaos_desktop_scheduler_result = 1;
 }
 #endif
 
@@ -601,6 +703,7 @@ static void desktop_text_capture_vram(void) {
 }
 #endif
 
+#ifndef DESKTOP_SCHEDULER_PROBE
 static void desktop_init_capture_status(void) {
   segaos_desktop_main_flag = GA_MAIN_REG8(GA_COMM_FLAG);
   segaos_desktop_sub_flag = GA_MAIN_READ_SUB_FLAG();
@@ -612,6 +715,7 @@ static void desktop_init_capture_status(void) {
   segaos_desktop_stat6 = main_read_result(6);
   segaos_desktop_trace = main_read_result(7);
 }
+#endif
 
 static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
   uint32_t polls;
@@ -641,6 +745,28 @@ static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
   return 0xee;
 }
 
+#ifdef DESKTOP_SCHEDULER_PROBE
+static void desktop_scheduler_probe(void) {
+  segaos_desktop_main_phase = 0x8701;
+  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+  segaos_desktop_main_phase = 0x8702;
+  segaos_desktop_done_status =
+      desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
+  segaos_desktop_stat0 = main_read_result(0);
+  segaos_desktop_trace = main_read_result(7);
+
+  if (segaos_desktop_done_status != STATUS_DONE ||
+      segaos_desktop_stat0 != SUB_STATE_READY ||
+      segaos_desktop_trace != 0x7404) {
+    segaos_desktop_main_phase = 0x87fe;
+    segaos_desktop_init_halt();
+  }
+
+  desktop_scheduler_probe_upload();
+  segaos_desktop_main_phase = 0x87ff;
+  segaos_desktop_init_halt();
+}
+#else
 static void desktop_init_probe(void) {
   segaos_desktop_main_phase = 0x8101;
   desktop_init_capture_status();
@@ -794,6 +920,7 @@ static void desktop_init_probe(void) {
 #endif
   segaos_desktop_init_halt();
 }
+#endif
 
 void segaos_desktop_init_halt(void) {
   while (1) {
