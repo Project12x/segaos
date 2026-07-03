@@ -234,7 +234,11 @@ needs a SegaOS probe before the file manager and save UI are treated as stable.
 The first code-level storage contract is now `STG_PlanSave()`: host tests prove
 external cart preference for BASIC/text saves, internal BRAM fallback for tiny
 text/BASIC documents, reserve-space enforcement, and rejection of image saves
-without the external cart path.
+without the external cart path. `src/sub/basic_storage.c` now bridges BASIC
+`SAVE`/`LOAD` callbacks to that policy: `SAVE` is planned as a BASIC document
+before write callbacks are invoked, while `LOAD` chooses the external cart
+when present and otherwise falls back to internal BRAM. The actual BRAM BIOS
+read/write driver remains pending.
 
 The first BASIC code seam is also now in place. `src/sub/basic.c` is a
 clean-room, fixed-storage program buffer and tiny shell: it parses numbered
@@ -244,8 +248,10 @@ stored lines, exports/imports a fixed-format binary program image for later
 storage integration, accepts shell line entry, lists programs through a
 caller-supplied sink, clears programs with `NEW`, and exposes storage-callback
 `SAVE`/`LOAD` shell commands that move the same binary image through
-caller-owned buffers. It also evaluates the first simple values: signed 16-bit
-integer `+`/`-` expressions and quoted string literals. The first `RUN` path
+caller-owned buffers. The optional BASIC storage adapter routes those callbacks
+through the save-target policy without embedding hardware I/O in the
+interpreter. It also evaluates the first simple values: signed 16-bit integer
+`+`/`-` expressions and quoted string literals. The first `RUN` path
 executes stored lines sequentially for `PRINT` and `END`,
 emitting printed values through the same caller-supplied sink. The runner also
 supports literal-line `GOTO` with a hard step cap to avoid runaway loops and

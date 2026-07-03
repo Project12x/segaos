@@ -263,9 +263,10 @@ same failures.
   fixed A-Z integer `LET` variables fifth, integer `IF`/`THEN` branching sixth,
   callback-backed integer `INPUT` seventh, fixed-depth `GOSUB`/`RETURN`
   subroutines eighth, fixed-format binary program image export/import ninth,
-  callback-backed shell `SAVE`/`LOAD` tenth, broader statement execution
-  eleventh, desktop I/O and concrete BRAM/external-cart drivers last. The
-  current BASIC core is clean-room SegaOS code. No GEOS,
+  callback-backed shell `SAVE`/`LOAD` tenth, `STG_PlanSave()`-backed BASIC
+  storage adapter eleventh, broader statement execution twelfth, desktop I/O
+  and concrete BRAM/external-cart drivers last. The current BASIC core and
+  storage adapter are clean-room SegaOS code. No GEOS,
   GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source is copied or closely
   ported; this first primitive is small enough that a direct interpreter
   reference would add licensing/runtime mismatch before it adds value.

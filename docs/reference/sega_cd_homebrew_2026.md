@@ -261,10 +261,22 @@ callback. `LOAD` reads bytes from the load callback, validates/imports the
 image, and leaves the existing program intact when import fails. Host tests
 prove successful save callback output, successful load replacement, and corrupt
 load rejection without clearing the current program. This still deliberately
-avoids direct BRAM or external-cart hardware calls; the desktop/storage layer
-must route the callbacks through `STG_PlanSave()` and later drivers. Reuse mode
-remains clean-room; no GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter
-source was copied or closely ported.
+avoids direct BRAM or external-cart hardware calls; the callbacks still need
+real BRAM/external-cart read/write drivers. Reuse mode remains clean-room; no
+GEOS, GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source was copied or
+closely ported.
+
+BASIC-storage-policy update on 2026-07-02: `src/sub/basic_storage.c` now adds
+the first policy bridge between BASIC `SAVE`/`LOAD` byte callbacks and
+`STG_PlanSave()`. `BAS_StorageBindIO()` produces a `BasicStorageIO` table for
+the shell. Its `SAVE` callback plans an `STG_DOC_BASIC` document, prefers the
+external Backup RAM cart when there is usable free space, and only falls back
+to internal BRAM inside the tiny BASIC limit. Its `LOAD` callback reads from
+external cart when present and falls back to internal BRAM only when the cart
+is absent. Host tests prove external-cart save preference, tiny internal
+fallback, large-BASIC rejection without a cart, shell `SAVE` using the
+selected target, and shell `LOAD` preferring the cart. This is still not a
+hardware BRAM BIOS wrapper or file manager. Reuse mode remains clean-room.
 
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input

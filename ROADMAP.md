@@ -345,10 +345,12 @@ with in at least one emulator.
         integration
   - [x] Storage-callback `LOAD` and `SAVE` command shell behavior over the
         fixed-format BASIC program image
+  - [x] Route BASIC `SAVE` through `STG_PlanSave()` with external-cart
+        preference and tiny internal-BRAM fallback limits
   - [ ] String variables, arrays, and broader statement execution after `THEN`
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
-  - [ ] Route BASIC `LOAD`/`SAVE` through `STG_PlanSave()` and the later
-        BRAM/external-cart drivers
+  - [ ] Connect BASIC `LOAD`/`SAVE` storage callbacks to later
+        BRAM/external-cart read/write drivers
 - [ ] Decide app/resource packaging format on ISO9660
 - [ ] Add CD audio or PCM strategy only after storage ownership is clear
 
