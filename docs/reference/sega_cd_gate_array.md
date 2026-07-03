@@ -41,11 +41,16 @@ therefore accepts either RET or DMNA in 1M mode. This proves a two-frame
 single-bank render/upload loop in BlastEm, not a full alternating double-buffer
 policy.
 
-2026-07-03 caution: repeated command/upload/return probes now reach their GDB
-terminal phases, but screenshot review shows bank-0 visible output can remain
-stale (`Frame 0`/`Frame 1`) after later frame counts complete. A blind
-`WRAM_BANK1_MAIN` upload is corrupt, so 1M bank 1 should not be treated as the
-same linear 4bpp source as bank 0 until its mapping/conversion policy is proven.
+2026-07-03 live-frame fix: the stale screenshot root cause was not the VDP text
+or font path. In 1M mode, Megadev's Main Gate Array reference records RET as
+the bank attachment bit: RET clear exposes bank 0 to Main, RET set exposes bank
+1. SegaOS' old Sub return helper always cleared RET, so repeated frames could
+render into the other bank while Main kept uploading stale bank 0. The boot-safe
+live probe now toggles RET when Sub returns its current work bank and has Main
+select the bank whose frame sentinel matches the requested frame. The accepted
+proof reaches pre-upload phase `0x8904`, sentinel `0x4444`, terminal phase
+`0x89ff`, and a `Frame 4` screenshot at
+`C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`.
 
 ## GA Reg 02 — CDC Mode
 Sub CPU address: $FF8004

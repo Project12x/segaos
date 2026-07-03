@@ -37,7 +37,7 @@ int main(void) {
   expect_u16(BootLiveProbe_NextFrame(3), 4, "fourth marker");
   expect_u16(BootLiveProbe_FrameSentinelWord(4), 0x4444,
              "frame 4 sentinel word");
-  expect_uintptr(BootLiveProbe_FrameSentinelOffset(), 34560UL,
+  expect_uintptr(BootLiveProbe_FrameSentinelOffset(), 20596UL,
                  "frame sentinel offset");
   expect_u8(BootLiveProbe_SelectFrameBank(0x1111, 0x4444, 4), 1,
             "select bank 1 for frame 4");

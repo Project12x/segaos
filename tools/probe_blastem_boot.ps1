@@ -457,19 +457,48 @@ try {
       $gdbCommands += "p/x (unsigned short)$name"
     }
   } elseif ($Probe -eq "BootSafeLive") {
-    $bootLiveNames = @(
+    $bootLiveTerminalNames = @(
       "segaos_boot_live_phase",
-      "segaos_boot_live_frame_count"
+      "segaos_boot_live_frame_count",
+      "segaos_boot_live_mem_mode",
+      "segaos_boot_live_bank0_sentinel",
+      "segaos_boot_live_bank1_sentinel"
     )
 
     $gdbCommands += @(
+      "rbreak main_upload_frame_budgeted.*",
+      "ignore 1 4",
+      "continue",
+      "echo segaos_boot_live_pre_upload_phase=",
+      "p/x (unsigned short)segaos_boot_live_phase",
+      "echo segaos_boot_live_pre_upload_frame_count=",
+      "p/x (unsigned short)segaos_boot_live_frame_count",
+      "echo segaos_boot_live_pre_upload_mem_mode=",
+      "p/x *(unsigned short *)0xa12002",
+      "echo segaos_boot_live_pre_upload_bank0_sentinel=",
+      "p/x *(unsigned short *)0x205074",
+      "echo segaos_boot_live_pre_upload_bank1_sentinel=",
+      "p/x *(unsigned short *)0x225074",
+      "echo segaos_boot_live_pre_upload_title_word0=",
+      "p/x *(unsigned short *)0x202c7c",
+      "echo segaos_boot_live_pre_upload_bank1_title_word0=",
+      "p/x *(unsigned short *)0x222c7c",
+      "delete 1",
       "break segaos_boot_live_probe_halt",
       "continue",
       "info registers pc sp"
     )
-    foreach ($name in $bootLiveNames) {
+    foreach ($name in $bootLiveTerminalNames) {
       $gdbCommands += "echo $name="
-      $gdbCommands += "p/x (unsigned short)$name"
+      if ($name -eq "segaos_boot_live_mem_mode") {
+        $gdbCommands += "p/x *(unsigned short *)0xa12002"
+      } elseif ($name -eq "segaos_boot_live_bank0_sentinel") {
+        $gdbCommands += "p/x *(unsigned short *)0x205074"
+      } elseif ($name -eq "segaos_boot_live_bank1_sentinel") {
+        $gdbCommands += "p/x *(unsigned short *)0x225074"
+      } else {
+        $gdbCommands += "p/x (unsigned short)$name"
+      }
     }
   } elseif ($Probe -eq "VdpText") {
     $vdpTextNames = @(
@@ -1084,12 +1113,25 @@ try {
     $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_boot_live_probe_halt")
     $bootLiveNames = @(
       "segaos_boot_live_phase",
-      "segaos_boot_live_frame_count"
+      "segaos_boot_live_frame_count",
+      "segaos_boot_live_pre_upload_phase",
+      "segaos_boot_live_pre_upload_frame_count",
+      "segaos_boot_live_pre_upload_mem_mode",
+      "segaos_boot_live_pre_upload_bank0_sentinel",
+      "segaos_boot_live_pre_upload_bank1_sentinel",
+      "segaos_boot_live_pre_upload_title_word0",
+      "segaos_boot_live_pre_upload_bank1_title_word0",
+      "segaos_boot_live_mem_mode",
+      "segaos_boot_live_bank0_sentinel",
+      "segaos_boot_live_bank1_sentinel"
     )
     $bootLiveValues = Get-NamedProbeValues $gdbOutput $bootLiveNames
     $expectedValues = [ordered]@{
       segaos_boot_live_phase = "0x89ff"
       segaos_boot_live_frame_count = "0x0004"
+      segaos_boot_live_pre_upload_phase = "0x8904"
+      segaos_boot_live_pre_upload_frame_count = "0x0003"
+      segaos_boot_live_pre_upload_title_word0 = "0xf11f"
     }
 
     $failed = @()
@@ -1101,6 +1143,19 @@ try {
         $failed += $name
       }
     }
+    $preUploadSentinelOk = (
+      $bootLiveValues["segaos_boot_live_pre_upload_bank0_sentinel"] -eq "0x4444" -or
+      $bootLiveValues["segaos_boot_live_pre_upload_bank1_sentinel"] -eq "0x4444"
+    )
+    Write-Output "boot_live_check_pre_upload_sentinel=$preUploadSentinelOk expected=either-bank-0x4444 bank0=$($bootLiveValues["segaos_boot_live_pre_upload_bank0_sentinel"]) bank1=$($bootLiveValues["segaos_boot_live_pre_upload_bank1_sentinel"])"
+    if (-not $preUploadSentinelOk) {
+      $failed += "segaos_boot_live_pre_upload_sentinel"
+    }
+    Write-Output "boot_live_pre_upload phase=$($bootLiveValues["segaos_boot_live_pre_upload_phase"]) frame_count=$($bootLiveValues["segaos_boot_live_pre_upload_frame_count"]) mem=$($bootLiveValues["segaos_boot_live_pre_upload_mem_mode"])"
+    Write-Output "boot_live_pre_upload_sentinel bank0=$($bootLiveValues["segaos_boot_live_pre_upload_bank0_sentinel"]) bank1=$($bootLiveValues["segaos_boot_live_pre_upload_bank1_sentinel"]) expected=0x4444"
+    Write-Output "boot_live_pre_upload_title_word0=$($bootLiveValues["segaos_boot_live_pre_upload_title_word0"]) expected_static=0xf11f"
+    Write-Output "boot_live_pre_upload_bank1_title_word0=$($bootLiveValues["segaos_boot_live_pre_upload_bank1_title_word0"])"
+    Write-Output "boot_live_terminal mem=$($bootLiveValues["segaos_boot_live_mem_mode"]) bank0=$($bootLiveValues["segaos_boot_live_bank0_sentinel"]) bank1=$($bootLiveValues["segaos_boot_live_bank1_sentinel"])"
 
     Write-Output "probe_gdb_exit=$gdbExit"
     Write-Output "probe_breakpoint_hit=$hitBreakpoint"

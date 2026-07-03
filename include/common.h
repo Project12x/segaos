@@ -236,15 +236,23 @@ static inline void sub_error(void) {
 
 /* ---- Word RAM Bank Swap (Sub CPU side) ---- */
 
-/* Return the Sub CPU's bank-0 Word RAM work area to the Main CPU.
- * In 1M mode, clearing RET exposes bank 0 at Main $200000. In 2M mode, setting
- * RET grants Main the 2M block.
+/* Return the Sub CPU's current 1M Word RAM work bank to the Main CPU.
+ * In 1M mode, RET selects which 128KB bank is attached to Main: clearing RET
+ * exposes bank 0, setting RET exposes bank 1. Toggle from the current state so
+ * repeated frames do not keep publishing stale bank 0.
+ *
+ * In 2M mode, setting RET grants Main the 2M block.
  */
 static inline void sub_return_wram(void) {
   uint8_t mem = GA_SUB_REG8(GA_MEM_MODE + 1);
   if (mem & MEM_MODE_1M) {
-    GA_SUB_REG8(GA_MEM_MODE + 1) =
-        (uint8_t)(mem & ~(MEM_MODE_RET | MEM_MODE_DMNA));
+    if (mem & MEM_MODE_RET) {
+      GA_SUB_REG8(GA_MEM_MODE + 1) =
+          (uint8_t)(mem & ~(MEM_MODE_RET | MEM_MODE_DMNA));
+    } else {
+      GA_SUB_REG8(GA_MEM_MODE + 1) =
+          (uint8_t)((mem | MEM_MODE_RET) & ~MEM_MODE_DMNA);
+    }
   } else {
     GA_SUB_REG8(GA_MEM_MODE + 1) = (uint8_t)(mem | MEM_MODE_RET);
   }

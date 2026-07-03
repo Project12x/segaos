@@ -273,6 +273,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_frame_scheduler.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_frame_upload_pump.c src/main/frame_upload_pump.c src/main/frame_scheduler.c -o $(BUILD_DIR)/test_frame_upload_pump.exe
 	$(BUILD_DIR)/test_frame_upload_pump.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_blitter_live_sentinel.c src/sub/blitter.c -o $(BUILD_DIR)/test_blitter_live_sentinel.exe
+	$(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_frame_marker.c -o $(BUILD_DIR)/test_boot_frame_marker.exe
 	$(BUILD_DIR)/test_boot_frame_marker.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_live_probe.c -o $(BUILD_DIR)/test_boot_live_probe.exe

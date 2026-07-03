@@ -290,6 +290,8 @@ remains a later production policy.
           completion
     - [x] Default boot-safe first frame now uploads through the compact pump
           path and has a debugger-backed BlastEm internal screenshot
+    - [x] Boot-safe live probe selects the current returned 1M bank by a
+          frame sentinel and has a debugger-backed screenshot showing `Frame 4`
     - [ ] Production live-loop pump integration that schedules visible queued
           tile spans at a measured flush point, displays the newest returned
           frame instead of a stale bank, and returns Word RAM only after the
@@ -369,8 +371,9 @@ that matches Genesis VDP constraints.
 - [x] Add host tests for window redraw clipping against dirty regions
 - [ ] Decide whether the long-running desktop loop uses single-bank bring-up,
       alternating 1M double buffering, or a different transfer policy
-- [ ] Prove latest visible frame selection: current bank-0 screenshots are
-      stale (`Frame 0`/`Frame 1`) and blind bank-1 upload is corrupt
+- [x] Prove boot-safe latest visible frame selection: stale bank-0 screenshots
+      are replaced by a GDB-backed `Frame 4` internal screenshot with a matching
+      frame sentinel
 - [ ] Validate mouse input -> window hit testing -> app callback flow
 
 Acceptance: a full desktop session can be booted, rendered, and interacted

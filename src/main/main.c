@@ -1403,6 +1403,11 @@ static void main_loop(void) {
 #ifdef BOOT_SAFE_DESKTOP
 #ifdef BOOT_SAFE_LIVE_PROBE
     uint16_t liveFrame;
+    uint16_t bank0Sentinel;
+    uint16_t bank1Sentinel;
+    uintptr_t sentinelOffset;
+    const uint8_t *liveBank;
+    uint8_t selectedBank;
     uint8_t liveStatus;
 
     if (!BootLiveProbe_ShouldRender(segaos_boot_live_frame_count,
@@ -1422,7 +1427,20 @@ static void main_loop(void) {
       segaos_boot_live_probe_halt();
     }
 
-    if (!main_upload_frame_budgeted(WRAM_BANK0_MAIN)) {
+    sentinelOffset = BootLiveProbe_FrameSentinelOffset();
+    bank0Sentinel =
+        *(volatile const uint16_t *)(WRAM_BANK0_MAIN + sentinelOffset);
+    bank1Sentinel =
+        *(volatile const uint16_t *)(WRAM_BANK1_MAIN + sentinelOffset);
+    selectedBank =
+        BootLiveProbe_SelectFrameBank(bank0Sentinel, bank1Sentinel, liveFrame);
+    if (selectedBank == BOOT_LIVE_PROBE_BANK_MISSING) {
+      segaos_boot_live_phase = 0x89fc;
+      segaos_boot_live_probe_halt();
+    }
+    liveBank = selectedBank ? WRAM_BANK1_MAIN : WRAM_BANK0_MAIN;
+
+    if (!main_upload_frame_budgeted(liveBank)) {
       segaos_boot_live_phase = 0x89fd;
       segaos_boot_live_probe_halt();
     }

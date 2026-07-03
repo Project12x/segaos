@@ -186,22 +186,29 @@ same failures.
   first frame, four additional render/upload/return cycles complete with loop
   count `0x0004`, status `0x0003`, trace `0x7404`, MEM_MODE `0x2a06`, and
   final title-row VRAM `0xf11f/0x1f11`.
-- `DESKTOP_PUMP_PROBE=1` and `BOOT_SAFE_LIVE_PROBE=1` now prove repeated
-  command/upload/return progress through GDB symbols, but their screenshots
-  exposed the unsolved latest-bank problem. The pump screenshot at
+- `DESKTOP_PUMP_PROBE=1` proved repeated command/upload/return progress through
+  GDB symbols, but its screenshot exposed the stale-bank problem. The pump
+  screenshot at
   `C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png`
-  shows `Frame 1`, not the fourth frame. The live-loop bank-0 capture at
+  shows `Frame 1`, not the fourth frame. The old live-loop bank-0 capture at
   `C:\tmp\segaos_screens_internal\segaos_live_loop_bank0_20260703_181510.png`
   shows the initial `Frame 0` despite GDB proving frame count `0x0004`.
-- Do not blindly upload `WRAM_BANK1_MAIN` as a linear framebuffer. The
-  `BOOT_SAFE_LIVE_PROBE=1` bank-1 experiment reached GDB phase `0x89ff` but
-  produced a corrupted screenshot at
-  `C:\tmp\segaos_screens_internal\segaos_live_loop_bank1_20260703_180902.png`.
-  Bank 1 needs a documented mapping/conversion policy before it can become a
-  visible frame source.
-- Do not assume full alternating 1M double buffering is solved. The proven path
-  is still the boot-safe single-bank `$0C0000`/`$200000` handoff, not a
-  production long-running frame scheduler.
+- Megadev's Main Gate Array reference says that in 1M mode RET reports which
+  128KB bank is attached to Main: RET clear means bank 0, RET set means bank 1.
+  SegaOS' old Sub return helper always cleared RET, so repeated renders could
+  complete command handshakes while Main kept uploading stale bank 0.
+- `BOOT_SAFE_LIVE_PROBE=1` now toggles the Sub-side RET handoff, samples the
+  live frame sentinel in both Main-side Word RAM windows, and uploads the bank
+  whose sentinel matches the requested frame. The final GDB proof reaches phase
+  `0x89ff`, frame count `0x0004`, pre-upload phase `0x8904`, pre-upload count
+  `0x0003`, and bank-0 sentinel `0x4444`; the accepted BlastEm internal
+  screenshot at
+  `C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`
+  visibly shows `Frame 4`.
+- Do not assume full production alternating double buffering is solved. The
+  boot-safe live probe proves current-bank selection for a compact full-frame
+  pump; the production long-running VBlank/dirty-tile scheduler still needs its
+  own bank ownership and return policy.
 
 ## Framebuffer Writes
 

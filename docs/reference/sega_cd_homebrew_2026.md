@@ -445,10 +445,15 @@ render/upload/return cycles with terminal phase `0x88ff` and frame count
 `0x0004`. Screenshot review on 2026-07-03 found that this does not yet prove
 the newest frame is visible: the captured pump frame still reads `Frame 1`.
 `BOOT_SAFE_LIVE_PROBE=1` moves the repeated-cycle proof into the default
-boot-safe `main_loop()` and reaches phase `0x89ff` with frame count `0x0004`,
-but its bank-0 screenshot remains at `Frame 0`. A direct bank-1 upload
-experiment produced corruption, so bank 1 needs a documented mapping/conversion
-policy before it is used as a visible framebuffer source. The repeated size-fit
+boot-safe `main_loop()` and now proves latest visible frame selection. The stale
+bank root cause was the Sub return helper always clearing RET in 1M mode; per
+Megadev's Main Gate Array reference, RET selects which 128KB bank is attached
+to Main. The fixed probe toggles RET on Sub return and Main samples both
+Main-side Word RAM windows before upload. It reaches phase `0x89ff` with frame
+count `0x0004`, proves pre-upload frame-4 sentinel `0x4444`, and has a
+debugger-backed internal screenshot showing `Frame 4` at
+`C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`.
+The repeated size-fit
 pump build measured 3,460 bytes, while the direct callback-pump target attempt
 measured 3,948 bytes and an attempt to force the compact pump through the older
 `DESKTOP_LOOP_PROBE` scaffolding measured 4,332 bytes. Both overflow cases
