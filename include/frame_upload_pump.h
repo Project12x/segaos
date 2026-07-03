@@ -34,6 +34,59 @@ typedef struct {
   uint8_t lastError;
 } FrameUploadPump;
 
+/* Compact planner path for IP-constrained target code. The caller performs
+ * the upload after each planned queue. */
+static inline void fup_bind_single_queue(FrameUploadPump *pump) {
+  pump->queue.items = &pump->upload;
+  pump->queue.capacity = 1;
+  pump->queue.count = 0;
+  pump->queue.maxBytes = pump->budgetBytes;
+  pump->queue.byteCount = 0;
+  pump->queue.budgetExceeded = 0;
+  pump->queue.overflow = 0;
+}
+
+static inline uint8_t FUP_BeginFrame(FrameUploadPump *pump, uint16_t firstTile,
+                                     uint16_t tileCount,
+                                     uint16_t budgetBytes,
+                                     uint16_t bytesPerTile) {
+  if (!pump || tileCount == 0 || bytesPerTile == 0)
+    return 0;
+
+  pump->cursor.firstTile = firstTile;
+  pump->cursor.tileCount = tileCount;
+  pump->cursor.nextTile = firstTile;
+  pump->cursor.active = 1;
+  pump->cursor._pad = 0;
+  pump->upload.firstTile = 0;
+  pump->upload.tileCount = 0;
+  pump->upload.byteCount = 0;
+  pump->budgetBytes = budgetBytes;
+  pump->bytesPerTile = bytesPerTile;
+  pump->state = FUP_STATE_UPLOADING;
+  pump->lastError = FUP_ERROR_NONE;
+  fup_bind_single_queue(pump);
+  return 1;
+}
+
+static inline uint8_t FUP_PlanNextQueue(FrameUploadPump *pump,
+                                        FrameScheduleResult *result) {
+  if (!pump || !result || pump->state != FUP_STATE_UPLOADING)
+    return 0;
+
+  if (!FS_PlanTileCursorFrame(&pump->cursor, &pump->queue, pump->bytesPerTile,
+                              result)) {
+    pump->state = FUP_STATE_ERROR;
+    pump->lastError = FUP_ERROR_PLAN_FAILED;
+    return 0;
+  }
+
+  if (result->complete)
+    pump->state = FUP_STATE_READY_TO_RETURN;
+
+  return 1;
+}
+
 void FUP_Init(FrameUploadPump *pump, uint16_t budgetBytes,
               uint16_t bytesPerTile);
 uint8_t FUP_StartFrame(FrameUploadPump *pump, uint16_t firstTile,

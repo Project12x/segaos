@@ -13,6 +13,7 @@
 
 #include "common.h"
 #include "boot_probe.h"
+#include "frame_upload_pump.h"
 #include "frame_scheduler.h"
 #include "framebuffer.h"
 #include "input.h"
@@ -495,56 +496,45 @@ static void desktop_title_write_vram_word(uint16_t word_index,
 }
 
 static void desktop_scheduler_probe_upload(void) {
-  FrameTileCursor cursor;
-  DirtyTileUpload upload;
-  DirtyTileQueue queue;
+  FrameUploadPump pump;
+  FrameScheduleResult result;
   uint16_t poison;
 
   segaos_desktop_scheduler_result = 0;
-  cursor.firstTile = 0;
-  cursor.tileCount = FB_TILE_COUNT;
-  cursor.nextTile = 0;
-  cursor.active = 1;
-  cursor._pad = 0;
-
-  queue.items = &upload;
-  queue.capacity = 1;
-  queue.count = 0;
-  queue.maxBytes = DESKTOP_SCHEDULER_PROBE_BUDGET;
-  queue.byteCount = 0;
-  queue.budgetExceeded = 0;
-  queue.overflow = 0;
-
-  if (!FS_PlanTileCursorFrame(&cursor, &queue, FB_BYTES_PER_TILE, 0) ||
-      queue.count != 1) {
+  if (!FUP_BeginFrame(&pump, 0, FB_TILE_COUNT, DESKTOP_SCHEDULER_PROBE_BUDGET,
+                      FB_BYTES_PER_TILE)) {
     segaos_desktop_scheduler_result = 0x00e1;
     return;
   }
 
-  segaos_desktop_scheduler_slice0_tile_count = upload.tileCount;
-  segaos_desktop_scheduler_slice0_next_tile = cursor.nextTile;
-
-  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &queue)) {
+  if (!FUP_PlanNextQueue(&pump, &result) || pump.queue.count != 1) {
     segaos_desktop_scheduler_result = 0x00e2;
     return;
   }
 
-  if (!FS_PlanTileCursorFrame(&cursor, &queue, FB_BYTES_PER_TILE, 0) ||
-      queue.count != 1) {
-    segaos_desktop_scheduler_result = 0x00e3;
+  segaos_desktop_scheduler_slice0_tile_count = result.queuedTiles;
+  segaos_desktop_scheduler_slice0_next_tile = result.nextTile;
+
+  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &pump.queue)) {
+    segaos_desktop_scheduler_result = 0x00e4;
     return;
   }
-
-  segaos_desktop_scheduler_slice1_first_tile = upload.firstTile;
-  segaos_desktop_scheduler_slice1_tile_count = upload.tileCount;
-  segaos_desktop_scheduler_slice1_next_tile = cursor.nextTile;
 
   segaos_desktop_scheduler_slice1_wram_word = desktop_title_read_wram_word(0);
   poison = (uint16_t)(segaos_desktop_scheduler_slice1_wram_word ^ 0xffffU);
   desktop_title_write_vram_word(0, poison);
   segaos_desktop_scheduler_slice1_before_word = desktop_title_read_vram_word(0);
 
-  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &queue)) {
+  if (!FUP_PlanNextQueue(&pump, &result) || pump.queue.count != 1) {
+    segaos_desktop_scheduler_result = 0x00e3;
+    return;
+  }
+
+  segaos_desktop_scheduler_slice1_first_tile = pump.upload.firstTile;
+  segaos_desktop_scheduler_slice1_tile_count = result.queuedTiles;
+  segaos_desktop_scheduler_slice1_next_tile = result.nextTile;
+
+  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &pump.queue)) {
     segaos_desktop_scheduler_result = 0x00e4;
     return;
   }

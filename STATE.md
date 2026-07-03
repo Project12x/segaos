@@ -95,14 +95,16 @@ a tile cursor carries a large pending upload across multiple byte-budgeted
 frames, so a full-frame fallback advances through the frame instead of
 re-uploading the same first NTSC-budget slice. `DESKTOP_SCHEDULER_PROBE=1`
 now proves the first target bridge from that cursor to the Main upload path:
-after a real Sub-rendered frame, it plans two 235-tile slices, sends both
-through `FB_UpdateTileQueue()`, reaches phase `0x87ff`, and verifies the second
-slice restores a poisoned VRAM word to the Word RAM value `0xf11f`.
-`src/main/frame_upload_pump.c` now adds the host-tested loop policy seam that
-will own this cursor in the live path: it advances one budgeted queue per tick,
-does not allow a new frame while one is uploading or waiting for Word RAM
-return, and rewinds the cursor on upload failure so a failed tick is not treated
-as returnable.
+after a real Sub-rendered frame, it begins a compact `FrameUploadPump`, plans
+two 235-tile queues from pump-owned state, sends both through
+`FB_UpdateTileQueue()`, reaches phase `0x87ff`, and verifies the second slice
+restores a poisoned VRAM word to the Word RAM value `0xf11f`.
+`src/main/frame_upload_pump.c` now adds the host-tested callback loop policy
+seam that will own this cursor in the live path: it advances one budgeted queue
+per tick, does not allow a new frame while one is uploading or waiting for Word
+RAM return, and rewinds the cursor on upload failure so a failed tick is not
+treated as returnable. The compact inline planner is separate because the full
+callback pump overflows the current BIOS-loaded Main IP window.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -158,9 +160,9 @@ The active strategy is a bring-up ladder:
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
-| Desktop scheduler upload probe | Passing | `DESKTOP_SCHEDULER_PROBE=1` + `-Probe DesktopScheduler` proves two successive 235-tile scheduler slices through `FB_UpdateTileQueue()` after a real Sub-rendered frame; terminal phase `0x87ff`, slice0 next `0x00eb`, slice1 first `0x00eb`, slice1 next `0x01d6`, poisoned VRAM `0x0ee0` restored to WRAM `0xf11f` |
+| Desktop scheduler upload probe | Passing | `DESKTOP_SCHEDULER_PROBE=1` + `-Probe DesktopScheduler` proves two successive 235-tile compact-pump planner slices through `FB_UpdateTileQueue()` after a real Sub-rendered frame; terminal phase `0x87ff`, slice0 next `0x00eb`, slice1 first `0x00eb`, slice1 next `0x01d6`, poisoned VRAM `0x0ee0` restored to WRAM `0xf11f` |
 | BASIC internal-BRAM runtime probe | Passing | `BASIC_BRAM_PROBE=1` + `-Probe BasicBram` proves live Sub BIOS internal BRAM access in BlastEm: formatted status `0x0003`, 2 total/free 4K blocks before the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary `0x0211`, and terminal trace `0x75ff` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, frame-scheduler cursor slicing, frame-upload pump state transitions, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, frame-scheduler cursor slicing, compact frame-upload pump planning, frame-upload pump state transitions, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -205,12 +207,13 @@ The active strategy is a bring-up ladder:
   Main build uses `-Os` and skips mouse init plus boot checker fill to stay
   under the 3,584-byte IP boot-sector limit while preserving the
   `FB_UpdateTileQueue()` call path
-- Boot-safe scheduler upload probe usage: Main IP 3,504 bytes / SP 11,836
+- Boot-safe scheduler upload probe usage: Main IP 3,568 bytes / SP 11,836
   text bytes observed locally with `DESKTOP_SCHEDULER_PROBE=1`; this diagnostic
-  Main build uses a narrower probe path, `-Os`, and skips mouse init plus
-  framebuffer tilemap/palette setup to stay under the 3,584-byte IP
-  boot-sector limit while preserving `FS_PlanTileCursorFrame()` and
-  `FB_UpdateTileQueue()` on the target
+  Main build uses a compact `FrameUploadPump` planner, `-Os`, and skips mouse
+  init plus framebuffer tilemap/palette setup to stay under the 3,584-byte IP
+  boot-sector limit while preserving pump-owned cursor state,
+  `FS_PlanTileCursorFrame()`, and `FB_UpdateTileQueue()` on the target. The
+  measured margin is 16 bytes.
 - BASIC internal-BRAM probe usage: Main IP 3,112 text bytes / 5,168 BSS bytes
   and SP 24,446 text bytes / 15,318 BSS bytes observed locally with
   `BASIC_BRAM_PROBE=1`; the probe remains opt-in because it intentionally links
@@ -236,11 +239,12 @@ The active strategy is a bring-up ladder:
   reference budget is planned as four 235-tile frames plus a final 180-tile
   frame, while preserving cursor progress between calls
 - Target scheduler bridge: `DESKTOP_SCHEDULER_PROBE=1` proves the first two
-  235-tile cursor slices can feed successive `FB_UpdateTileQueue()` calls on
-  the live Main VDP path
+  235-tile compact-pump planner slices can feed successive
+  `FB_UpdateTileQueue()` calls on the live Main VDP path
 - Frame upload pump: a full 1,120-tile frame under the 7,524-byte NTSC budget
-  reaches Word RAM return readiness after five ticks: four 235-tile uploads
-  plus one final 180-tile upload
+  reaches Word RAM return readiness after five callback ticks: four 235-tile
+  uploads plus one final 180-tile upload; the inline compact planner covers the
+  size-fit target proof path until the live Main loader has more room
 - Sub CPU blitter default: 4bpp, matching the Main CPU tile conversion path
 - Disc image: 150 cooked sectors, `MODE1/2048`, 32KB boot/system area
 - Storage planning assumption: CD-ROM/ISO9660 is the read-only app/resource
@@ -447,7 +451,7 @@ SGDK DMA queue source:
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Frame Scheduler | Main/host | `src/main/frame_scheduler.c` | Host-tested tile cursor that carries oversized dirty/full-frame upload spans across byte-budgeted frames, with opt-in target proof through `FB_UpdateTileQueue()` |
-| Frame Upload Pump | Main/host | `src/main/frame_upload_pump.c` | Host-tested state machine that advances one scheduled upload per tick and gates Word RAM return until upload completion |
+| Frame Upload Pump | Main/host | `include/frame_upload_pump.h`, `src/main/frame_upload_pump.c` | Host-tested compact planner plus callback state machine that advances one scheduled upload per tick and gates Word RAM return until upload completion |
 | Storage Policy | Sub/host | `src/sub/storage.c` | Host-tested save-target policy for external Backup RAM cart preference and internal BRAM fallback limits |
 | External Cart Probe | Sub/host | `src/sub/external_cart.c` | Host-tested injected-probe seam that maps external Backup RAM cart presence/capacity/free-byte data into the storage policy model; live hardware adapter pending |
 | BRAM Wrapper | Sub/host | `src/sub/bram.c` | Host-tested BRAM BIOS contract wrapper for probe/stat/read/write/directory semantics through injectable ops |

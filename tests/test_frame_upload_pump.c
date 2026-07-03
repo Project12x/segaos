@@ -110,6 +110,26 @@ static void full_frame_becomes_return_ready_after_budgeted_uploads(void) {
   expect_false(FUP_IsUploading(&pump), "pump idle after return");
 }
 
+static void compact_queue_planner_matches_budgeted_slices(void) {
+  FrameUploadPump pump;
+  FrameScheduleResult result;
+
+  expect_true(FUP_BeginFrame(&pump, 0, FB_TILE_COUNT, 7524, FB_BYTES_PER_TILE),
+              "begin compact full frame");
+  expect_true(FUP_PlanNextQueue(&pump, &result), "compact slice 0 plan");
+  expect_false(FUP_ShouldReturnWordRam(&pump), "compact slice 0 not complete");
+  expect_u8(pump.queue.count, 1, "compact slice 0 queue count");
+  expect_u16(pump.upload.firstTile, 0, "compact slice 0 first");
+  expect_u16(result.queuedTiles, 235, "compact slice 0 tiles");
+  expect_u16(result.nextTile, 235, "compact slice 0 next");
+
+  expect_true(FUP_PlanNextQueue(&pump, &result), "compact slice 1 plan");
+  expect_u8(pump.queue.count, 1, "compact slice 1 queue count");
+  expect_u16(pump.upload.firstTile, 235, "compact slice 1 first");
+  expect_u16(result.queuedTiles, 235, "compact slice 1 tiles");
+  expect_u16(result.nextTile, 470, "compact slice 1 next");
+}
+
 static void refuses_new_frame_until_return_is_acknowledged(void) {
   FrameUploadPump pump;
   UploadSpy spy = {0};
@@ -145,6 +165,7 @@ static void failed_upload_enters_error_without_return_ready(void) {
 
 int main(void) {
   full_frame_becomes_return_ready_after_budgeted_uploads();
+  compact_queue_planner_matches_budgeted_slices();
   refuses_new_frame_until_return_is_acknowledged();
   failed_upload_enters_error_without_return_ready();
 

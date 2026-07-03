@@ -229,10 +229,15 @@ remains a later production policy.
     - [x] Emulator-proven scheduler cursor driving two successive 235-tile
           queue uploads through `FB_UpdateTileQueue()` after a real
           Sub-rendered desktop frame
+    - [x] Host-tested compact `FrameUploadPump` planner
+          (`FUP_BeginFrame()` + `FUP_PlanNextQueue()`) with target proof inside
+          the 3,584-byte IP boot slot
     - [x] Host-tested frame upload pump state machine that advances one
           budgeted queue per tick and gates Word RAM return until upload
           completion
-    - [ ] Production VBlank-scheduled flush of queued tile spans to VRAM
+    - [ ] Production live-loop pump integration that schedules queued tile
+          spans at a measured flush point and returns Word RAM only after the
+          final uploaded slice
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
 - [x] Tie dirty rectangles to tile-strip transfer ranges
