@@ -30,8 +30,11 @@ default build now displays a visible Mac-like boot-safe frame through BLT's
 word-safe framebuffer backend: checker desktop, menu separator, and a compact
 window starter frame. The starter frame now uses the real SGDK-derived font for
 menu, title, and body text instead of the old block `OS` visual canary. The
-latest accepted default internal screenshot is
-`C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`,
+default boot upload now uses the compact `FrameUploadPump` path instead of the
+old one-shot `FB_UpdateFrame()` transfer; boot-safe mouse init is deferred
+until the live input loop is restored. The latest accepted default internal
+screenshot is
+`C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png`,
 captured from a `BOOT_SAFE_VISUAL_PROBE=1` build after GDB hit
 `segaos_visual_probe_halt` with phase `0x76ff` and BlastEm's own
 `ui.screenshot` binding wrote the PNG. The previous block-canary screenshot is
@@ -175,7 +178,7 @@ Backup RAM policy. The demo goal is recorded in
 | Desktop full pump upload probe | Passing | `DESKTOP_PUMP_PROBE=1` + `-Probe DesktopPump` proves a full compact-pump upload of four 235-tile slices plus one 180-tile final slice, then Word RAM return and a second Sub render; terminal phase `0x88ff`, pump result `0x0001`, final span `0x03ac/0x00b4`, MEM_MODE `0x2a06`, second status `0x0003`, trace `0x7404` |
 | BASIC internal-BRAM runtime probe | Passing | `BASIC_BRAM_PROBE=1` + `-Probe BasicBram` proves live Sub BIOS internal BRAM access in BlastEm: formatted status `0x0003`, 2 total/free 4K blocks before the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary `0x0211`, and terminal trace `0x75ff` |
 | Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, frame-scheduler cursor slicing, compact frame-upload pump planning, frame-upload pump state transitions, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
-| Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
+| Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the pump-backed default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png` |
 
 ## Toolchain
 - SGDK m68k-elf-gcc (C:\SDKS\SGDK\bin\)
@@ -235,14 +238,17 @@ Backup RAM policy. The demo goal is recorded in
   `BASIC_BRAM_PROBE=1`; the probe remains opt-in because it intentionally links
   the BASIC runtime, storage adapter, BRAM bridge, and live Sub BIOS adapter
   into the boot SP
-- Boot-safe visual-probe IP usage: 2,832 text bytes last observed with
+- Boot-safe visual-probe IP usage: 3,524 text bytes last observed with
   `BOOT_SAFE_VISUAL_PROBE=1`; SP now follows the 11,808-byte boot-safe desktop
-  payload
+  payload. This build uses the compact frame upload pump and skips boot-safe
+  mouse init.
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
   `VDP_TEXT_PROBE=1`; SP remains the boot-safe payload but is not
   part of the probe path
-- Default Main IP usage after exposing `FB_ConvertTileSpan()`: 2,856 text bytes
-  observed locally with a forced normal `make iso`
+- Default Main IP usage after moving boot-safe upload to the compact pump:
+  3,504 text bytes observed locally with a forced normal `make iso`; this uses
+  Main `-Os` and skips boot-safe mouse init to stay inside the 3,584-byte IP
+  window
 - Main CPU stack: now capped at `$FFF700`, below the Main BIOS work/system-use region
 - Strip buffer: 5,120 bytes (4 tile-rows at a time)
 - Framebuffer: 35,840 bytes @ 4bpp (320x224)
@@ -551,9 +557,10 @@ Runtime validation:
   tile/byte/span costs and build bounded upload spans, and
   `FB_ConvertTileSpan()` plus `FB_FlushTileQueueWithCallback()` prove the Main
   side can convert and chunk those spans into VDP upload units. The
-  `FB_UpdateTileQueue()` hardware wrapper now exists, but the default desktop
-  loop does not call it yet; the live VBlank policy, active-display policy, and
-  double-buffer policy remain open.
+  `FB_UpdateTileQueue()` hardware wrapper now drives the default boot-safe
+  first-frame upload through the compact pump. The live desktop loop still does
+  not run repeated queued updates; the live VBlank policy, active-display
+  policy, and double-buffer policy remain open.
 - The `DesktopTiming` probe script now has a bounded failure path around the
   GDB `continue` phase. `tools/probe_blastem_boot.ps1` accepts
   `-GdbTimeoutSeconds`, reports `probe_gdb_timeout=True` on timeout, and

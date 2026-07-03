@@ -341,7 +341,7 @@ same failures.
 - Latest accepted default internal screenshot, captured with
   `BOOT_SAFE_VISUAL_PROBE=1` and `-DebugAutoBoot` after GDB proved phase
   `0x76ff`:
-  `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`.
+  `C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png`.
   The older block-canary frame at
   `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png` is only a
   historical reference.
@@ -398,6 +398,11 @@ same failures.
   still skips mouse init and framebuffer tilemap/palette setup to fit the boot
   IP envelope, but it proves the rule the live loop must preserve: do not
   return Word RAM until the final scheduled upload slice has completed.
+- The default boot-safe first frame now follows that same compact pump rule
+  instead of using one-shot `FB_UpdateFrame()`. To fit the 3,584-byte IP window,
+  boot-safe Main code uses `-Os` and skips Mega Mouse initialization until the
+  live input loop is restored. Do not re-enable boot-safe mouse init without a
+  size check and an input probe.
 - `src/main/frame_upload_pump.c` is now the host-tested owner for the future
   live callback path. Use it instead of open-coding cursor advancement in
   `main_loop()` once the live image has room: `FUP_Tick()` plans and uploads one

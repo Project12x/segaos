@@ -20,6 +20,8 @@
 #include "mouse.h"
 #include "vdp.h"
 
+#define MAIN_FRAME_UPLOAD_BUDGET_NTSC 7524U
+
 /*
  * NOTE: The BIOS has already:
  *   - Loaded the SP (Sub CPU program) to PRG-RAM $006000
@@ -35,6 +37,8 @@
 #ifndef VDP_TEXT_PROBE
 static void boot_sequence(void);
 static uint8_t wait_for_sub_ready(void);
+static uint8_t main_upload_frame_budgeted(const uint8_t *wram_bank)
+    __attribute__((unused));
 #endif
 void main_enable_interrupts(void);
 void probe_bios_clear_comm(void);
@@ -297,6 +301,27 @@ int main(void) {
 }
 
 #ifndef VDP_TEXT_PROBE
+static uint8_t main_upload_frame_budgeted(const uint8_t *wram_bank) {
+  FrameUploadPump pump;
+
+  if (!FUP_BeginFrame(&pump, 0, FB_TILE_COUNT, MAIN_FRAME_UPLOAD_BUDGET_NTSC,
+                      FB_BYTES_PER_TILE)) {
+    return 0;
+  }
+
+  while (!FUP_ShouldReturnWordRam(&pump)) {
+    if (!FUP_PlanNextQueueCompact(&pump) || pump.queue.count != 1) {
+      return 0;
+    }
+    if (!FB_UpdateTileQueue(wram_bank, &pump.queue)) {
+      return 0;
+    }
+    VDP_WaitDMA();
+  }
+
+  return 1;
+}
+
 /*
  * Boot Sequence (BIOS has already loaded SP and started Sub CPU)
  *
@@ -349,8 +374,8 @@ static void boot_sequence(void) {
         (uint8_t)((mem | MEM_MODE_1M | MEM_MODE_RET) & ~MEM_MODE_DMNA);
   }
 
-#if !defined(DESKTOP_DIRTY_QUEUE_PROBE) && !defined(DESKTOP_SCHEDULER_PROBE) && \
-    !defined(DESKTOP_PUMP_PROBE)
+#if !defined(BOOT_SAFE_DESKTOP) && !defined(DESKTOP_DIRTY_QUEUE_PROBE) &&      \
+    !defined(DESKTOP_SCHEDULER_PROBE) && !defined(DESKTOP_PUMP_PROBE)
   /* Step 3: Initialize Mega Mouse on controller port 1 */
   Mouse_Init(1);
 #endif
@@ -381,16 +406,22 @@ static void boot_sequence(void) {
    * display path are ready. */
   main_send_cmd(CMD_INIT_OS, 0, 0, 0, 0);
   main_wait_done();
-  FB_UpdateFrame(WRAM_BANK0_MAIN);
-  main_return_wram_to_sub();
+  if (main_upload_frame_budgeted(WRAM_BANK0_MAIN)) {
+    main_return_wram_to_sub();
+  }
 #elif defined(BOOT_SAFE_DESKTOP) && !defined(DESKTOP_INIT_PROBE) &&         \
     !defined(SUB_RUNTIME_SMOKE)
   main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
   main_wait_done();
-  FB_UpdateFrame(WRAM_BANK0_MAIN);
-  VDP_WaitDMA();
-  main_return_wram_to_sub();
+  if (main_upload_frame_budgeted(WRAM_BANK0_MAIN)) {
+    VDP_WaitDMA();
+    main_return_wram_to_sub();
+  }
 #ifdef BOOT_SAFE_VISUAL_PROBE
+  else {
+    segaos_visual_probe_phase = 0x76fe;
+    segaos_visual_probe_halt();
+  }
   segaos_visual_probe_phase = 0x76ff;
   segaos_visual_probe_halt();
 #endif
@@ -474,7 +505,7 @@ void segaos_runtime_smoke_halt(void) {
    (DESKTOP_TITLE_PROBE_TILE_ROW * 4U))
 #define DESKTOP_TITLE_PROBE_TILE_INDEX                                         \
   ((DESKTOP_TITLE_PROBE_TILE_Y * FB_TILES_X) + DESKTOP_TITLE_PROBE_TILE_X)
-#define DESKTOP_SCHEDULER_PROBE_BUDGET 7524U
+#define DESKTOP_SCHEDULER_PROBE_BUDGET MAIN_FRAME_UPLOAD_BUDGET_NTSC
 
 #if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||  \
     defined(DESKTOP_SCHEDULER_PROBE)
@@ -1312,12 +1343,12 @@ static void main_loop(void) {
     /* Convert the finished framebuffer from linear 4bpp
      * to VDP tile format and DMA to VRAM.
      * Main CPU sees returned bank 0 at $200000 in 1M mode. */
-    FB_UpdateFrame(WRAM_BANK0_MAIN);
-
-    /* Give bank 0 back to Sub before the next render command. This is the
-     * first repeated-frame policy: single-bank ping-pong, not true
-     * alternating double buffering. */
-    main_return_wram_to_sub();
+    if (main_upload_frame_budgeted(WRAM_BANK0_MAIN)) {
+      /* Give bank 0 back to Sub before the next render command. This is the
+       * first repeated-frame policy: single-bank ping-pong, not true
+       * alternating double buffering. */
+      main_return_wram_to_sub();
+    }
   }
 }
 #endif

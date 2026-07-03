@@ -168,7 +168,7 @@ starter frame with real SGDK-font menu, title, and body text through BLT's
 word-safe framebuffer backend. The older block-canary capture is retained at
 `C:\tmp\segaos_screens_internal\segaos_default_20260629_211333.png`; the
 current accepted default capture is
-`C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png`,
+`C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png`,
 created by the `BOOT_SAFE_VISUAL_PROBE=1` / `-DebugAutoBoot` path after GDB
 proved `segaos_visual_probe_halt` phase `0x76ff`.
 The captured striped title/body-text attempt at
@@ -261,6 +261,8 @@ remains a later production policy.
     - [x] Host-tested frame upload pump state machine that advances one
           budgeted queue per tick and gates Word RAM return until upload
           completion
+    - [x] Default boot-safe first frame now uploads through the compact pump
+          path and has a debugger-backed BlastEm internal screenshot
     - [ ] Production live-loop pump integration that schedules queued tile
           spans at a measured flush point and returns Word RAM only after the
           final uploaded slice

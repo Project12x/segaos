@@ -450,3 +450,12 @@ frame cursor, advances one budgeted upload queue per tick, waits to signal Word
 RAM return until the final slice completes, rejects overlapping frame starts,
 and rewinds the cursor on upload failure. Reuse mode remains pattern-only /
 clean-room against the SGDK DMA queue reference noted above.
+
+Default boot update on 2026-07-03: the boot-safe first frame now uses the
+compact `FUP_BeginFrame()` + `FUP_PlanNextQueueCompact()` upload path instead
+of one-shot `FB_UpdateFrame()`. The forced normal `make iso` build measures
+Main IP 3,504 bytes / SP 11,808 bytes and the visual-probe build measures Main
+IP 3,524 bytes, both within the 3,584-byte IP window. To fit, boot-safe Main
+code uses `-Os` and skips Mega Mouse initialization until the live input loop
+has its own probe. The debugger-backed BlastEm internal screenshot is
+`C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png`.
