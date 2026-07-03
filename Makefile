@@ -139,6 +139,7 @@ ifeq ($(BOOT_SAFE_DESKTOP),1)
 SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/basic.c \
                $(SUB_DIR)/basic_storage.c \
+               $(SUB_DIR)/bram.c \
                $(SUB_DIR)/dirty_rect.c \
                $(SUB_DIR)/libc.c \
                $(SUB_DIR)/mem.c \
@@ -223,6 +224,8 @@ info:
 host-tests: dirs
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_dirty_rect.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_dirty_rect.exe
 	$(BUILD_DIR)/test_dirty_rect.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_bram.c src/sub/bram.c src/sub/storage.c -o $(BUILD_DIR)/test_bram.exe
+	$(BUILD_DIR)/test_bram.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_basic_program.c src/sub/basic.c -o $(BUILD_DIR)/test_basic_program.exe
 	$(BUILD_DIR)/test_basic_program.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_basic_storage.c src/sub/basic.c src/sub/basic_storage.c src/sub/storage.c -o $(BUILD_DIR)/test_basic_storage.exe

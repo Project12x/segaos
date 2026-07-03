@@ -238,7 +238,11 @@ without the external cart path. `src/sub/basic_storage.c` now bridges BASIC
 `SAVE`/`LOAD` callbacks to that policy: `SAVE` is planned as a BASIC document
 before write callbacks are invoked, while `LOAD` chooses the external cart
 when present and otherwise falls back to internal BRAM. The actual BRAM BIOS
-read/write driver remains pending.
+read/write driver remains pending. The first BRAM-specific wrapper contract is
+now `src/sub/bram.c`: host tests cover BIOS-safe filename/pattern normalization,
+`BRMINIT`/`BRMSTAT` probe result mapping, normal 0x40-byte file block math,
+read buffer-size guards, write file-info construction, directory call-through,
+and mapping a formatted internal-BRAM probe into `StorageVolumeInfo`.
 
 The first BASIC code seam is also now in place. `src/sub/basic.c` is a
 clean-room, fixed-storage program buffer and tiny shell: it parses numbered

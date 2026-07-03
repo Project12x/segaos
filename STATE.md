@@ -145,7 +145,7 @@ The active strategy is a bring-up ladder:
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -218,6 +218,13 @@ The active strategy is a bring-up ladder:
   saves, enforces reserve space, and rejects image documents without the
   external cart path. Hardware BRAM BIOS wrappers and real capacity probes are
   still pending.
+- BRAM wrapper seam: `BRM_Probe()`, `BRM_ReadFile()`, `BRM_WriteFile()`, and
+  `BRM_ReadDirectory()` are host-tested against injectable BIOS operations.
+  The contract follows Megadev's MIT BRAM definitions at
+  `7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`: `BURAM` vector `$005F16`,
+  4KB `BRMINIT`/`BRMSTAT` units, normal 0x40-byte file blocks, 11-byte
+  NUL-terminated BIOS filenames, and 16-byte directory entries. This is the
+  wrapper contract, not live inline Sub BIOS calls yet.
 - BASIC storage adapter seam: `BAS_StorageInitAdapter()` and
   `BAS_StorageBindIO()` are host-tested as the first bridge from BASIC
   `SAVE`/`LOAD` callbacks to `STG_PlanSave()`. `SAVE` plans a BASIC document
@@ -382,6 +389,7 @@ SGDK DMA queue source:
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Storage Policy | Sub/host | `src/sub/storage.c` | Host-tested save-target policy for external Backup RAM cart preference and internal BRAM fallback limits |
+| BRAM Wrapper | Sub/host | `src/sub/bram.c` | Host-tested BRAM BIOS contract wrapper for probe/stat/read/write/directory semantics through injectable ops |
 | BASIC Storage Adapter | Sub/host | `src/sub/basic_storage.c` | Host-tested bridge from BASIC `SAVE`/`LOAD` byte callbacks to `STG_PlanSave()` and selected-volume read/write callbacks |
 | BASIC Core | Sub/host | `src/sub/basic.c` | Clean-room fixed-storage BASIC program buffer and shell/evaluator/runner seam with numbered-line parsing, keyword tokenization, sorted insert/replace/delete, compaction, decode, binary image export/import, line entry, `LIST`, `NEW`, callback-backed `SAVE`/`LOAD`, simple integer/string values, sequential `PRINT`/`END`, literal-line `GOTO`, fixed A-Z integer `LET` variables, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, and fixed-depth `GOSUB`/`RETURN` |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |

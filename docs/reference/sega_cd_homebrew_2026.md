@@ -41,7 +41,14 @@ Source files/docs inspected at that commit:
 - `lib/security.c`
 - `lib/sub/sp_header.s`
 - `lib/sub/bios.def.h`
+- `lib/sub/bram.def.h`
+- `lib/sub/bram.h`
 - `lib/sub/cdboot.def.h`
+- `lib/sub/sub.macro.s`
+- `lib/main/bramcart.def.h`
+- `examples/bram/README.md`
+- `examples/bram/src/bram_demo.c`
+- `examples/bram/src/spx.c`
 - `examples/hello_world/src/ip.s`
 - `examples/hello_world/src/sp.s`
 - `new_project/src/ip.s`
@@ -277,6 +284,23 @@ is absent. Host tests prove external-cart save preference, tiny internal
 fallback, large-BASIC rejection without a cart, shell `SAVE` using the
 selected target, and shell `LOAD` preferring the cart. This is still not a
 hardware BRAM BIOS wrapper or file manager. Reuse mode remains clean-room.
+
+BRAM-wrapper update on 2026-07-02: `src/sub/bram.c` now provides the first
+host-tested internal Backup RAM BIOS contract wrapper. Reference-code-first
+record: Megadev repo `https://github.com/drojaazu/megadev`, commit
+`7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`, MIT license, inspected files
+`lib/sub/bram.def.h`, `lib/sub/bram.h`, `lib/sub/sub.macro.s`,
+`lib/main/bramcart.def.h`, `examples/bram/README.md`,
+`examples/bram/src/bram_demo.c`, and `examples/bram/src/spx.c`. Reuse mode is
+pattern-only / clean-room: SegaOS does not copy Megadev's inline assembly
+wrappers. The wrapper records the `BURAM` vector `$005F16`, BIOS function
+semantics for `BRMINIT`, `BRMSTAT`, `BRMREAD`, `BRMWRITE`, and `BRMDIR`, 4KB
+init/stat blocks, normal 0x40-byte file blocks, 11-byte BIOS filenames, and
+16-byte directory entries behind injectable `BramBiosOps`. Host tests prove
+filename/pattern normalization, formatted/unformatted probe mapping, internal
+`StorageVolumeInfo` mapping, write block construction, read size guarding, and
+directory call-through. This is not the live inline Sub BIOS vector call layer
+yet and does not probe an external Backup RAM cart.
 
 BASIC-shell update on 2026-07-01: `BAS_SubmitConsoleLine()` now adds the first
 REPL-facing command seam over that buffer. Host tests prove numbered line input

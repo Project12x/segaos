@@ -257,6 +257,11 @@ same failures.
   host-tested policy prefers external cart storage, allows internal BRAM only
   for preferences and tiny text/BASIC fallback saves, reserves free space on
   both targets, and rejects image saves without the external cart path.
+- Keep BRAM work layered: `src/sub/bram.c` owns the BIOS contract semantics
+  from Megadev's MIT `lib/sub/bram.def.h`/`bram.h` pattern, `storage.c` owns
+  save-target policy, and later inline Sub BIOS vector calls/probes must plug
+  in behind `BramBiosOps`. Do not let BASIC or desktop UI call raw BRAM memory
+  or the `$005F16` vector directly.
 - Build BASIC as an OS tool in narrow stages: program buffer plus shell line
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
   sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,

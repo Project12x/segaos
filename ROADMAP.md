@@ -316,7 +316,10 @@ with in at least one emulator.
         for small user documents, BASIC programs, imported text, and app data
   - [x] internal 8 KB Backup RAM is the fallback for preferences, launch state,
         and emergency tiny documents
-  - [ ] Hardware-facing BRAM BIOS wrappers for directory/free-space/read/write
+  - [x] Host-tested BRAM BIOS wrapper contract for filename normalization,
+        `BRMINIT`/`BRMSTAT` probing, directory/free-space/read/write semantics,
+        and internal-BRAM `StorageVolumeInfo` mapping
+  - [ ] Live Sub CPU BRAM BIOS vector calls for directory/free-space/read/write
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
       blocks before designing the user-facing file manager
 - [ ] Add a BASIC interpreter/tooling rung:
