@@ -94,7 +94,7 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_SCHEDULER_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopScheduler -GdbTimeoutSeconds 60
 
-# Prove a full compact frame-upload pump, Word RAM return, and second render
+# Prove repeated compact pump-backed render/upload/return cycles
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_PUMP_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopPump -GdbTimeoutSeconds 60
 
@@ -255,10 +255,11 @@ restored to the Word RAM value `0xf11f`. The probe now uses the compact
 target path owns cursor/queue state without linking the larger callback pump
 into the 3,584-byte IP boot slot; the measured scheduler-probe Main IP is
 3,568 bytes, leaving 16 bytes of margin. `DESKTOP_PUMP_PROBE=1` then proves
-the size-fit full-frame bridge with `FUP_PlanNextQueueCompact()`: Main uploads
-four 235-tile slices plus one 180-tile final slice, returns Word RAM only after
-that final slice, and Sub completes a second render. That pump-probe Main IP
-measures 3,528 bytes. `src/main/frame_upload_pump.c` still adds the
+the size-fit full-frame bridge with `FUP_PlanNextQueueCompact()`: across four
+complete frames, Main uploads four 235-tile slices plus one 180-tile final
+slice per frame, returns Word RAM only after each final slice, and Sub accepts
+the next render command. That repeated pump-probe Main IP measures 3,460
+bytes. `src/main/frame_upload_pump.c` still adds the
 host-tested callback state machine that will own that cursor in the live loop:
 one tick plans and uploads one budgeted queue, the pump rejects a new frame
 while an upload is active or waiting for Word RAM return, and a failed upload

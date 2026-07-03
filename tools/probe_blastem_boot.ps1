@@ -437,6 +437,7 @@ try {
         "segaos_desktop_done_status",
         "segaos_desktop_wait_polls",
         "segaos_desktop_pump_result",
+        "segaos_desktop_pump_frame_count",
         "segaos_desktop_pump_slice_count",
         "segaos_desktop_pump_final_first_tile",
         "segaos_desktop_pump_final_tile_count",
@@ -758,6 +759,7 @@ try {
         "segaos_desktop_done_status",
         "segaos_desktop_wait_polls",
         "segaos_desktop_pump_result",
+        "segaos_desktop_pump_frame_count",
         "segaos_desktop_pump_slice_count",
         "segaos_desktop_pump_final_first_tile",
         "segaos_desktop_pump_final_tile_count",
@@ -895,6 +897,7 @@ try {
         segaos_desktop_trace = "0x7404"
         segaos_desktop_done_status = "0x0003"
         segaos_desktop_pump_result = "0x0001"
+        segaos_desktop_pump_frame_count = "0x0004"
         segaos_desktop_pump_slice_count = "0x0005"
         segaos_desktop_pump_final_first_tile = "0x03ac"
         segaos_desktop_pump_final_tile_count = "0x00b4"
@@ -988,7 +991,7 @@ try {
       }
     }
     if ($Probe -eq "DesktopPump") {
-      Write-Output "desktop_pump result=$($desktopValues["segaos_desktop_pump_result"]) slices=$($desktopValues["segaos_desktop_pump_slice_count"])"
+      Write-Output "desktop_pump result=$($desktopValues["segaos_desktop_pump_result"]) frames=$($desktopValues["segaos_desktop_pump_frame_count"]) slices=$($desktopValues["segaos_desktop_pump_slice_count"])"
       Write-Output "desktop_pump_final first=$($desktopValues["segaos_desktop_pump_final_first_tile"]) tiles=$($desktopValues["segaos_desktop_pump_final_tile_count"])"
       Write-Output "desktop_pump_return mem_after=$($desktopValues["segaos_desktop_pump_mem_after_return"])"
       Write-Output "desktop_pump_second status=$($desktopValues["segaos_desktop_done_status"]) trace=$($desktopValues["segaos_desktop_trace"]) stat0=$($desktopValues["segaos_desktop_stat0"])"

@@ -438,13 +438,17 @@ pump-owned state, uploads both through `FB_UpdateTileQueue()`, reaches phase
 `0x87ff`, and verifies a poisoned VRAM word in the second slice changes from
 `0x0ee0` back to the Word RAM value `0xf11f`. The probe uses a narrow Main path
 to fit the Megadev-compatible 3,584-byte IP window. `DESKTOP_PUMP_PROBE=1` now
-extends that evidence across the whole frame: Main uploads four 235-tile queues
-plus one final 180-tile queue, returns Word RAM only after the final slice, and
-then proves Sub can complete a second `CMD_RENDER_FRAME` with terminal phase
-`0x88ff`. The size-fit pump build measured 3,528 bytes, while the direct
-callback-pump target attempt measured 3,948 bytes and overflowed the physical
-IP range. This is target evidence for the scheduler/upload contract, not the
-final long-running VBlank policy. `src/main/frame_upload_pump.c` now adds the
+extends that evidence across the whole frame and across repeated frames: Main
+uploads four 235-tile queues plus one final 180-tile queue per frame, returns
+Word RAM only after each final slice, and proves four complete
+render/upload/return cycles with terminal phase `0x88ff` and frame count
+`0x0004`. The repeated size-fit pump build measured 3,460 bytes, while the
+direct callback-pump target attempt measured 3,948 bytes and an attempt to
+force the compact pump through the older `DESKTOP_LOOP_PROBE` scaffolding
+measured 4,332 bytes. Both overflow cases exceed the physical IP range, so the
+lean `DesktopPump` harness remains the target pump evidence path for now. This
+is target evidence for the scheduler/upload contract, not the final
+long-running VBlank policy. `src/main/frame_upload_pump.c` now adds the
 host-tested callback state machine for that future policy: it starts a rendered
 frame cursor, advances one budgeted upload queue per tick, waits to signal Word
 RAM return until the final slice completes, rejects overlapping frame starts,

@@ -114,7 +114,7 @@ same failures.
   10. Short multi-frame single-bank render/upload loop probe
   11. Full-frame upload HV/status timing probe
   12. Minimal `WM_NewWindow()` allocation/z-order render probe
-  13. Full compact frame-upload pump, Word RAM return, and second render probe
+  13. Repeated compact frame-upload pump, Word RAM return, and Sub render probe
 - A visible screenshot is useful but not sufficient. Pair it with GDB symbols or
   VRAM readback so the result is not confused with the Sega CD BIOS screen or an
   old boot pattern.
@@ -391,13 +391,19 @@ same failures.
   A direct `FUP_Init()` + `FUP_StartFrame()` + `FUP_Tick()` target probe measured
   Main IP at 3,948 bytes, above the 3,584-byte physical range. The compact
   planner path (`FUP_BeginFrame()` + `FUP_PlanNextQueueCompact()`) now has a
-  size-fit target proof: `DESKTOP_PUMP_PROBE=1` measures Main IP at 3,528 bytes,
-  uploads all five slices of a 1,120-tile frame, returns Word RAM, and proves
-  Sub can complete a second `CMD_RENDER_FRAME`.
+  size-fit target proof: `DESKTOP_PUMP_PROBE=1` measures Main IP at 3,460 bytes,
+  uploads all five slices of a 1,120-tile frame for four complete frames,
+  returns Word RAM after each final slice, and proves Sub can accept each next
+  `CMD_RENDER_FRAME`.
 - `DESKTOP_PUMP_PROBE=1` is the current strongest transfer-policy bridge. It
   still skips mouse init and framebuffer tilemap/palette setup to fit the boot
-  IP envelope, but it proves the rule the live loop must preserve: do not
-  return Word RAM until the final scheduled upload slice has completed.
+  IP envelope, but it proves the rule the live loop must preserve repeatedly:
+  do not return Word RAM until the final scheduled upload slice has completed.
+- Do not move the compact pump into the older `DESKTOP_LOOP_PROBE` scaffolding
+  as-is. That attempt measured Main IP at 4,332 bytes because the loop probe
+  kept older initialization/status scaffolding while linking the queue scheduler
+  path. Use the lean `DESKTOP_PUMP_PROBE` harness for boot-slot pump evidence
+  until the live Main loader has more room.
 - The default boot-safe first frame now follows that same compact pump rule
   instead of using one-shot `FB_UpdateFrame()`. To fit the 3,584-byte IP window,
   boot-safe Main code uses `-Os` and skips Mega Mouse initialization until the

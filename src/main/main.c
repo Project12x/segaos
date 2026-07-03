@@ -132,6 +132,7 @@ volatile uint16_t segaos_desktop_scheduler_slice1_vram_word;
 #endif
 #ifdef DESKTOP_PUMP_PROBE
 volatile uint16_t segaos_desktop_pump_result;
+volatile uint16_t segaos_desktop_pump_frame_count;
 volatile uint16_t segaos_desktop_pump_slice_count;
 volatile uint16_t segaos_desktop_pump_final_first_tile;
 volatile uint16_t segaos_desktop_pump_final_tile_count;
@@ -480,6 +481,7 @@ void segaos_runtime_smoke_halt(void) {
 #ifdef DESKTOP_INIT_PROBE
 #define DESKTOP_PROBE_WAIT_LIMIT 0x00100000UL
 #define DESKTOP_LOOP_PROBE_FRAMES 4U
+#define DESKTOP_PUMP_PROBE_FRAMES 4U
 #define DESKTOP_TEXT_PROBE_X 64U
 #define DESKTOP_TEXT_PROBE_Y 80U
 #define DESKTOP_TEXT_PROBE_ROW 3U
@@ -821,33 +823,32 @@ static uint8_t desktop_probe_wait_done(uint32_t poll_limit) {
 
 #ifdef DESKTOP_PUMP_PROBE
 static void desktop_pump_probe(void) {
-  segaos_desktop_main_phase = 0x8801;
-  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
-  segaos_desktop_main_phase = 0x8802;
-  if (desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT) != STATUS_DONE) {
-    segaos_desktop_main_phase = 0x88fe;
-    segaos_desktop_init_halt();
-  }
+  uint16_t frame;
 
-  desktop_pump_probe_upload_frame();
-  if (segaos_desktop_pump_result != 1) {
-    segaos_desktop_main_phase = 0x88fd;
-    segaos_desktop_init_halt();
-  }
+  segaos_desktop_pump_frame_count = 0;
+  for (frame = 0; frame < DESKTOP_PUMP_PROBE_FRAMES; frame++) {
+    segaos_desktop_main_phase = (uint16_t)(0x8800U | frame);
+    main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
+    segaos_desktop_done_status =
+        desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
+    segaos_desktop_stat0 = main_read_result(0);
+    segaos_desktop_trace = main_read_result(7);
 
-  segaos_desktop_main_phase = 0x8803;
-  main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
-  segaos_desktop_done_status =
-      desktop_probe_wait_done(DESKTOP_PROBE_WAIT_LIMIT);
-  segaos_desktop_stat0 = main_read_result(0);
-  segaos_desktop_trace = main_read_result(7);
+    if (segaos_desktop_done_status != STATUS_DONE ||
+        segaos_desktop_stat0 != SUB_STATE_READY ||
+        segaos_desktop_trace != 0x7404) {
+      segaos_desktop_pump_result = 0x00e5;
+      segaos_desktop_main_phase = 0x88fc;
+      segaos_desktop_init_halt();
+    }
 
-  if (segaos_desktop_done_status != STATUS_DONE ||
-      segaos_desktop_stat0 != SUB_STATE_READY ||
-      segaos_desktop_trace != 0x7404) {
-    segaos_desktop_pump_result = 0x00e5;
-    segaos_desktop_main_phase = 0x88fc;
-    segaos_desktop_init_halt();
+    desktop_pump_probe_upload_frame();
+    if (segaos_desktop_pump_result != 1) {
+      segaos_desktop_main_phase = 0x88fd;
+      segaos_desktop_init_halt();
+    }
+
+    segaos_desktop_pump_frame_count = (uint16_t)(frame + 1U);
   }
 
   segaos_desktop_main_phase = 0x88ff;

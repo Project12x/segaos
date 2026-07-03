@@ -253,7 +253,9 @@ remains a later production policy.
           Sub-rendered desktop frame
     - [x] Emulator-proven compact frame-upload pump across the full 1,120-tile
           frame: four 235-tile slices plus one 180-tile final slice, followed
-          by Main returning Word RAM and Sub completing a second render
+          by Main returning Word RAM only after the final slice
+    - [x] Emulator-proven repeated compact pump cycle: four complete
+          render/upload/return frames inside the BIOS-loaded IP window
     - [x] Host-tested compact `FrameUploadPump` planner
           (`FUP_BeginFrame()` + `FUP_PlanNextQueue()` /
           `FUP_PlanNextQueueCompact()`) with target proof inside the
@@ -263,9 +265,9 @@ remains a later production policy.
           completion
     - [x] Default boot-safe first frame now uploads through the compact pump
           path and has a debugger-backed BlastEm internal screenshot
-    - [ ] Production live-loop pump integration that schedules queued tile
-          spans at a measured flush point and returns Word RAM only after the
-          final uploaded slice
+    - [ ] Production live-loop pump integration that schedules visible queued
+          tile spans at a measured flush point and returns Word RAM only after
+          the final uploaded slice
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions
 - [x] Tie dirty rectangles to tile-strip transfer ranges
