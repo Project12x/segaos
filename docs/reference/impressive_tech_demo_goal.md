@@ -63,6 +63,23 @@ Invisible plumbing is justified only when it unlocks one of these demo effects:
 If a change does not move one of those outcomes closer, keep it out of the
 critical path.
 
+## Immediate Proof Ladder
+
+The next proof must connect emulator-visible pixels to the newest returned
+frame, not just prove that the loop ran:
+
+1. Render a changing marker or small text change in the Sub CPU frame.
+2. Return Word RAM only after the compact pump finishes the current frame.
+3. Select the correct Main-side Word RAM window or conversion path for the next
+   upload.
+4. Capture with BlastEm internal screenshotting after a GDB phase/frame-count
+   check.
+5. Accept only if the screenshot-visible marker matches the debugger counter.
+
+After that passes, the showpiece can safely spend effort on the BASIC/text
+tool window because changing user-visible content will have a proven transport
+path.
+
 Current frame-transfer evidence: `DESKTOP_PUMP_PROBE=1` proves the compact
 Main-side upload policy can consume a full Sub-rendered frame as five budgeted
 tile uploads, return Word RAM only after the final slice, and repeat that

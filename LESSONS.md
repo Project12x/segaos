@@ -17,6 +17,14 @@ same failures.
 - New rungs should name the reference basis and the demo effect they unlock.
   If a change is invisible and does not unblock one of the demo effects, keep it
   out of the critical path.
+- Treat "impressive tech demo" as an acceptance filter, not a slogan. A change
+  should either make the captured desktop visibly more computer-like, prove that
+  visible state can change over time, or unlock a user workflow such as BASIC,
+  text viewing/editing, image viewing, CD/resource loading, or BRAM save/load.
+- The immediate display goal is current-frame visibility. The compact pump can
+  repeat render/upload/return cycles under GDB, but bank-0 screenshots are stale
+  and blind bank-1 upload is corrupt. New UI work should wait until a screenshot
+  shows the same changing frame marker or contents reported by the debugger.
 
 ## Reference Code First
 
@@ -48,6 +56,10 @@ same failures.
   pattern-only / clean-room reuse: caller-owned static storage, explicit
   byte-budget and capacity checks, and a later flush point. No SGDK queue code
   is copied or closely ported.
+- Before implementing a researched subsystem, add or update the local note that
+  records source, commit, license, inspected files, and reuse mode. The roadmap
+  gate is intentionally lightweight, but it should be impossible to land
+  meaningful code whose reference basis is only in chat history.
 
 ## Freestanding C Runtime
 

@@ -22,6 +22,26 @@ computer, not just display a desktop-themed picture. See
 - [ ] Final demo artifact includes debugger-backed BlastEm internal screenshot
       plus GDB/VRAM/BRAM evidence for the low-level paths
 
+### Reference and Demo Gate
+
+Before starting any non-trivial implementation rung, write down the reference
+checked and the visible demo outcome it unlocks. Acceptable reference entries
+must include upstream repo or document, pinned commit when source is used,
+license, inspected files, and reuse mode. GPL-family or proprietary operating
+system sources are pattern-only / clean-room references, not code sources.
+
+Every rung also needs a demo-facing acceptance test. For low-level display work
+that means a debugger-backed BlastEm internal screenshot plus GDB/VRAM evidence
+that the captured image is the current rendered frame, not a stale bank or BIOS
+transition. For app/storage work it means a visible user workflow such as
+`LIST`/`RUN`/`SAVE`/`LOAD`, text-file load, image asset load, or Backup RAM
+persistence.
+
+Current gate: do not add more widgets or app polish until the latest returned
+frame can be displayed reliably. The next accepted artifact should show a
+changing frame marker or window contents that match the GDB frame counter after
+the compact pump returns Word RAM.
+
 ## Phase 1: Sub CPU Build -- COMPLETE
 - [x] crt0.s with SP header and vector table
 - [x] Freestanding C headers (stdint, stddef, stdbool, string)
