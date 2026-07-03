@@ -223,6 +223,9 @@ remains a later production policy.
           caller-provided upload sink and exposes `FB_UpdateTileQueue()`
     - [x] Emulator-proven narrow `FB_UpdateTileQueue()` flush of one queued
           tile span to VRAM
+    - [x] Host-tested frame scheduler cursor that carries oversized tile spans
+          across byte-budgeted frames instead of re-uploading the same first
+          slice
     - [ ] Production VBlank-scheduled flush of queued tile spans to VRAM
   - [ ] active-display transfer with acceptable artifacts
   - [ ] display-off/full redraw only for transitions

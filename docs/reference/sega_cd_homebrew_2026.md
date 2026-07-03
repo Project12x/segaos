@@ -420,3 +420,15 @@ injected probe result, maps present/readonly/absent states into
 lets `STG_PlanSave()` consume a detected external cart for large saves. This is
 the storage-policy integration contract, not live external cartridge hardware
 proof; the target adapter still needs a separate ABI/probe pass.
+
+Frame-scheduler update on 2026-07-03: `include/frame_scheduler.h` and
+`src/main/frame_scheduler.c` now add a host-tested Main-side upload scheduling
+cursor. Reference-code-first record remains the SGDK DMA queue source noted
+above: `Stephane-D/SGDK@ef9292c03fe33a2f8af3a2589ab856a53dcef35c`, MIT,
+inspected files `inc/dma.h`, `src/dma.c`, and `src/sys.c`, reuse mode
+pattern-only / clean-room. No SGDK source is copied or closely ported. The new
+cursor advances a pending tile span into a `DirtyTileQueue` under a caller's
+byte budget; host tests prove a full 1,120-tile frame becomes four 235-tile
+NTSC-budgeted frames plus a final 180-tile frame. This is the frame-policy
+planning rung before the live desktop loop calls `FB_UpdateTileQueue()` at a
+measured VBlank/update point.

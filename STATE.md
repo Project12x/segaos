@@ -90,6 +90,10 @@ title tile row in VRAM, constructs a one-entry `DirtyTileQueue` for tile
 `0x0147`, calls `FB_UpdateTileQueue()`, reaches phase `0x85ff`, and reads
 `0xf11f/0x1f11` from VRAM matching the rendered Word RAM source. This is a
 narrow dirty-upload proof, not a production VBlank scheduler yet.
+`src/main/frame_scheduler.c` now adds the first host-tested frame-policy seam:
+a tile cursor carries a large pending upload across multiple byte-budgeted
+frames, so a full-frame fallback advances through the frame instead of
+re-uploading the same first NTSC-budget slice.
 
 A June 2026 68k desktop prior-art pass is now documented in
 `docs/reference/68k_desktop_prior_art.md`. EmuTOS is the primary desktop
@@ -146,7 +150,7 @@ The active strategy is a bring-up ladder:
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
 | BASIC internal-BRAM runtime probe | Passing | `BASIC_BRAM_PROBE=1` + `-Probe BasicBram` proves live Sub BIOS internal BRAM access in BlastEm: formatted status `0x0003`, 2 total/free 4K blocks before the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary `0x0211`, and terminal trace `0x75ff` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, frame-scheduler cursor slicing, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -212,6 +216,9 @@ The active strategy is a bring-up ladder:
   dirty range = 4 tiles / 128 bytes and fits that same budget; the queue
   planner slices a full-frame request to 235 tiles / 7,520 bytes for one NTSC
   VBlank-budgeted pass
+- Frame scheduler cursor: a full 1,120-tile frame under the 7,524-byte NTSC
+  reference budget is planned as four 235-tile frames plus a final 180-tile
+  frame, while preserving cursor progress between calls
 - Sub CPU blitter default: 4bpp, matching the Main CPU tile conversion path
 - Disc image: 150 cooked sectors, `MODE1/2048`, 32KB boot/system area
 - Storage planning assumption: CD-ROM/ISO9660 is the read-only app/resource
@@ -417,6 +424,7 @@ SGDK DMA queue source:
 | Window Manager | Sub | `src/sub/wm.c` | Mac-style window management |
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
+| Frame Scheduler | Main/host | `src/main/frame_scheduler.c` | Host-tested tile cursor that carries oversized dirty/full-frame upload spans across byte-budgeted frames |
 | Storage Policy | Sub/host | `src/sub/storage.c` | Host-tested save-target policy for external Backup RAM cart preference and internal BRAM fallback limits |
 | External Cart Probe | Sub/host | `src/sub/external_cart.c` | Host-tested injected-probe seam that maps external Backup RAM cart presence/capacity/free-byte data into the storage policy model; live hardware adapter pending |
 | BRAM Wrapper | Sub/host | `src/sub/bram.c` | Host-tested BRAM BIOS contract wrapper for probe/stat/read/write/directory semantics through injectable ops |

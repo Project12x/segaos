@@ -238,10 +238,11 @@ same failures.
   width ranges become one upload span per tile row; full-width ranges become a
   contiguous span; `maxBytes` slices a span to the caller's frame budget; and
   `budgetExceeded` is kept separate from queue-storage `overflow`.
-- The next VDP implementation step should be a scheduler/frame-loop gate around
-  `FB_UpdateTileQueue()`, not another proof that the wrapper can upload one
-  tile. Do not reintroduce full-frame policy assumptions while moving from the
-  diagnostic dirty upload to production scheduling.
+- `src/main/frame_scheduler.c` is now the host-tested scheduler/frame-loop gate
+  around oversized tile spans. It advances a cursor across byte-budgeted
+  frames, so a full-frame fallback can make progress instead of re-uploading
+  the same first slice. The next VDP implementation step is wiring that cursor
+  to the live desktop loop and `FB_UpdateTileQueue()` at a measured flush point.
 - The concrete frame-policy warning is now host-tested: a full 40x28 tile
   4bpp frame is 1,120 tiles / 35,840 bytes, so it cannot fit the 7,524-byte
   NTSC VBlank budget recorded in the Mega Drive development notes. The queue

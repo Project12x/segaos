@@ -91,8 +91,8 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 # After a probe build, force the normal variant so shared objects are rebuilt
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
-# Run host-side redraw, dirty-transfer queue, BASIC-shell/runtime,
-# storage-policy/external-cart, framebuffer, and probe-timeout tests
+# Run host-side redraw, dirty-transfer queue, framebuffer/frame-scheduler,
+# BASIC-shell/runtime, storage-policy/external-cart, and probe-timeout tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
@@ -224,9 +224,12 @@ tile span for tile `0x0147` through `FB_UpdateTileQueue()`, reaches phase
 a narrow hardware proof, not the production VBlank scheduler yet; the probe
 uses `-Os` and skips mouse init/boot checker fill to fit the real 3,584-byte
 IP boot-sector limit. The next desktop gate is still a measured long-running
-frame policy; the full alternating double-buffer and dirty-tile VBlank
-policies remain later stability work before returning to normal menu/cursor/app
-rendering.
+frame policy. `src/main/frame_scheduler.c` now adds the first host-tested
+scheduler cursor: a large pending tile span can be advanced across
+byte-budgeted frames, so a full-frame fallback progresses through 235-tile
+NTSC-budgeted slices instead of repeating the same first slice. The full
+alternating double-buffer and live dirty-tile VBlank policies remain later
+stability work before returning to normal menu/cursor/app rendering.
 
 Storage planning now assumes an external Backup RAM cartridge-class writable
 store is available for real small-document workflows. CD-ROM/ISO9660 remains

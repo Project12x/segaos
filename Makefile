@@ -250,6 +250,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_basic_bram_smoke.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_framebuffer.c src/main/framebuffer.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_framebuffer.exe
 	$(BUILD_DIR)/test_framebuffer.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_frame_scheduler.c src/main/frame_scheduler.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_frame_scheduler.exe
+	$(BUILD_DIR)/test_frame_scheduler.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe
 	$(BUILD_DIR)/test_storage_policy.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_external_cart_probe.c src/sub/external_cart.c src/sub/storage.c -o $(BUILD_DIR)/test_external_cart_probe.exe
