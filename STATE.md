@@ -146,7 +146,7 @@ The active strategy is a bring-up ladder:
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
 | BASIC internal-BRAM runtime probe | Passing | `BASIC_BRAM_PROBE=1` + `-Probe BasicBram` proves live Sub BIOS internal BRAM access in BlastEm: formatted status `0x0003`, 2 total/free 4K blocks before the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary `0x0211`, and terminal trace `0x75ff` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, external-cart probe normalization, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -223,7 +223,9 @@ The active strategy is a bring-up ladder:
   cart saves, allows internal BRAM only for prefs/tiny text/BASIC fallback
   saves, enforces reserve space, and rejects image documents without the
   external cart path. Internal BRAM Sub BIOS vector calls now exist behind
-  `BramBiosOps`; external-cart capacity probes are still pending.
+  `BramBiosOps`. `EXTC_MapProbeResultToVolume()` and `EXTC_ProbeVolume()` now
+  host-test the external-cart detection seam, but the live raw cartridge
+  adapter remains pending until the `_MBURAM`/`BRAM_CART` ABI is proven.
 - BRAM wrapper seam: `BRM_Probe()`, `BRM_ReadFile()`, `BRM_WriteFile()`, and
   `BRM_ReadDirectory()` are host-tested against injectable BIOS operations.
   The contract follows Megadev's MIT BRAM definitions at
@@ -302,6 +304,8 @@ Megadev 1.2.0:
   `lib/main/mmd.h`, `lib/main/mmd.macros.s`, `lib/main/memmap.def.h`,
   `lib/build.def.h`, `lib/sub/bios.def.h`, `lib/sub/bram.def.h`,
   `lib/sub/bram.h`, `lib/sub/cdboot.def.h`,
+  `lib/main/bramcart.def.h`, `examples/bram/README.md`,
+  `examples/bram/src/bram_demo.c`, `examples/bram/src/spx.c`,
   `examples/hello_world/src/ip.s`,
   `examples/hello_world/src/sp.s`, `new_project/src/ip.s`,
   `new_project/src/sp.s`
@@ -414,6 +418,7 @@ SGDK DMA queue source:
 | Dirty Rects | Sub/host | `src/sub/dirty_rect.c` | Host-tested dirty-region clipping, merging, subtraction, tile-range mapping, transfer-budget planning, and upload queue span planning |
 | Memory Manager | Sub | `src/sub/mem.c` | Handle-based allocation |
 | Storage Policy | Sub/host | `src/sub/storage.c` | Host-tested save-target policy for external Backup RAM cart preference and internal BRAM fallback limits |
+| External Cart Probe | Sub/host | `src/sub/external_cart.c` | Host-tested injected-probe seam that maps external Backup RAM cart presence/capacity/free-byte data into the storage policy model; live hardware adapter pending |
 | BRAM Wrapper | Sub/host | `src/sub/bram.c` | Host-tested BRAM BIOS contract wrapper for probe/stat/read/write/directory semantics through injectable ops |
 | BRAM BIOS Adapter | Sub/host | `src/sub/bram_bios.c`, `src/sub/bram_bios_68k.s` | Host-tested callback binding plus target-assembled raw Sub BIOS `$005F16` calls for internal Backup RAM |
 | BASIC Storage Adapter | Sub/host | `src/sub/basic_storage.c` | Host-tested bridge from BASIC `SAVE`/`LOAD` byte callbacks to `STG_PlanSave()` and selected-volume read/write callbacks |

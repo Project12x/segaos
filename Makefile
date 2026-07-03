@@ -150,6 +150,7 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/bram.c \
                $(SUB_DIR)/bram_bios.c \
                $(SUB_DIR)/dirty_rect.c \
+               $(SUB_DIR)/external_cart.c \
                $(SUB_DIR)/libc.c \
                $(SUB_DIR)/mem.c \
                $(SUB_DIR)/storage.c \
@@ -251,6 +252,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_framebuffer.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe
 	$(BUILD_DIR)/test_storage_policy.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_external_cart_probe.c src/sub/external_cart.c src/sub/storage.c -o $(BUILD_DIR)/test_external_cart_probe.exe
+	$(BUILD_DIR)/test_external_cart_probe.exe
 	powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_probe_timeout.ps1 -HostCc "$(HOST_CC)"
 
 # ============================================================

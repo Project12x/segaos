@@ -262,6 +262,12 @@ same failures.
   host-tested policy prefers external cart storage, allows internal BRAM only
   for preferences and tiny text/BASIC fallback saves, reserves free space on
   both targets, and rejects image saves without the external cart path.
+- Keep external-cart probing behind `src/sub/external_cart.c` until the live
+  ABI is proven. Megadev's MIT `lib/main/bramcart.def.h` exposes the Main
+  `_MBURAM`/`BRAM_CART` vector at `$FFFDAE`, but the inspected Megadev BRAM
+  example still uses Sub BIOS BRAM calls for file operations. Do not call the
+  raw Main vector from BASIC, file-manager, or desktop code without a separate
+  target probe.
 - Keep BRAM work layered: `src/sub/bram.c` owns the BIOS contract semantics
   from Megadev's MIT `lib/sub/bram.def.h`/`bram.h` pattern,
   `src/sub/bram_bios.c` binds the internal Sub BIOS adapter, and

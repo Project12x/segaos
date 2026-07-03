@@ -92,7 +92,7 @@ powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screensh
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso
 
 # Run host-side redraw, dirty-transfer queue, BASIC-shell/runtime,
-# storage-policy, framebuffer, and probe-timeout tests
+# storage-policy/external-cart, framebuffer, and probe-timeout tests
 C:\SDKS\SGDK\bin\make.exe -r -f Makefile host-tests
 
 # Clean
@@ -234,7 +234,8 @@ the read-only app, demo, and asset source; the external cartridge is the
 primary target for saved text, tokenized BASIC programs, tiny databases,
 preferences, and imported app data; internal 8 KB Backup RAM is the fallback
 for settings and emergency tiny saves. Exact cartridge presence/capacity still
-needs a SegaOS probe before the file manager and save UI are treated as stable.
+needs a live SegaOS hardware adapter before the file manager and save UI are
+treated as stable, but the host-tested probe contract now exists.
 The first code-level storage contract is now `STG_PlanSave()`: host tests prove
 external cart preference for BASIC/text saves, internal BRAM fallback for tiny
 text/BASIC documents, reserve-space enforcement, and rejection of image saves
@@ -251,7 +252,15 @@ internal-BRAM probe into `StorageVolumeInfo`. `src/sub/bram_bios.c` and
 that contract: host tests prove the callback routing and buffer ownership, and
 the forced ISO build assembles the raw `$005F16` `BRMINIT`/`BRMSTAT`/
 `BRMSERCH`/`BRMREAD`/`BRMWRITE`/`BRMDIR` stubs. BASIC `SAVE`/`LOAD` still need
-to be bound to the external Backup RAM cartridge path. Internal-BRAM BASIC
+to be bound to the external Backup RAM cartridge read/write path.
+`src/sub/external_cart.c` is the first external-cart seam: it maps an injected
+probe result into `StorageVolumeInfo`, preserves readonly/absent states, clamps
+impossible free-byte counts, and lets `STG_PlanSave()` consume the detected
+cart. It deliberately does not call raw Main `_MBURAM`/`BRAM_CART` yet:
+Megadev's MIT sources expose the `$FFFDAE` vector address, while the inspected
+BRAM example still routes file operations through the Sub BIOS wrapper, so the
+external cartridge ABI needs a separate proof before target code uses it.
+Internal-BRAM BASIC
 binding now exists as `src/sub/basic_bram_storage.c`: it probes the formatted
 internal volume, exposes `BasicStorageWrite`/`BasicStorageRead` callbacks for
 the existing policy adapter, writes the current shell program under the fixed

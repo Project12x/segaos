@@ -402,3 +402,21 @@ reported formatted internal BRAM (`0x0003`), two total/free 4K blocks before
 the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary
 `0x0211`, and terminal trace `0x75ff`. The probe intentionally does not call
 `BRMFORMAT`; unformatted BRAM remains an explicit future UX/tooling problem.
+
+External-cart-probe update on 2026-07-03: `include/external_cart.h` and
+`src/sub/external_cart.c` now add a host-tested external Backup RAM cartridge
+probe boundary. Reference-code-first record: Megadev repo
+`https://github.com/drojaazu/megadev`, commit
+`7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`, MIT license, inspected files
+`lib/main/bramcart.def.h`, `examples/bram/README.md`,
+`examples/bram/src/bram_demo.c`, and `examples/bram/src/spx.c`. Reuse mode is
+pattern-only / clean-room. SegaOS does not copy or closely port Megadev code
+for this seam. The inspected Megadev Main-side file exposes only the
+`BRAM_CART`/`_MBURAM` vector address `$FFFDAE`, while the inspected BRAM
+example performs file operations through the Sub BIOS BRAM helper layer.
+Therefore SegaOS does not call the raw Main vector yet. The new seam accepts an
+injected probe result, maps present/readonly/absent states into
+`StorageVolumeInfo`, clamps impossible free-byte counts to total capacity, and
+lets `STG_PlanSave()` consume a detected external cart for large saves. This is
+the storage-policy integration contract, not live external cartridge hardware
+proof; the target adapter still needs a separate ABI/probe pass.

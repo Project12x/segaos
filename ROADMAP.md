@@ -326,10 +326,18 @@ with in at least one emulator.
         BIOS-safe `BASIC` file and block-padded writes
   - [x] Prove BASIC SAVE/LOAD through the live internal-BRAM BIOS adapter in
         BlastEm/GDB with `BASIC_BRAM_PROBE=1` and `-Probe BasicBram`
+  - [x] Host-tested external-cart probe contract that maps injected
+        presence/capacity/free-byte results into `StorageVolumeInfo`
+        without raw hardware calls
+  - [ ] Implement and prove the live external Backup RAM cartridge adapter
+        after the `_MBURAM`/`BRAM_CART` ABI is documented by source or probe
   - [ ] Bind BASIC/file-manager storage callbacks to the later external-cart
         driver and named-file UI
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
-      blocks before designing the user-facing file manager
+      blocks before designing the user-facing file manager:
+  - [x] Normalize a probe result into the storage policy model with host tests
+  - [ ] Prove the target cartridge probe against BlastEm/real hardware or an
+        emulator that exposes external Backup RAM cart behavior
 - [ ] Add a BASIC interpreter/tooling rung:
   - [x] Host-tested fixed-storage program buffer for numbered lines, small
         keyword tokenization, sorted insert/replace/delete, compaction, and
