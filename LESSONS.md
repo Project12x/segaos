@@ -274,6 +274,13 @@ same failures.
   acceptable for the callback to report the padded block-size read because
   `BAS_ImportProgramImage()` uses the `SBAS` header to compute the exact
   required image bytes.
+- `BRMINIT` reports whether Backup RAM is Sega-formatted; it is not a format
+  command. Keep formatting as an explicit future user/tool action. The live
+  `BASIC_BRAM_PROBE=1` smoke test refuses unformatted BRAM instead of silently
+  formatting it.
+- Runtime probes that write BRAM should avoid clobbering the future user-facing
+  BASIC file. The current smoke test writes `BASPROBE`; the actual shell adapter
+  still defaults to the fixed `BASIC` filename until named-file UI exists.
 - Build BASIC as an OS tool in narrow stages: program buffer plus shell line
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
   sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,

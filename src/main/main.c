@@ -129,6 +129,21 @@ volatile uint16_t segaos_desktop_loop_title_vram_word0;
 volatile uint16_t segaos_desktop_loop_title_vram_word1;
 #endif
 #endif
+#ifdef BASIC_BRAM_PROBE
+void segaos_basic_bram_probe_halt(void) __attribute__((noinline, used));
+static void basic_bram_probe(void);
+
+volatile uint16_t segaos_basic_bram_main_phase;
+volatile uint16_t segaos_basic_bram_done_status;
+volatile uint16_t segaos_basic_bram_result0;
+volatile uint16_t segaos_basic_bram_result1;
+volatile uint16_t segaos_basic_bram_result2;
+volatile uint16_t segaos_basic_bram_result3;
+volatile uint16_t segaos_basic_bram_result4;
+volatile uint16_t segaos_basic_bram_result5;
+volatile uint16_t segaos_basic_bram_result6;
+volatile uint16_t segaos_basic_bram_result7;
+#endif
 #ifdef BOOT_SAFE_VISUAL_PROBE
 void segaos_visual_probe_halt(void) __attribute__((noinline, used));
 volatile uint16_t segaos_visual_probe_phase;
@@ -137,7 +152,8 @@ volatile uint16_t segaos_visual_probe_phase;
 void segaos_vdp_text_probe(void);
 #endif
 #if !defined(BOOT_PROBE) && !defined(SUB_RUNTIME_SMOKE) &&                 \
-    !defined(DESKTOP_INIT_PROBE) && !defined(VDP_TEXT_PROBE)
+    !defined(DESKTOP_INIT_PROBE) && !defined(BASIC_BRAM_PROBE) &&           \
+    !defined(VDP_TEXT_PROBE)
 static void main_loop(void);
 #endif
 #ifdef BOOT_PROBE
@@ -237,6 +253,8 @@ int main(void) {
   boot_sequence();
 #ifdef SUB_RUNTIME_SMOKE
   runtime_smoke_probe();
+#elif defined(BASIC_BRAM_PROBE)
+  basic_bram_probe();
 #elif defined(DESKTOP_INIT_PROBE)
   desktop_init_probe();
 #elif defined(BOOT_PROBE)
@@ -783,6 +801,46 @@ void segaos_desktop_init_halt(void) {
 }
 #endif
 
+#ifdef BASIC_BRAM_PROBE
+static void basic_bram_probe_capture(void) {
+  segaos_basic_bram_result0 = main_read_result(0);
+  segaos_basic_bram_result1 = main_read_result(1);
+  segaos_basic_bram_result2 = main_read_result(2);
+  segaos_basic_bram_result3 = main_read_result(3);
+  segaos_basic_bram_result4 = main_read_result(4);
+  segaos_basic_bram_result5 = main_read_result(5);
+  segaos_basic_bram_result6 = main_read_result(6);
+  segaos_basic_bram_result7 = main_read_result(7);
+}
+
+static void basic_bram_probe(void) {
+  segaos_basic_bram_main_phase = 0x8601;
+
+  main_send_cmd(CMD_BASIC_BRAM_PROBE, 0, 0, 0, 0);
+  segaos_basic_bram_main_phase = 0x8602;
+  segaos_basic_bram_done_status = main_wait_done();
+  basic_bram_probe_capture();
+
+  if (segaos_basic_bram_done_status == STATUS_DONE &&
+      segaos_basic_bram_result0 == 0x5342U &&
+      segaos_basic_bram_result1 == 0 &&
+      segaos_basic_bram_result5 == 0x0101U &&
+      segaos_basic_bram_result6 == 0x0211U &&
+      segaos_basic_bram_result7 == 0x75ffU) {
+    segaos_basic_bram_main_phase = 0x86ff;
+  } else {
+    segaos_basic_bram_main_phase = 0x86fe;
+  }
+
+  segaos_basic_bram_probe_halt();
+}
+
+void segaos_basic_bram_probe_halt(void) {
+  while (1) {
+  }
+}
+#endif
+
 static uint8_t wait_for_sub_ready(void) {
   uint16_t frame;
   uint16_t polls;
@@ -1021,7 +1079,8 @@ void segaos_probe_halt(void) {
 #endif
 
 #if !defined(BOOT_PROBE) && !defined(SUB_RUNTIME_SMOKE) &&                 \
-    !defined(DESKTOP_INIT_PROBE) && !defined(VDP_TEXT_PROBE)
+    !defined(DESKTOP_INIT_PROBE) && !defined(BASIC_BRAM_PROBE) &&           \
+    !defined(VDP_TEXT_PROBE)
 static void main_loop(void) {
   while (1) {
     /* Wait for VBlank */

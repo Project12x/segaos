@@ -391,3 +391,14 @@ line, missing target errors, `RETURN` without `GOSUB`, and stack overflow for a
 recursive self-call. This is still not arbitrary statement execution after
 `THEN`, string variables, arrays, desktop I/O, `LOAD`, or `SAVE`. Reuse mode
 remains clean-room.
+
+BASIC-BRAM-runtime update on 2026-07-03: `BASIC_BRAM_PROBE=1` now exercises
+that stack in BlastEm against the live Sub BIOS internal BRAM vector adapter.
+The opt-in probe initializes `BRM_InitInternalBiosOps()`, runs
+`BAS_RunBramSmoke()` through a non-user-facing `BASPROBE` file, and reports the
+result through Main CPU GDB symbols checked by
+`tools/probe_blastem_boot.ps1 -Probe BasicBram`. The current BlastEm run
+reported formatted internal BRAM (`0x0003`), two total/free 4K blocks before
+the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary
+`0x0211`, and terminal trace `0x75ff`. The probe intentionally does not call
+`BRMFORMAT`; unformatted BRAM remains an explicit future UX/tooling problem.

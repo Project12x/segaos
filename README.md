@@ -80,6 +80,10 @@ powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe Des
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_DIRTY_QUEUE_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe DesktopDirtyQueue
 
+# Prove BASIC SAVE/LOAD through the live internal BRAM BIOS adapter
+C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso BASIC_BRAM_PROBE=1
+powershell -ExecutionPolicy Bypass -File tools\probe_blastem_boot.ps1 -Probe BasicBram
+
 # Capture that WM-backed boot frame through BlastEm's internal screenshot path
 C:\SDKS\SGDK\bin\make.exe -r -B -f Makefile iso DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1
 powershell -ExecutionPolicy Bypass -File tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P -Template segaos_wm_probe_%Y%m%d_%H%M%S.png
@@ -255,6 +259,10 @@ BIOS-safe `BASIC` filename, and pads saves to the BIOS 0x40-byte block size
 from a static scratch buffer so the BIOS never reads beyond the exported image.
 The BASIC importer tolerates the padded block-size read because the `SBAS`
 image header carries the actual line table and storage length.
+`BASIC_BRAM_PROBE=1` now proves the same stack in BlastEm against the live Sub
+BIOS internal BRAM adapter: the probe uses a non-user-facing `BASPROBE` file,
+does not format unformatted BRAM, and passes when `SAVE` then `LOAD` round-trip
+the smoke BASIC program through the policy adapter and BRAM BIOS calls.
 
 The first BASIC code seam is also now in place. `src/sub/basic.c` is a
 clean-room, fixed-storage program buffer and tiny shell: it parses numbered

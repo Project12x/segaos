@@ -21,6 +21,7 @@ DESKTOP_LOOP_PROBE ?= 0
 DESKTOP_TIMING_PROBE ?= 0
 DESKTOP_WM_PROBE ?= 0
 DESKTOP_DIRTY_QUEUE_PROBE ?= 0
+BASIC_BRAM_PROBE ?= 0
 BOOT_SAFE_TEXT_PROBE ?= 0
 BOOT_SAFE_TITLE_PROBE ?= 0
 BOOT_SAFE_VISUAL_PROBE ?= 0
@@ -84,6 +85,10 @@ ifeq ($(DESKTOP_DIRTY_QUEUE_PROBE),1)
 CFLAGS_SUB  += -DDESKTOP_INIT_PROBE -DDESKTOP_DIRTY_QUEUE_PROBE
 CFLAGS_MAIN += -DDESKTOP_INIT_PROBE -DDESKTOP_DIRTY_QUEUE_PROBE -Os
 endif
+ifeq ($(BASIC_BRAM_PROBE),1)
+CFLAGS_SUB  += -DBASIC_BRAM_PROBE
+CFLAGS_MAIN += -DBASIC_BRAM_PROBE
+endif
 ifeq ($(BOOT_SAFE_TEXT_PROBE),1)
 CFLAGS_SUB  += -DBOOT_SAFE_TEXT_PROBE
 CFLAGS_MAIN += -DBOOT_SAFE_TEXT_PROBE
@@ -140,6 +145,7 @@ SUB_ASM_SRCS += $(SUB_DIR)/bram_bios_68k.s
 SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/basic.c \
                $(SUB_DIR)/basic_bram_storage.c \
+               $(SUB_DIR)/basic_bram_smoke.c \
                $(SUB_DIR)/basic_storage.c \
                $(SUB_DIR)/bram.c \
                $(SUB_DIR)/bram_bios.c \
@@ -215,6 +221,7 @@ info:
 	@echo "DESKTOP_TIMING_PROBE: $(DESKTOP_TIMING_PROBE)"
 	@echo "DESKTOP_WM_PROBE: $(DESKTOP_WM_PROBE)"
 	@echo "DESKTOP_DIRTY_QUEUE_PROBE: $(DESKTOP_DIRTY_QUEUE_PROBE)"
+	@echo "BASIC_BRAM_PROBE: $(BASIC_BRAM_PROBE)"
 	@echo "BOOT_SAFE_TEXT_PROBE: $(BOOT_SAFE_TEXT_PROBE)"
 	@echo "BOOT_SAFE_TITLE_PROBE: $(BOOT_SAFE_TITLE_PROBE)"
 	@echo "BOOT_SAFE_VISUAL_PROBE: $(BOOT_SAFE_VISUAL_PROBE)"
@@ -238,6 +245,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_basic_storage.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_basic_bram_storage.c src/sub/basic.c src/sub/basic_storage.c src/sub/basic_bram_storage.c src/sub/bram.c src/sub/storage.c -o $(BUILD_DIR)/test_basic_bram_storage.exe
 	$(BUILD_DIR)/test_basic_bram_storage.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_basic_bram_smoke.c src/sub/basic.c src/sub/basic_storage.c src/sub/basic_bram_storage.c src/sub/basic_bram_smoke.c src/sub/bram.c src/sub/storage.c -o $(BUILD_DIR)/test_basic_bram_smoke.exe
+	$(BUILD_DIR)/test_basic_bram_smoke.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_framebuffer.c src/main/framebuffer.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_framebuffer.exe
 	$(BUILD_DIR)/test_framebuffer.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe

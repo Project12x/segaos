@@ -53,6 +53,7 @@
 #define CMD_CD_STOP 0x41      /* Stop CD audio                   */
 #define CMD_FILE_READ 0x50    /* Read file from CD               */
 #define CMD_FILE_WRITE 0x51   /* Write file to Backup RAM        */
+#define CMD_BASIC_BRAM_PROBE 0x52 /* Probe BASIC SAVE/LOAD via BRAM */
 #define CMD_MOUSE_EVENT 0x60  /* Mouse input event from Main CPU */
 
 #define COMM_MAIN_IDLE 0x00

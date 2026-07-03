@@ -15,6 +15,10 @@
 #include "boot_probe.h"
 #include "common.h"
 #ifndef BOOT_PROBE
+#ifdef BASIC_BRAM_PROBE
+#include "basic_bram_smoke.h"
+#include "bram.h"
+#endif
 #include "blitter.h"
 #ifndef BOOT_SAFE_DESKTOP
 #include "calc.h"
@@ -71,6 +75,12 @@ static const uint8_t cursorBitmap[] = {
     0x00, 0x80, /* .......  1....... */
     0x00, 0x00, /* ........ ........ */
 };
+#endif
+
+#ifdef BASIC_BRAM_PROBE
+static BramBiosContext basicBramProbeContext;
+static BramBiosOps basicBramProbeOps;
+static BasicBramSmokeResult basicBramProbeResult;
 #endif
 #endif
 
@@ -535,6 +545,49 @@ static void process_command(uint8_t cmd) {
     break;
 #endif
   }
+
+#ifdef BASIC_BRAM_PROBE
+  case CMD_BASIC_BRAM_PROBE: {
+    uint8_t ok;
+
+    sub_write_result(7, 0x7501);
+    if (!BRM_InitInternalBiosOps(&basicBramProbeContext,
+                                 &basicBramProbeOps)) {
+      BAS_ClearBramSmokeResult(&basicBramProbeResult);
+      basicBramProbeResult.status = BAS_BRAM_SMOKE_STORAGE_INIT_FAILED;
+      sub_write_result(0, basicBramProbeResult.magic);
+      sub_write_result(1, basicBramProbeResult.status);
+      sub_write_result(2, basicBramProbeResult.formatStatus);
+      sub_write_result(3, 0);
+      sub_write_result(4, 0);
+      sub_write_result(5, 0);
+      sub_write_result(6, 0);
+      sub_write_result(7, 0x75e2);
+      sub_done();
+      break;
+    }
+
+    ok = BAS_RunBramSmoke(&basicBramProbeResult, &basicBramProbeOps,
+                          BAS_BRAM_SMOKE_FILENAME);
+    sub_write_result(0, basicBramProbeResult.magic);
+    sub_write_result(1, basicBramProbeResult.status);
+    sub_write_result(2, basicBramProbeResult.formatStatus);
+    sub_write_result(3, basicBramProbeResult.totalBlocks4K);
+    sub_write_result(4, basicBramProbeResult.freeBlocks4K);
+    sub_write_result(5, (uint16_t)((basicBramProbeResult.saveOk << 8) |
+                                  basicBramProbeResult.loadOk));
+    sub_write_result(6, (uint16_t)((basicBramProbeResult.lineCount << 8) |
+                                  ((basicBramProbeResult.lastSaveTarget & 0xfU)
+                                   << 4) |
+                                  (basicBramProbeResult.lastLoadTarget &
+                                   0xfU)));
+    sub_write_result(7, ok ? 0x75ff
+                           : (uint16_t)(0x7500U |
+                                        (basicBramProbeResult.status & 0xffU)));
+    sub_done();
+    break;
+  }
+#endif
 
   case CMD_OPEN_WINDOW: {
     /* Params: x, y, w, h from CMD registers */

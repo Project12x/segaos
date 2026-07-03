@@ -7,7 +7,7 @@ param(
   [int]$GdbTimeoutSeconds = 60,
   [string]$IpAddress = "0xff0000",
   [string]$ExpectedPrefix = "43fa000a4eb80364",
-  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "DesktopDirtyQueue", "VdpText")]
+  [ValidateSet("Ip", "DualCpu", "DualCpuStatus", "DualCpuWramSurvey", "DualCpuWramRetClear", "DualCpuWramSweep", "Framebuffer", "MegadevControl", "RuntimeSmoke", "DesktopInit", "DesktopRepeat", "DesktopLoop", "DesktopTiming", "DesktopWm", "DesktopDirtyQueue", "BasicBram", "VdpText")]
   [string]$Probe = "Ip"
 )
 
@@ -438,6 +438,29 @@ try {
       "info registers pc sp"
     )
     foreach ($name in $vdpTextNames) {
+      $gdbCommands += "echo $name="
+      $gdbCommands += "p/x (unsigned short)$name"
+    }
+  } elseif ($Probe -eq "BasicBram") {
+    $basicBramNames = @(
+      "segaos_basic_bram_main_phase",
+      "segaos_basic_bram_done_status",
+      "segaos_basic_bram_result0",
+      "segaos_basic_bram_result1",
+      "segaos_basic_bram_result2",
+      "segaos_basic_bram_result3",
+      "segaos_basic_bram_result4",
+      "segaos_basic_bram_result5",
+      "segaos_basic_bram_result6",
+      "segaos_basic_bram_result7"
+    )
+
+    $gdbCommands += @(
+      "break segaos_basic_bram_probe_halt",
+      "continue",
+      "info registers pc sp"
+    )
+    foreach ($name in $basicBramNames) {
       $gdbCommands += "echo $name="
       $gdbCommands += "p/x (unsigned short)$name"
     }
@@ -959,6 +982,51 @@ try {
       }
     }
 
+    Write-Output "probe_gdb_exit=$gdbExit"
+    Write-Output "probe_breakpoint_hit=$hitBreakpoint"
+
+    if ($gdbExit -ne 0 -or -not $hitBreakpoint -or $failed.Count) {
+      exit 1
+    }
+  } elseif ($Probe -eq "BasicBram") {
+    $joined = $gdbOutput -join "`n"
+    $hitBreakpoint = ($joined -match "Breakpoint \d+, .*segaos_basic_bram_probe_halt")
+    $basicBramNames = @(
+      "segaos_basic_bram_main_phase",
+      "segaos_basic_bram_done_status",
+      "segaos_basic_bram_result0",
+      "segaos_basic_bram_result1",
+      "segaos_basic_bram_result2",
+      "segaos_basic_bram_result3",
+      "segaos_basic_bram_result4",
+      "segaos_basic_bram_result5",
+      "segaos_basic_bram_result6",
+      "segaos_basic_bram_result7"
+    )
+    $basicBramValues = Get-NamedProbeValues $gdbOutput $basicBramNames
+    $expectedValues = [ordered]@{
+      segaos_basic_bram_main_phase = "0x86ff"
+      segaos_basic_bram_done_status = "0x0003"
+      segaos_basic_bram_result0 = "0x5342"
+      segaos_basic_bram_result1 = "0x0000"
+      segaos_basic_bram_result2 = "0x0003"
+      segaos_basic_bram_result5 = "0x0101"
+      segaos_basic_bram_result6 = "0x0211"
+      segaos_basic_bram_result7 = "0x75ff"
+    }
+
+    $failed = @()
+    foreach ($name in $expectedValues.Keys) {
+      $actualValue = $basicBramValues[$name]
+      $ok = $actualValue -eq $expectedValues[$name]
+      Write-Output "basic_bram_check_$name=$ok expected=$($expectedValues[$name]) actual=$actualValue"
+      if (-not $ok) {
+        $failed += $name
+      }
+    }
+
+    Write-Output "basic_bram_total_blocks4k=$($basicBramValues["segaos_basic_bram_result3"])"
+    Write-Output "basic_bram_free_blocks4k=$($basicBramValues["segaos_basic_bram_result4"])"
     Write-Output "probe_gdb_exit=$gdbExit"
     Write-Output "probe_breakpoint_hit=$hitBreakpoint"
 

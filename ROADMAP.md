@@ -324,6 +324,8 @@ with in at least one emulator.
         behind `BramBiosOps`
   - [x] Bind BASIC storage callbacks to the internal-BRAM adapter using a fixed
         BIOS-safe `BASIC` file and block-padded writes
+  - [x] Prove BASIC SAVE/LOAD through the live internal-BRAM BIOS adapter in
+        BlastEm/GDB with `BASIC_BRAM_PROBE=1` and `-Probe BasicBram`
   - [ ] Bind BASIC/file-manager storage callbacks to the later external-cart
         driver and named-file UI
 - [ ] Detect/probe external Backup RAM cartridge presence, capacity, and free
@@ -360,6 +362,9 @@ with in at least one emulator.
   - [ ] Desktop text output/input binding through the VDI/AES-style layers
   - [x] Connect BASIC `LOAD`/`SAVE` storage callbacks to the internal-BRAM
         read/write bridge
+  - [x] Add a live internal-BRAM BASIC smoke probe that writes a `BASPROBE`
+        file, reloads it, and reports the result through GDB-visible Main
+        variables without auto-formatting BRAM
   - [ ] Connect BASIC `LOAD`/`SAVE` storage callbacks to the later
         external-cart read/write driver
 - [ ] Decide app/resource packaging format on ISO9660

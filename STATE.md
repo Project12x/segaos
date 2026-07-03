@@ -145,7 +145,8 @@ The active strategy is a bring-up ladder:
 | Desktop WM allocation/render probe | Passing | `DESKTOP_WM_PROBE=1` + `-Probe DesktopWm` proves one `WM_NewWindow()` document window through z-order and dirty-window clipping; window count `0x0001`, flags `0x0007`, frame origin `0x2822`, trace `0x7404` |
 | Desktop WM visual capture | Passing | `DESKTOP_WM_PROBE=1 BOOT_SAFE_VISUAL_PROBE=1` + debugger-backed BlastEm internal screenshot captures readable WM-backed title/body text at `C:\tmp\segaos_screens_internal\segaos_wm_probe_20260630_235603.png` |
 | Desktop dirty queue upload probe | Passing | `DESKTOP_DIRTY_QUEUE_PROBE=1` + `-Probe DesktopDirtyQueue` proves one queued 32-byte tile upload through `FB_UpdateTileQueue()`; terminal phase `0x85ff`, tile `0x0147`, queue bytes `0x0020`, WRAM `0xf11f/0x1f11`, VRAM `0xf11f/0x1f11` |
-| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
+| BASIC internal-BRAM runtime probe | Passing | `BASIC_BRAM_PROBE=1` + `-Probe BasicBram` proves live Sub BIOS internal BRAM access in BlastEm: formatted status `0x0003`, 2 total/free 4K blocks before the write, `SAVE`/`LOAD` summary `0x0101`, loaded line/target summary `0x0211`, and terminal trace `0x75ff` |
+| Host tests | Passing | `make host-tests` covers dirty-rect clipping, half-open intersection, root/window redraw planning, subtraction strips, edge-touch merge, corner-touch separation, overflow collapse, 8x8 tile range mapping, dirty tile transfer budgeting, dirty tile upload queue planning, BRAM BIOS wrapper contract behavior, internal BRAM BIOS adapter callback routing, BASIC internal-BRAM storage bridge and smoke behavior, BASIC program-buffer parsing/token storage/replacement/deletion/decoding plus binary image export/import, shell line entry/LIST/NEW/RUN/SAVE/LOAD, BASIC storage adapter routing through the save-target policy, integer/string expression evaluation, sequential PRINT/END execution, GOTO target resolution and step-limit handling, A-Z integer `LET` variables and runtime expression lookup, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, fixed-depth `GOSUB`/`RETURN`, framebuffer tile-span conversion, dirty-queue upload chunking, storage save-target policy, and the fake-GDB timeout regression for the BlastEm probe harness |
 | Default visual capture | Passing | `BOOT_SAFE_VISUAL_PROBE=1` + `tools\capture_blastem_internal_screenshot.ps1 -DebugAutoBoot -InputMode PostMessage -StartKey Enter -ScreenshotKey P` proves the default desktop frame reaches `segaos_visual_probe_halt` phase `0x76ff` and captures readable menu/title/body text through BlastEm internal screenshotting at `C:\tmp\segaos_screens_internal\segaos_repeat_20260630_231605.png` |
 
 ## Toolchain
@@ -190,7 +191,12 @@ The active strategy is a bring-up ladder:
   Main build uses `-Os` and skips mouse init plus boot checker fill to stay
   under the 3,584-byte IP boot-sector limit while preserving the
   `FB_UpdateTileQueue()` call path
-- Boot-safe visual-probe IP usage: 2,752 text bytes last observed with
+- BASIC internal-BRAM probe usage: Main IP 3,112 text bytes / 5,168 BSS bytes
+  and SP 24,446 text bytes / 15,318 BSS bytes observed locally with
+  `BASIC_BRAM_PROBE=1`; the probe remains opt-in because it intentionally links
+  the BASIC runtime, storage adapter, BRAM bridge, and live Sub BIOS adapter
+  into the boot SP
+- Boot-safe visual-probe IP usage: 2,832 text bytes last observed with
   `BOOT_SAFE_VISUAL_PROBE=1`; SP now follows the 11,808-byte boot-safe desktop
   payload
 - Direct VDP text probe IP usage: 2,704 text bytes observed locally with
@@ -241,6 +247,13 @@ The active strategy is a bring-up ladder:
   padded to 0x40-byte normal BRAM blocks from a static 2 KB scratch buffer;
   reads may report the padded block count, which the `SBAS` importer accepts
   because the image header defines the actual required bytes.
+- BASIC internal-BRAM smoke seam: `BAS_RunBramSmoke()` is host-tested against
+  fake `BramBiosOps` and target-proven through `BASIC_BRAM_PROBE=1`. It stores
+  a two-line BASIC program, routes shell `SAVE`/`LOAD` through the policy
+  adapter and internal BRAM bridge, verifies the loaded lines and image hash,
+  and reports a compact result through Main CPU GDB variables. The target probe
+  uses `BASPROBE` rather than the user-facing `BASIC` filename and does not
+  format BRAM when `BRMINIT` reports unformatted storage.
 - BASIC program-buffer/shell seam: `BAS_StoreSourceLine()`,
   `BAS_SubmitConsoleLine()`, and `BAS_SubmitConsoleLineWithStorage()` are
   host-tested as clean-room fixed-storage BASIC
@@ -405,6 +418,7 @@ SGDK DMA queue source:
 | BRAM BIOS Adapter | Sub/host | `src/sub/bram_bios.c`, `src/sub/bram_bios_68k.s` | Host-tested callback binding plus target-assembled raw Sub BIOS `$005F16` calls for internal Backup RAM |
 | BASIC Storage Adapter | Sub/host | `src/sub/basic_storage.c` | Host-tested bridge from BASIC `SAVE`/`LOAD` byte callbacks to `STG_PlanSave()` and selected-volume read/write callbacks |
 | BASIC BRAM Storage | Sub/host | `src/sub/basic_bram_storage.c` | Host-tested bridge from BASIC storage callbacks to internal BRAM read/write operations using fixed filename and block-padded writes |
+| BASIC BRAM Smoke | Sub/host | `src/sub/basic_bram_smoke.c` | Host-tested and BlastEm-proven smoke seam for BASIC `SAVE`/`LOAD` over live internal BRAM via the BRAM BIOS adapter |
 | BASIC Core | Sub/host | `src/sub/basic.c` | Clean-room fixed-storage BASIC program buffer and shell/evaluator/runner seam with numbered-line parsing, keyword tokenization, sorted insert/replace/delete, compaction, decode, binary image export/import, line entry, `LIST`, `NEW`, callback-backed `SAVE`/`LOAD`, simple integer/string values, sequential `PRINT`/`END`, literal-line `GOTO`, fixed A-Z integer `LET` variables, integer `IF`/`THEN` branching, callback-backed integer `INPUT`, and fixed-depth `GOSUB`/`RETURN` |
 | Mouse Driver | Main | `src/main/mouse.c` | Mega Mouse hardware polling |
 | Framebuffer | Main/host | `src/main/framebuffer.c` | Linear-to-tile conversion seam, dirty queue upload consumer, and Main-side DMA pipeline |
