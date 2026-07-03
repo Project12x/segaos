@@ -236,10 +236,14 @@ NTSC-budgeted slices instead of repeating the same first slice.
 BlastEm/GDB: after a real Sub-rendered desktop frame, Main schedules and
 uploads two successive 235-tile slices through `FB_UpdateTileQueue()`, reaches
 phase `0x87ff`, and verifies a poisoned VRAM word in the second slice is
-restored to the Word RAM value `0xf11f`. This is still a narrow diagnostic
-proof, not the production VBlank loop. The full alternating double-buffer and
-live dirty-tile VBlank policies remain later stability work before returning to
-normal menu/cursor/app rendering.
+restored to the Word RAM value `0xf11f`. `src/main/frame_upload_pump.c` now
+adds the host-tested state machine that will own that cursor in the live loop:
+one tick plans and uploads one budgeted queue, the pump rejects a new frame
+while an upload is active or waiting for Word RAM return, and a failed upload
+rewinds the cursor instead of marking the frame returnable. This is still a
+narrow policy seam, not the production VBlank loop. The full alternating
+double-buffer and live dirty-tile VBlank policies remain later stability work
+before returning to normal menu/cursor/app rendering.
 
 Storage planning now assumes an external Backup RAM cartridge-class writable
 store is available for real small-document workflows. CD-ROM/ISO9660 remains

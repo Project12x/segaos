@@ -372,3 +372,9 @@ same failures.
   and framebuffer tilemap/palette setup to fit the 3,584-byte IP envelope, so
   the next real milestone is moving the same cursor/queue path into the
   measured live desktop flush point.
+- `src/main/frame_upload_pump.c` is now the host-tested owner for that future
+  live path. Use it instead of open-coding cursor advancement in `main_loop()`:
+  `FUP_Tick()` plans and uploads one budgeted queue per call, only
+  `FUP_ShouldReturnWordRam()` gives permission to return the bank, and upload
+  failure rewinds the cursor and enters an error state. This keeps the
+  single-bank return decision tied to actual upload completion.

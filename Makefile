@@ -227,6 +227,7 @@ info:
 	@echo "DESKTOP_TIMING_PROBE: $(DESKTOP_TIMING_PROBE)"
 	@echo "DESKTOP_WM_PROBE: $(DESKTOP_WM_PROBE)"
 	@echo "DESKTOP_DIRTY_QUEUE_PROBE: $(DESKTOP_DIRTY_QUEUE_PROBE)"
+	@echo "DESKTOP_SCHEDULER_PROBE: $(DESKTOP_SCHEDULER_PROBE)"
 	@echo "BASIC_BRAM_PROBE: $(BASIC_BRAM_PROBE)"
 	@echo "BOOT_SAFE_TEXT_PROBE: $(BOOT_SAFE_TEXT_PROBE)"
 	@echo "BOOT_SAFE_TITLE_PROBE: $(BOOT_SAFE_TITLE_PROBE)"
@@ -257,6 +258,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_framebuffer.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_frame_scheduler.c src/main/frame_scheduler.c src/sub/dirty_rect.c -o $(BUILD_DIR)/test_frame_scheduler.exe
 	$(BUILD_DIR)/test_frame_scheduler.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -DFB_HOST_TEST -Iinclude tests/test_frame_upload_pump.c src/main/frame_upload_pump.c src/main/frame_scheduler.c -o $(BUILD_DIR)/test_frame_upload_pump.exe
+	$(BUILD_DIR)/test_frame_upload_pump.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_storage_policy.c src/sub/storage.c -o $(BUILD_DIR)/test_storage_policy.exe
 	$(BUILD_DIR)/test_storage_policy.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_external_cart_probe.c src/sub/external_cart.c src/sub/storage.c -o $(BUILD_DIR)/test_external_cart_probe.exe

@@ -438,4 +438,9 @@ through `FB_UpdateTileQueue()`, reaches phase `0x87ff`, and verifies a poisoned
 VRAM word in the second slice changes from `0x0ee0` back to the Word RAM value
 `0xf11f`. The probe uses a narrow Main path to fit the Megadev-compatible
 3,584-byte IP window; it is target evidence for the scheduler/upload contract,
-not the final long-running VBlank policy.
+not the final long-running VBlank policy. `src/main/frame_upload_pump.c` now
+adds the host-tested state machine for that future policy: it starts a rendered
+frame cursor, advances one budgeted upload queue per tick, waits to signal Word
+RAM return until the final slice completes, rejects overlapping frame starts,
+and rewinds the cursor on upload failure. Reuse mode remains pattern-only /
+clean-room against the SGDK DMA queue reference noted above.
