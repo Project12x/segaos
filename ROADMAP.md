@@ -1,5 +1,27 @@
 # Roadmap
 
+## North Star: Impressive Stock Sega CD Tech Demo
+
+Reference-backed goal: make a real Sega CD behave like a small 68k GUI
+computer, not just display a desktop-themed picture. See
+`docs/reference/impressive_tech_demo_goal.md`.
+
+- [ ] Stable long-running frame transfer that does not rely on full-frame
+      active-display uploads as the final policy
+- [ ] Default boot reaches a readable Mac-like desktop shell with a menu bar,
+      pointer, and at least one real window
+- [ ] Window-manager loop owns redraw/clipping outside opt-in probes
+- [ ] One useful tool window is visible and interactive enough to prove the OS
+      model: BASIC editor/runtime first, then text viewer/editor
+- [ ] BASIC can `LIST`, `RUN`, `SAVE`, and `LOAD` through a demonstrated storage
+      path
+- [ ] CD/resource-loaded content appears in a window
+- [ ] Image demo uses a real asset pipeline: preconverted image first, GIF or
+      64-color-style presentation only after format/provenance and palette
+      strategy are documented
+- [ ] Final demo artifact includes debugger-backed BlastEm internal screenshot
+      plus GDB/VRAM/BRAM evidence for the low-level paths
+
 ## Phase 1: Sub CPU Build -- COMPLETE
 - [x] crt0.s with SP header and vector table
 - [x] Freestanding C headers (stdint, stddef, stdbool, string)

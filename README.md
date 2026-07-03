@@ -2,16 +2,26 @@
 
 A Mac OS-inspired desktop operating system for the Sega CD (Mega CD), featuring a windowed GUI with mouse support rendered by the Sub CPU's software blitter and displayed via the Main CPU's VDP pipeline.
 
-## Features
+## Current Direction
 
-- **Windowed GUI** -- Mac/Win3.1-style window manager with drag, resize, close
-- **Mouse Support** -- Sega Mega Mouse driver with full cursor tracking
+- **Tech-demo goal** -- make a stock Sega CD behave like a small 68k GUI
+  computer: readable desktop, real windows, small tools, CD resources, and
+  Backup RAM save/load evidence
+- **Windowed GUI foundation** -- Mac/Win3.1-style desktop shell, dirty redraw
+  ownership, and proven boot-safe window frames
+- **Mouse support foundation** -- Sega Mega Mouse driver and input forwarding
+  seams; full window/app interaction is still a later rung
 - **Software Blitter** -- 2bpp (4 grayscale) and 4bpp Windows-like palette modes
-- **Applications** -- Notepad, Calculator, Virtual Keyboard, Paint
+- **Applications in progress** -- BASIC tooling/storage seams are host-tested
+  and BRAM-proven; Notepad, Calculator, virtual keyboard, Paint, and image/text
+  viewers remain tech-demo targets
 - **Dual-CPU Architecture** -- Sub CPU renders framebuffer, Main CPU handles VDP display
 - **Sega CD Boot Disc Work** -- IP/SP packaging, regional security bytes, and
   cooked ISO generation are aligned with the Megadev 1.2.0 boot-layout
   reference
+
+See [docs/reference/impressive_tech_demo_goal.md](docs/reference/impressive_tech_demo_goal.md)
+for the current demo bar and reference-backed design filter.
 
 ## Architecture
 

@@ -4,6 +4,20 @@ This project is pre-alpha and the plan is allowed to change. These notes capture
 facts learned from emulator evidence so future work does not re-litigate the
 same failures.
 
+## Demo Direction
+
+- The product target is an impressive stock Sega CD tech demo: readable
+  Mac-like desktop, real windows, useful tools, CD/resource-backed content, and
+  Backup RAM save/load evidence. The detailed bar lives in
+  `docs/reference/impressive_tech_demo_goal.md`.
+- Do not mistake infrastructure for the demo. Frame scheduling, dirty queues,
+  BRAM wrappers, and BASIC storage matter because they unlock visible workflows:
+  a stable desktop, a BASIC window that can `LIST`/`RUN`/`SAVE`/`LOAD`, a text
+  document viewer/editor, and eventually a small image viewer.
+- New rungs should name the reference basis and the demo effect they unlock.
+  If a change is invisible and does not unblock one of the demo effects, keep it
+  out of the critical path.
+
 ## Reference Code First
 
 - Treat Megadev 1.2.0 as the primary Sega CD boot-layout reference until a

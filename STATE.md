@@ -124,17 +124,23 @@ byte count, row-span count, and caller-supplied budget fit, while
 into explicit upload spans with separate budget-exceeded and storage-overflow
 flags.
 
-The active strategy is a bring-up ladder:
+The active strategy is a bring-up ladder aimed at an impressive stock Sega CD
+tech demo: a readable Mac-like desktop that can open useful tool windows, show
+CD/resource-backed content, and prove small-document save/load through the
+Backup RAM policy. The demo goal is recorded in
+`docs/reference/impressive_tech_demo_goal.md`.
 
 1. Reproducible boot artifact
 2. Minimal dual-CPU probe
 3. 4bpp framebuffer probe
 4. VDP timing budget
 5. Desktop foundations: text, clipping, root redraw, then window furniture
-6. Storage and OS features, planned around external Backup RAM cartridge-class
+6. Visible tools: BASIC LIST/RUN/SAVE/LOAD first, then text and image viewer
+   paths that demonstrate real document/resource workflows
+7. Storage and OS features, planned around external Backup RAM cartridge-class
    writable persistence with internal BRAM as fallback, plus a staged BASIC
    tooling path
-7. Compatibility and release hardening
+8. Compatibility and release hardening
 
 ## Build Status
 | Target | Status | Notes |
