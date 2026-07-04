@@ -263,11 +263,10 @@ the size-fit full-frame bridge with `FUP_PlanNextQueueCompact()`: across four
 complete frames, Main uploads four 235-tile slices plus one 180-tile final
 slice per frame, returns Word RAM only after each final slice, and Sub accepts
 the next render command. The pump harness passes the frame number in
-`CMD_RENDER_FRAME` parameter 0. The screenshot audit found the captured marker at
-`C:\tmp\segaos_screens_internal\segaos_pump_frame_20260703_172624.png` is
-still `Frame 1`, not the GDB-proven fourth frame. Treat that as evidence that
-the repeated command/upload path runs, not as evidence that the visible latest
-1M bank policy is solved.
+`CMD_RENDER_FRAME` parameter 0. After the Sub-side RET handoff fix, a fresh
+debugger-backed pump screenshot now visibly shows `Frame 4` through the compact
+bank-0 linear upload path:
+`C:\tmp\segaos_screens_internal\segaos_pump_bank0_20260704_093959.png`.
 
 `BOOT_SAFE_LIVE_PROBE=1` now moves the four-cycle proof into the default
 boot-safe `main_loop()` and fixes the stale-bank false positive. The Sub CPU
@@ -279,8 +278,15 @@ pre-upload frame count `0x0003`, and a frame-4 sentinel `0x4444` in the selected
 bank. A debugger-backed BlastEm internal screenshot now visibly shows
 `Frame 4` and the live color swatch:
 `C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`.
-Production VBlank/dirty-tile scheduling still needs to adopt the same
-current-bank policy.
+`include/wram_bank.h` now has host-tested Megadev-derived RET mapping helpers
+for Main-side 1M Word RAM (`RET=0` -> bank 0, `RET=1` -> bank 1), but this is
+not enough by itself for production. `$220000` is the bank-1 VDP-tile/pixel
+window, so feeding bank 1 through the linear `FB_UpdateTileQueue()` converter
+produced a striped screenshot
+(`C:\tmp\segaos_screens_internal\segaos_pump_current_20260704_093258.png`), and
+a direct bank-1 DMA experiment overflowed the 3,584-byte IP slot at 3,716
+bytes. Production VBlank/dirty-tile scheduling still needs a size-conscious
+bank-1 transfer path before true alternating 1M double buffering is accepted.
 `src/main/frame_upload_pump.c` still adds the
 host-tested callback state machine that will own that cursor in the live loop:
 one tick plans and uploads one budgeted queue, the pump rejects a new frame

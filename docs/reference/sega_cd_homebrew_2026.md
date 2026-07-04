@@ -442,8 +442,9 @@ extends that evidence across the whole frame and across repeated frames: Main
 uploads four 235-tile queues plus one final 180-tile queue per frame, returns
 Word RAM only after each final slice, and proves four complete
 render/upload/return cycles with terminal phase `0x88ff` and frame count
-`0x0004`. Screenshot review on 2026-07-03 found that this does not yet prove
-the newest frame is visible: the captured pump frame still reads `Frame 1`.
+`0x0004`. A follow-up screenshot on 2026-07-04 now shows the compact pump's
+visible bank-0 path reaching `Frame 4`:
+`C:\tmp\segaos_screens_internal\segaos_pump_bank0_20260704_093959.png`.
 `BOOT_SAFE_LIVE_PROBE=1` moves the repeated-cycle proof into the default
 boot-safe `main_loop()` and now proves latest visible frame selection. The stale
 bank root cause was the Sub return helper always clearing RET in 1M mode; per
@@ -453,8 +454,18 @@ Main-side Word RAM windows before upload. It reaches phase `0x89ff` with frame
 count `0x0004`, proves pre-upload frame-4 sentinel `0x4444`, and has a
 debugger-backed internal screenshot showing `Frame 4` at
 `C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`.
+The new `include/wram_bank.h` helper records the Megadev-derived RET mapping
+under host test, but the target path must still respect format: the Main memory
+map labels `$220000` as the 1M bank-1 VDP-tile/pixel window. A naive bank-1
+linear-converter upload produced a striped screenshot at
+`C:\tmp\segaos_screens_internal\segaos_pump_current_20260704_093258.png`, and
+a direct bank-1 DMA attempt measured 3,716 bytes for the pump Main IP, exceeding
+the 3,584-byte physical IP slot. Reuse record for the bank mapping remains
+Megadev repo `https://github.com/drojaazu/megadev`, commit
+`7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`, MIT license, inspected
+`lib/main/gate_arr.def.h`; reuse mode is pattern-only / clean-room.
 The repeated size-fit
-pump build measured 3,460 bytes, while the direct callback-pump target attempt
+pump build now measures 3,516 bytes, while the direct callback-pump target attempt
 measured 3,948 bytes and an attempt to force the compact pump through the older
 `DESKTOP_LOOP_PROBE` scaffolding measured 4,332 bytes. Both overflow cases
 exceed the physical IP range, so the lean `DesktopPump` harness remains the

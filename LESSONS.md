@@ -21,10 +21,10 @@ same failures.
   should either make the captured desktop visibly more computer-like, prove that
   visible state can change over time, or unlock a user workflow such as BASIC,
   text viewing/editing, image viewing, CD/resource loading, or BRAM save/load.
-- The immediate display goal is current-frame visibility. The compact pump can
-  repeat render/upload/return cycles under GDB, but bank-0 screenshots are stale
-  and blind bank-1 upload is corrupt. New UI work should wait until a screenshot
-  shows the same changing frame marker or contents reported by the debugger.
+- The immediate display goal is current-frame visibility. The compact pump now
+  repeats render/upload/return cycles under GDB and visibly reaches `Frame 4`
+  through the bank-0 linear path. Blind bank-1 upload is corrupt, so new UI work
+  should stay on the proven bank-0 path until bank-1 transfer format is solved.
 
 ## Reference Code First
 
@@ -205,10 +205,22 @@ same failures.
   screenshot at
   `C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`
   visibly shows `Frame 4`.
+- After the same RET fix, `DESKTOP_PUMP_PROBE=1` also has a debugger-backed
+  screenshot showing `Frame 4` through the compact bank-0 linear upload path:
+  `C:\tmp\segaos_screens_internal\segaos_pump_bank0_20260704_093959.png`.
+  The earlier `Frame 1` pump capture is now historical stale-bank evidence.
+- Do not turn the Megadev RET mapping directly into a linear framebuffer
+  pointer rule. `include/wram_bank.h` host-tests the Main-side mapping
+  (`RET=0` bank 0, `RET=1` bank 1), but the Main memory map labels `$220000`
+  as the bank-1 VDP-tile/pixel window. Feeding `$220000` through the linear
+  framebuffer converter produced a striped screenshot at
+  `C:\tmp\segaos_screens_internal\segaos_pump_current_20260704_093258.png`.
+  A direct bank-1 DMA attempt measured 3,716 bytes for the pump Main IP, over
+  the 3,584-byte boot slot, so the attempt was not retained.
 - Do not assume full production alternating double buffering is solved. The
   boot-safe live probe proves current-bank selection for a compact full-frame
   pump; the production long-running VBlank/dirty-tile scheduler still needs its
-  own bank ownership and return policy.
+  own bank ownership, bank-1 transfer-format, and return policy.
 
 ## Framebuffer Writes
 

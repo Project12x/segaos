@@ -83,9 +83,11 @@ path.
 Current frame-transfer evidence: `DESKTOP_PUMP_PROBE=1` proves the compact
 Main-side upload policy can consume a full Sub-rendered frame as five budgeted
 tile uploads, return Word RAM only after the final slice, and repeat that
-render/upload/return cycle four times in BlastEm/GDB. The default boot-safe
-first frame now uses that compact pump path and has a debugger-backed BlastEm
-screenshot at
+render/upload/return cycle four times in BlastEm/GDB. A fresh pump screenshot
+now shows the visible marker reaching `Frame 4` through the bank-0 linear path:
+`C:\tmp\segaos_screens_internal\segaos_pump_bank0_20260704_093959.png`. The
+default boot-safe first frame now uses that compact pump path and has a
+debugger-backed BlastEm screenshot at
 `C:\tmp\segaos_screens_internal\segaos_pump_default_20260703_164252.png`.
 `BOOT_SAFE_LIVE_PROBE=1` proves the default boot-safe `main_loop()` can drive
 four post-boot render/upload/return cycles in GDB and now proves the visible
@@ -98,5 +100,7 @@ requested frame. The final proof reaches terminal phase `0x89ff`, frame count
 sentinel `0x4444`, with a debugger-backed BlastEm internal screenshot at
 `C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`
 showing `Frame 4`. The next demo-facing step is adopting this current-bank
-policy in the production dirty/VBlank loop so BASIC/text/image windows can
-change without falling back to one-shot full-frame uploads.
+policy in the production dirty/VBlank loop without treating bank 1 as linear
+framebuffer data. `$220000` needs a bank-1 tile/pixel-window transfer policy
+before BASIC/text/image windows can change safely under true alternating 1M
+double buffering.

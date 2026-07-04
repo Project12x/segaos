@@ -583,10 +583,10 @@ static void boot_safe_probe_init_display(void) {
 
 #if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||  \
     defined(DESKTOP_SCHEDULER_PROBE)
-static uint16_t desktop_title_read_wram_word(uint16_t word_index) {
+static uint16_t desktop_title_read_wram_word(const uint8_t *wram_bank,
+                                             uint16_t word_index) {
   volatile const uint16_t *title_wram =
-      (volatile const uint16_t *)(WRAM_BANK0_MAIN +
-                                  DESKTOP_TITLE_PROBE_BYTE_OFFSET);
+      (volatile const uint16_t *)(wram_bank + DESKTOP_TITLE_PROBE_BYTE_OFFSET);
 
   return title_wram[word_index];
 }
@@ -638,7 +638,8 @@ static void desktop_scheduler_probe_upload(void) {
     return;
   }
 
-  segaos_desktop_scheduler_slice1_wram_word = desktop_title_read_wram_word(0);
+  segaos_desktop_scheduler_slice1_wram_word =
+      desktop_title_read_wram_word(WRAM_BANK0_MAIN, 0);
   poison = (uint16_t)(segaos_desktop_scheduler_slice1_wram_word ^ 0xffffU);
   desktop_title_write_vram_word(0, poison);
   segaos_desktop_scheduler_slice1_before_word = desktop_title_read_vram_word(0);
@@ -712,13 +713,15 @@ static void desktop_pump_probe_upload_frame(void) {
 #endif
 
 #ifdef DESKTOP_DIRTY_QUEUE_PROBE
-static void desktop_dirty_queue_probe_upload(void) {
+static void desktop_dirty_queue_probe_upload(const uint8_t *wram_bank) {
   DirtyTileUpload upload;
   DirtyTileQueue queue;
 
   segaos_desktop_dirty_queue_result = 0;
-  segaos_desktop_dirty_queue_wram_word0 = desktop_title_read_wram_word(0);
-  segaos_desktop_dirty_queue_wram_word1 = desktop_title_read_wram_word(1);
+  segaos_desktop_dirty_queue_wram_word0 =
+      desktop_title_read_wram_word(wram_bank, 0);
+  segaos_desktop_dirty_queue_wram_word1 =
+      desktop_title_read_wram_word(wram_bank, 1);
 
   upload.firstTile = DESKTOP_TITLE_PROBE_TILE_INDEX;
   upload.tileCount = 1;
@@ -743,7 +746,7 @@ static void desktop_dirty_queue_probe_upload(void) {
   VDP_DATA_PORT = 0;
   VDP_DATA_PORT = 0;
 
-  if (!FB_UpdateTileQueue(WRAM_BANK0_MAIN, &queue)) {
+  if (!FB_UpdateTileQueue(wram_bank, &queue)) {
     segaos_desktop_dirty_queue_result = 0x00e2;
     return;
   }
@@ -765,13 +768,15 @@ static void desktop_dirty_queue_probe_upload(void) {
 #endif
 
 #ifdef BOOT_SAFE_TEXT_PROBE
-static uint16_t desktop_text_read_wram_word(uint16_t row, uint16_t word_index) {
+static uint16_t desktop_text_read_wram_word(const uint8_t *wram_bank,
+                                            uint16_t row,
+                                            uint16_t word_index) {
   uint16_t y = (uint16_t)(DESKTOP_TEXT_PROBE_Y + row);
   uint32_t byte_offset =
       (((uint32_t)y << 7) + ((uint32_t)y << 5) +
        (DESKTOP_TEXT_PROBE_X >> 1) + ((uint32_t)word_index << 1));
-  volatile const uint16_t *word =
-      (volatile const uint16_t *)(WRAM_BANK0_MAIN + byte_offset);
+  volatile const uint16_t *word = (volatile const uint16_t *)(wram_bank +
+                                                             byte_offset);
 
   return word[0];
 }
@@ -807,20 +812,21 @@ static uint16_t desktop_text_read_plane_entry(uint16_t tile_offset) {
   return VDP_DATA_PORT;
 }
 
-static void desktop_text_capture_wram(void) {
+static void desktop_text_capture_wram(const uint8_t *wram_bank) {
   uint16_t row;
   uint16_t word_index;
   uint16_t sig = DESKTOP_TEXT_PROBE_SIG_SEED;
 
   segaos_desktop_text_wram_word0 =
-      desktop_text_read_wram_word(DESKTOP_TEXT_PROBE_ROW, 0);
+      desktop_text_read_wram_word(wram_bank, DESKTOP_TEXT_PROBE_ROW, 0);
   segaos_desktop_text_wram_word1 =
-      desktop_text_read_wram_word(DESKTOP_TEXT_PROBE_ROW, 1);
+      desktop_text_read_wram_word(wram_bank, DESKTOP_TEXT_PROBE_ROW, 1);
 
   for (row = 0; row < DESKTOP_TEXT_PROBE_ROWS; row++) {
     for (word_index = 0; word_index < DESKTOP_TEXT_PROBE_WORDS_PER_ROW;
          word_index++) {
-      uint16_t actual = desktop_text_read_wram_word(row, word_index);
+      uint16_t actual =
+          desktop_text_read_wram_word(wram_bank, row, word_index);
       sig = desktop_text_mix_sig(sig, actual);
     }
   }
@@ -955,6 +961,8 @@ static void desktop_scheduler_probe(void) {
 }
 #else
 static void desktop_init_probe(void) {
+  const uint8_t *wram_bank;
+
   segaos_desktop_main_phase = 0x8101;
   desktop_init_capture_status();
   segaos_desktop_ready_sub_flag = segaos_desktop_sub_flag;
@@ -990,9 +998,10 @@ static void desktop_init_probe(void) {
 
   segaos_desktop_render_status = segaos_desktop_done_status;
   segaos_desktop_render_trace = segaos_desktop_trace;
+  wram_bank = WRAM_BANK0_MAIN;
 #ifdef BOOT_SAFE_TEXT_PROBE
   segaos_desktop_text_probe_enabled = 1;
-  desktop_text_capture_wram();
+  desktop_text_capture_wram(wram_bank);
 #else
   segaos_desktop_text_probe_enabled = 0;
   segaos_desktop_text_wram_word0 = 0;
@@ -1007,8 +1016,8 @@ static void desktop_init_probe(void) {
 #endif
 #ifdef BOOT_SAFE_TITLE_PROBE
   segaos_desktop_title_probe_enabled = 1;
-  segaos_desktop_title_wram_word0 = desktop_title_read_wram_word(0);
-  segaos_desktop_title_wram_word1 = desktop_title_read_wram_word(1);
+  segaos_desktop_title_wram_word0 = desktop_title_read_wram_word(wram_bank, 0);
+  segaos_desktop_title_wram_word1 = desktop_title_read_wram_word(wram_bank, 1);
 #else
   segaos_desktop_title_probe_enabled = 0;
   segaos_desktop_title_wram_word0 = 0;
@@ -1017,11 +1026,11 @@ static void desktop_init_probe(void) {
   segaos_desktop_title_vram_word1 = 0;
 #endif
 #ifdef DESKTOP_DIRTY_QUEUE_PROBE
-  desktop_dirty_queue_probe_upload();
+  desktop_dirty_queue_probe_upload(wram_bank);
 #elif defined(DESKTOP_TIMING_PROBE)
-  FB_UpdateFrameProfile(WRAM_BANK0_MAIN);
+  FB_UpdateFrameProfile(wram_bank);
 #else
-  FB_UpdateFrame(WRAM_BANK0_MAIN);
+  FB_UpdateFrame(wram_bank);
 #endif
   VDP_WaitDMA();
 #ifdef BOOT_SAFE_TEXT_PROBE
@@ -1406,7 +1415,6 @@ static void main_loop(void) {
     uint16_t bank0Sentinel;
     uint16_t bank1Sentinel;
     uintptr_t sentinelOffset;
-    const uint8_t *liveBank;
     uint8_t selectedBank;
     uint8_t liveStatus;
 
@@ -1438,9 +1446,7 @@ static void main_loop(void) {
       segaos_boot_live_phase = 0x89fc;
       segaos_boot_live_probe_halt();
     }
-    liveBank = selectedBank ? WRAM_BANK1_MAIN : WRAM_BANK0_MAIN;
-
-    if (!main_upload_frame_budgeted(liveBank)) {
+    if (!main_upload_frame_budgeted(WRAM_MainBankFromIndex(selectedBank))) {
       segaos_boot_live_phase = 0x89fd;
       segaos_boot_live_probe_halt();
     }
@@ -1469,13 +1475,9 @@ static void main_loop(void) {
     main_send_cmd(CMD_RENDER_FRAME, 0, 0, 320, 224);
     main_wait_done();
 
-    /* Convert the finished framebuffer from linear 4bpp
-     * to VDP tile format and DMA to VRAM.
-     * Main CPU sees returned bank 0 at $200000 in 1M mode. */
+    /* Convert the returned framebuffer from linear 4bpp to VDP tile format. */
     if (main_upload_frame_budgeted(WRAM_BANK0_MAIN)) {
-      /* Give bank 0 back to Sub before the next render command. This is the
-       * first repeated-frame policy: single-bank ping-pong, not true
-       * alternating double buffering. */
+      /* Return Word RAM only after the uploaded frame's final slice. */
       main_return_wram_to_sub();
     }
   }

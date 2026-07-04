@@ -52,6 +52,15 @@ proof reaches pre-upload phase `0x8904`, sentinel `0x4444`, terminal phase
 `0x89ff`, and a `Frame 4` screenshot at
 `C:\tmp\segaos_screens_internal\segaos_live_current_20260703_193928.png`.
 
+2026-07-04 pump follow-up: the Megadev RET mapping is now captured in
+`include/wram_bank.h` host tests, but that mapping is not a license to feed
+every Main-side Word RAM alias through the linear framebuffer converter. The
+Main memory map labels `$220000` as the bank-1 VDP-tile/pixel window. A naive
+bank-1 linear upload produced a striped screenshot at
+`C:\tmp\segaos_screens_internal\segaos_pump_current_20260704_093258.png`, while
+the size-safe bank-0 compact pump path now visibly reaches `Frame 4` at
+`C:\tmp\segaos_screens_internal\segaos_pump_bank0_20260704_093959.png`.
+
 ## GA Reg 02 — CDC Mode
 Sub CPU address: $FF8004
 

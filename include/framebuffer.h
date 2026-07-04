@@ -29,6 +29,7 @@
 
 #include "dirty_rect.h"
 #include "vdp.h"
+#include "wram_bank.h"
 #include <stdint.h>
 
 
@@ -47,10 +48,6 @@
 #define FB_STRIP_ROWS 4 /* 4 tile-rows = 32 pixel-rows */
 #define FB_STRIP_TILES (FB_TILES_X * FB_STRIP_ROWS) /* 160 tiles */
 #define FB_STRIP_SIZE (FB_STRIP_TILES * FB_TILE_COUNT_PER_STRIP)
-
-/* Word RAM bank addresses as seen by Main CPU (1M mode) */
-#define WRAM_BANK0_MAIN ((const uint8_t *)0x200000)
-#define WRAM_BANK1_MAIN ((const uint8_t *)0x220000)
 
 /* ============================================================
  * Windows-like Palette (16 colors, Mega Drive 9-bit RGB format)

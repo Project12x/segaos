@@ -885,9 +885,6 @@ try {
       $expectedValues["segaos_desktop_repeat_trace"] = "0x7404"
       $expectedValues["segaos_desktop_repeat_stat0"] = "0x0002"
       $expectedValues["segaos_desktop_repeat_sub_flag"] = "0x0000"
-      $expectedValues["segaos_desktop_repeat_mem_before"] = "0x2a06"
-      $expectedValues["segaos_desktop_repeat_mem_after_done"] = "0x2a06"
-      $expectedValues["segaos_desktop_repeat_mem_after_return"] = "0x2a06"
       $expectedValues["segaos_desktop_repeat_title_vram_word0"] = "0xf11f"
       $expectedValues["segaos_desktop_repeat_title_vram_word1"] = "0x1f11"
     }
@@ -896,8 +893,6 @@ try {
       $expectedValues["segaos_desktop_loop_frame_count"] = "0x0004"
       $expectedValues["segaos_desktop_loop_status"] = "0x0003"
       $expectedValues["segaos_desktop_loop_trace"] = "0x7404"
-      $expectedValues["segaos_desktop_loop_mem_before"] = "0x2a06"
-      $expectedValues["segaos_desktop_loop_mem_after_return"] = "0x2a06"
       $expectedValues["segaos_desktop_loop_title_vram_word0"] = "0xf11f"
       $expectedValues["segaos_desktop_loop_title_vram_word1"] = "0x1f11"
     }
@@ -950,17 +945,45 @@ try {
         segaos_desktop_pump_slice_count = "0x0005"
         segaos_desktop_pump_final_first_tile = "0x03ac"
         segaos_desktop_pump_final_tile_count = "0x00b4"
-        segaos_desktop_pump_mem_after_return = "0x2a06"
       }
     }
 
     $failed = @()
+    $returned1MStates = @("0x2a06", "0x2a07")
     foreach ($name in $expectedValues.Keys) {
       $actualValue = $desktopValues[$name]
       $ok = $actualValue -eq $expectedValues[$name]
       Write-Output "desktop_check_$name=$ok expected=$($expectedValues[$name]) actual=$actualValue"
       if (-not $ok) {
         $failed += $name
+      }
+    }
+    if ($Probe -eq "DesktopRepeat") {
+      foreach ($name in @("segaos_desktop_repeat_mem_before", "segaos_desktop_repeat_mem_after_done", "segaos_desktop_repeat_mem_after_return")) {
+        $actualValue = $desktopValues[$name]
+        $ok = $returned1MStates -contains $actualValue
+        Write-Output "desktop_check_$name=$ok expected=0x2a06-or-0x2a07 actual=$actualValue"
+        if (-not $ok) {
+          $failed += $name
+        }
+      }
+    }
+    if ($Probe -eq "DesktopLoop") {
+      foreach ($name in @("segaos_desktop_loop_mem_before", "segaos_desktop_loop_mem_after_return")) {
+        $actualValue = $desktopValues[$name]
+        $ok = $returned1MStates -contains $actualValue
+        Write-Output "desktop_check_$name=$ok expected=0x2a06-or-0x2a07 actual=$actualValue"
+        if (-not $ok) {
+          $failed += $name
+        }
+      }
+    }
+    if ($Probe -eq "DesktopPump") {
+      $actualValue = $desktopValues["segaos_desktop_pump_mem_after_return"]
+      $ok = $returned1MStates -contains $actualValue
+      Write-Output "desktop_check_segaos_desktop_pump_mem_after_return=$ok expected=0x2a06-or-0x2a07 actual=$actualValue"
+      if (-not $ok) {
+        $failed += "segaos_desktop_pump_mem_after_return"
       }
     }
 

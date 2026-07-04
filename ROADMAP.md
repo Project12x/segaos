@@ -290,8 +290,17 @@ remains a later production policy.
           completion
     - [x] Default boot-safe first frame now uploads through the compact pump
           path and has a debugger-backed BlastEm internal screenshot
+    - [x] Re-prove `DesktopPump` visible output after the RET handoff fix:
+          four render/upload/return frames now visibly show `Frame 4` at
+          `C:\tmp\segaos_screens_internal\segaos_pump_bank0_20260704_093959.png`
     - [x] Boot-safe live probe selects the current returned 1M bank by a
           frame sentinel and has a debugger-backed screenshot showing `Frame 4`
+    - [x] Add host-tested Main-side 1M RET bank mapping helpers in
+          `include/wram_bank.h`, with reference-code-first notes pointing to
+          Megadev's MIT Gate Array definitions
+    - [ ] Design a size-conscious bank-1 upload path. `$220000` is the
+          VDP-tile/pixel window, not a drop-in source for the linear converter;
+          a direct DMA attempt overflowed the IP slot at 3,716 bytes.
     - [ ] Production live-loop pump integration that schedules visible queued
           tile spans at a measured flush point, displays the newest returned
           frame instead of a stale bank, and returns Word RAM only after the
