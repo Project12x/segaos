@@ -1,34 +1,41 @@
 # SegaOS
 
-A Mac OS-inspired desktop operating system for the Sega CD (Mega CD), featuring a windowed GUI with mouse support rendered by the Sub CPU's software blitter and displayed via the Main CPU's VDP pipeline.
+A GEOS/GEM-inspired loadable GUI application runtime for the Sega CD (Mega CD),
+with Mac-like desktop interaction, OS-owned windows/input/storage, and a
+dual-68000 display pipeline. The Sub CPU owns GUI/app rendering and services;
+the Main CPU owns VDP presentation.
 
 ## Current Direction
 
-- **Tech-demo goal** -- make a stock Sega CD behave like a small 68k GUI
-  computer: readable desktop, real windows, small tools, CD resources, and
-  Backup RAM save/load evidence
+- **North star** -- make a stock Sega CD behave like a small GEOS/Contiki-class
+  GUI operating environment: desktop shell, app catalog, loadable app modules,
+  OS service ABI, and persistent documents
+- **Runtime goal** -- apps should request windows, receive events, draw through
+  SegaOS services, load resources from CD, and save through Backup RAM policy
+  without owning hardware details
 - **Windowed GUI foundation** -- Mac/Win3.1-style desktop shell, dirty redraw
   ownership, and proven boot-safe window frames
 - **Mouse support foundation** -- Sega Mega Mouse driver and input forwarding
   seams; full window/app interaction is still a later rung
 - **Software Blitter** -- 2bpp (4 grayscale) and 4bpp Windows-like palette modes
 - **Applications in progress** -- BASIC tooling/storage seams are host-tested
-  and BRAM-proven; Notepad, Calculator, virtual keyboard, Paint, and image/text
-  viewers remain tech-demo targets
+  and BRAM-proven, but built-in tools are now treated as stepping stones toward
+  `TEXT.APP`, `BASIC.APP`, and later separately loaded app artifacts
 - **Dual-CPU Architecture** -- Sub CPU renders framebuffer, Main CPU handles VDP display
 - **Sega CD Boot Disc Work** -- IP/SP packaging, regional security bytes, and
   cooked ISO generation are aligned with the Megadev 1.2.0 boot-layout
   reference
 
-See [docs/reference/impressive_tech_demo_goal.md](docs/reference/impressive_tech_demo_goal.md)
-for the current demo bar and reference-backed design filter.
+See [docs/reference/loadable_app_runtime_goal.md](docs/reference/loadable_app_runtime_goal.md)
+and [docs/reference/impressive_tech_demo_goal.md](docs/reference/impressive_tech_demo_goal.md)
+for the current runtime bar and reference-backed design filter.
 
 ## Architecture
 
 ```
 Main CPU (68000 @ 7.67 MHz)          Sub CPU (68000 @ 12.5 MHz)
 +--------------------------+         +--------------------------+
-| VDP Init & DMA           |         | Window Manager           |
+| VDP Init & DMA           |         | Runtime Services         |
 | Mouse Polling            |         | Software Blitter         |
 | Input Event Forwarding   |         | Applications             |
 | Framebuffer -> Tile Conv |         | Memory Manager           |

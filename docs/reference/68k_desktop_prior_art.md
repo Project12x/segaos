@@ -1,16 +1,18 @@
 # 68k Desktop Prior Art
 
 This note records the June 2026 reference pass triggered by the corrupted
-boot-safe desktop/title output. The current goal is unchanged: build a 68k
-Mac-like desktop experience on Sega CD. The implementation path should change:
-stop adding broad window-manager features until text, clipping, redraw
-ownership, and the desktop shell are split into smaller probeable contracts.
+boot-safe desktop/title output. The visual reference remains a 68k Mac-like
+desktop on Sega CD, but the higher technical goal is now a GEOS/GEM/Contiki
+style loadable GUI app runtime. The implementation path should stay disciplined:
+do not add broad window-manager or app features until text, clipping, redraw
+ownership, app boundaries, and the desktop shell are split into smaller
+probeable contracts.
 
 ## Scope
 
 Sega CD references such as Megadev remain the authority for boot layout, IP/SP
 shape, Gate Array behavior, CD-ROM ownership, and Word RAM constraints. They do
-not answer how to structure a small desktop GUI.
+not answer how to structure a small desktop GUI or loadable app runtime.
 
 For that GUI architecture, the best available references are 68000-era desktop
 systems in the GEM/TOS family. "Gemos" is treated here as GEM/GEMDOS/TOS unless

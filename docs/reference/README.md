@@ -18,7 +18,8 @@ probe/control logic unless a file says otherwise.
 - [sega_cd_homebrew_2026.md](sega_cd_homebrew_2026.md) — June 2026 toolchain/homebrew update and SegaOS implications
 - [68k_desktop_prior_art.md](68k_desktop_prior_art.md) — GEM/TOS desktop architecture lessons for the SegaOS VDI/AES/Desktop split
 - [full_stack_cleanroom_research.md](full_stack_cleanroom_research.md) — Clean-room target split and Project 0 probes for SegaOS-CD, SegaOS-Mars, LinuxMD-68K, and Linux32X-SH2
-- [impressive_tech_demo_goal.md](impressive_tech_demo_goal.md) — Demo bar for a stock Sega CD GUI-computer showpiece
+- [loadable_app_runtime_goal.md](loadable_app_runtime_goal.md) — GEOS/Contiki-level runtime goal: app catalog, app ABI, OS services, and document persistence
+- [impressive_tech_demo_goal.md](impressive_tech_demo_goal.md) — Demo bar for proving that runtime on stock Sega CD hardware
 - [megadev_ip_sp.md](megadev_ip_sp.md) — SP header format, BIOS jump table requirements
 - [megadev_program_design.md](megadev_program_design.md) — Memory architecture overview (Work RAM, PRG-RAM, Word RAM)
 - [megadev_dev_in_c.md](megadev_dev_in_c.md) — C development caveats (no global init, no stdlib, stack warnings)

@@ -130,13 +130,21 @@ Use Megadev reconciliation as the bottom rung of a bring-up ladder:
    the full desktop loop.
 3. Measure or choose the VDP transfer policy before treating frame updates as
    stable.
-4. Bring the desktop/apps back after boot, CPU handshake, Word RAM, framebuffer,
-   and VDP timing are known-good.
-5. Add CD-ROM/BRAM/storage features after the core runtime is proven. Plan
+4. Bring the desktop shell and app-runtime boundary back after boot, CPU
+   handshake, Word RAM, framebuffer, and VDP timing are known-good.
+5. Add CD-ROM/BRAM/storage features as OS services, not app-owned hardware
+   shortcuts. Plan
    writable persistence around external Backup RAM cartridge-class storage, not
    only the internal 8 KB BRAM: CD-ROM is the read-only app/resource source,
    the external cartridge is the primary small-document store, and internal
    BRAM is the fallback for preferences and emergency tiny saves.
+
+2026-07-04 direction correction: the GEOS/Contiki-level aspiration is now a
+loadable GUI app runtime, not just a built-in desktop tool suite. Future CD-ROM,
+module, BRAM, and app work should be judged by whether it creates a shell-owned
+service boundary: app catalog/discovery, app descriptor or module load, event
+delivery, OS-mediated drawing, document save/load, clean app exit, and launch of
+a second app without rebooting.
 
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes

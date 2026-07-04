@@ -13,7 +13,7 @@ There are four distinct targets:
 
 | Target | Description | Primary codebase |
 |---|---|---|
-| SegaOS-CD | Current Mac-like Sega CD desktop OS. Main 68000 owns VDP/input; Sega CD Sub 68000 owns GUI/app rendering. | SegaOS |
+| SegaOS-CD | GEOS/GEM-style loadable GUI app runtime for stock Sega CD. Main 68000 owns VDP/input; Sega CD Sub 68000 owns GUI/app rendering and OS services. | SegaOS |
 | SegaOS-Mars | Bespoke clean-room OS for Mega Drive + Sega CD + 32X, with 32X acceleration and framebuffer display. | SegaOS or a sibling clean-room tree |
 | LinuxMD-68K-FullStack | LinuxMD-style no-MMU m68k Linux on the Mega Drive 68000 using Mega EverDrive RAM/storage, with Sega CD and 32X as devices or accelerators. | GPL Linux-side tree |
 | Linux32X-SH2-FullStack | No-MMU Linux running on one 32X SH-2, using the other SH-2, Mega Drive 68000, Sega CD Sub 68000, and Mega EverDrive as services. | GPL Linux-side tree |
@@ -273,12 +273,13 @@ Near-term clean-room research:
 - File-manager behavior for tiny documents.
 - Mega Mouse and controller-driven UI ergonomics.
 - On-screen keyboard and possible external keyboard options.
-- Desktop app behavior specs: Notepad, Paint, Calculator, BASIC LIST/edit,
-  Preferences.
+- Runtime/app behavior specs: app catalog, app descriptors, OS service table,
+  text/document app, BASIC LIST/edit app, Paint, Calculator, Preferences.
 
-Do not block SegaOS-CD on 32X. The Sega CD-only desktop is still the most
-impressive stock-hardware result because it makes a constrained, real Sega CD
-behave like a small GUI computer.
+Do not block SegaOS-CD on 32X. The Sega CD-only result is only impressive if it
+becomes an operating environment, not a built-in desktop scene: a shell that can
+discover apps, mediate windows/events/storage, and run more than one app
+without rebooting.
 
 ### SegaOS-Mars
 
@@ -341,7 +342,7 @@ This has the highest upside but depends almost entirely on Project 0:
 ## UI Behavior Research
 
 The useful clean-room UI question is not "can it look like a Mac screenshot?"
-It is "can it support a small document workflow?"
+It is "can it support a small document workflow through an OS/app boundary?"
 
 Behavior to specify:
 

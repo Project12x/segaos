@@ -6,21 +6,24 @@ same failures.
 
 ## Demo Direction
 
-- The product target is an impressive stock Sega CD tech demo: readable
-  Mac-like desktop, real windows, useful tools, CD/resource-backed content, and
-  Backup RAM save/load evidence. The detailed bar lives in
+- The product target is no longer just an impressive stock Sega CD desktop
+  demo. The higher bar is a GEOS/GEM/Contiki-class loadable GUI app runtime:
+  shell-owned hardware, app catalog, OS services, and document persistence. The
+  detailed bar lives in `docs/reference/loadable_app_runtime_goal.md` and
   `docs/reference/impressive_tech_demo_goal.md`.
 - Do not mistake infrastructure for the demo. Frame scheduling, dirty queues,
-  BRAM wrappers, and BASIC storage matter because they unlock visible workflows:
-  a stable desktop, a BASIC window that can `LIST`/`RUN`/`SAVE`/`LOAD`, a text
-  document viewer/editor, and eventually a small image viewer.
+  BRAM wrappers, and BASIC storage matter because they unlock OS-boundary
+  workflows: a shell launching an app, the app requesting a window, receiving
+  events, drawing through SegaOS services, saving through storage policy, then
+  exiting cleanly before another app runs.
 - New rungs should name the reference basis and the demo effect they unlock.
   If a change is invisible and does not unblock one of the demo effects, keep it
   out of the critical path.
 - Treat "impressive tech demo" as an acceptance filter, not a slogan. A change
   should either make the captured desktop visibly more computer-like, prove that
-  visible state can change over time, or unlock a user workflow such as BASIC,
-  text viewing/editing, image viewing, CD/resource loading, or BRAM save/load.
+  visible state can change over time, or move a built-in tool toward a real app
+  boundary such as app discovery, launch, events, OS-mediated drawing, CD
+  resource loading, or storage-service save/load.
 - The immediate display goal is current-frame visibility. The compact pump now
   repeats render/upload/return cycles under GDB and visibly reaches `Frame 4`
   through the bank-0 linear path. Blind bank-1 upload is corrupt, so new UI work
@@ -321,7 +324,9 @@ same failures.
 
 ## Visual Target
 
-- The immediate product goal remains a 68k Mac-like experience on Sega CD.
+- The immediate product goal is a 68k GUI operating environment on Sega CD,
+  with Mac-like interaction as presentation and GEOS/Contiki-style app/runtime
+  discipline as the technical ambition.
 - Plan product features as if an external Backup RAM cartridge-class writable
   store is available. That changes the realistic target from demo-only saves
   to a small but usable document workflow: text files, tokenized BASIC
@@ -357,7 +362,7 @@ same failures.
 - Runtime probes that write BRAM should avoid clobbering the future user-facing
   BASIC file. The current smoke test writes `BASPROBE`; the actual shell adapter
   still defaults to the fixed `BASIC` filename until named-file UI exists.
-- Build BASIC as an OS tool in narrow stages: program buffer plus shell line
+- Build BASIC as an OS app in narrow stages: program buffer plus shell line
   entry/`LIST`/`NEW` first, expression values second, minimal `RUN` for
   sequential `PRINT`/`END` third, literal-line `GOTO` with a step cap fourth,
   fixed A-Z integer `LET` variables fifth, integer `IF`/`THEN` branching sixth,
@@ -369,7 +374,9 @@ same failures.
   storage adapter are clean-room SegaOS code. No GEOS,
   GEM/TOS, CP/M-68K, Megadev, or SGDK interpreter source is copied or closely
   ported; this first primitive is small enough that a direct interpreter
-  reference would add licensing/runtime mismatch before it adds value.
+  reference would add licensing/runtime mismatch before it adds value. Do not
+  let BASIC remain permanently welded into the shell; the runtime goal is for
+  it to become `BASIC.APP` or equivalent app-owned code behind the SegaOS ABI.
 - The current visible target is intentionally modest: checker desktop, menu
   separator, and a clean window starter frame with real SGDK-font menu, title,
   and body text.

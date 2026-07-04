@@ -1,9 +1,12 @@
 # Roadmap
 
-## North Star: Impressive Stock Sega CD Tech Demo
+## North Star: GEOS-Class Loadable App Runtime
 
-Reference-backed goal: make a real Sega CD behave like a small 68k GUI
-computer, not just display a desktop-themed picture. See
+Reference-backed goal: make a real Sega CD behave like a small GUI operating
+environment, not a desktop-themed built-in demo. The technical bar is a
+GEOS/GEM/Contiki-style runtime: shell-owned hardware, loadable or separately
+packaged apps, OS service APIs, CD resource loading, and document persistence.
+See `docs/reference/loadable_app_runtime_goal.md` and
 `docs/reference/impressive_tech_demo_goal.md`.
 
 - [ ] Stable long-running frame transfer that does not rely on full-frame
@@ -11,14 +14,19 @@ computer, not just display a desktop-themed picture. See
 - [ ] Default boot reaches a readable Mac-like desktop shell with a menu bar,
       pointer, and at least one real window
 - [ ] Window-manager loop owns redraw/clipping outside opt-in probes
-- [ ] One useful tool window is visible and interactive enough to prove the OS
-      model: BASIC editor/runtime first, then text viewer/editor
-- [ ] BASIC can `LIST`, `RUN`, `SAVE`, and `LOAD` through a demonstrated storage
-      path
-- [ ] CD/resource-loaded content appears in a window
-- [ ] Image demo uses a real asset pipeline: preconverted image first, GIF or
-      64-color-style presentation only after format/provenance and palette
-      strategy are documented
+- [ ] Define a minimal app descriptor/catalog format for CD-hosted apps and
+      resources
+- [ ] Prove one app boundary: a separately built or separately packaged app
+      requests a window, receives events, draws through SegaOS services, and
+      exits without rebooting
+- [ ] Prove two-app sequencing: launch a text/document app, close it, then
+      launch a BASIC or second utility app without rebooting
+- [ ] BASIC can `LIST`, `RUN`, `SAVE`, and `LOAD` through the OS storage
+      service rather than raw BRAM callbacks
+- [ ] CD/resource-loaded content appears in an app-owned window
+- [ ] Image demo uses a real asset pipeline through the app/resource service:
+      preconverted image first, GIF or 64-color-style presentation only after
+      format/provenance and palette strategy are documented
 - [ ] Final demo artifact includes debugger-backed BlastEm internal screenshot
       plus GDB/VRAM/BRAM evidence for the low-level paths
 
@@ -33,14 +41,15 @@ system sources are pattern-only / clean-room references, not code sources.
 Every rung also needs a demo-facing acceptance test. For low-level display work
 that means a debugger-backed BlastEm internal screenshot plus GDB/VRAM evidence
 that the captured image is the current rendered frame, not a stale bank or BIOS
-transition. For app/storage work it means a visible user workflow such as
-`LIST`/`RUN`/`SAVE`/`LOAD`, text-file load, image asset load, or Backup RAM
-persistence.
+transition. For app/runtime/storage work it means a visible workflow across an
+OS boundary: app catalog selection, app launch, window request, event delivery,
+OS-mediated drawing, document load/save, app exit, or Backup RAM persistence.
 
-Current gate: do not add more widgets or app polish until the latest returned
-frame can be displayed reliably. The next accepted artifact should show a
-changing frame marker or window contents that match the GDB frame counter after
-the compact pump returns Word RAM.
+Current gate: do not add more built-in app polish until the latest returned
+frame can be displayed reliably and the first app-runtime boundary is specified
+enough to keep future tools from becoming shell code. The next accepted display
+artifact should show changing frame marker or window contents that match the
+GDB frame counter after the compact pump returns Word RAM.
 
 ## Phase 1: Sub CPU Build -- COMPLETE
 - [x] crt0.s with SP header and vector table
@@ -388,7 +397,36 @@ that matches Genesis VDP constraints.
 Acceptance: a full desktop session can be booted, rendered, and interacted
 with in at least one emulator.
 
-### Milestone F: Storage and OS Features
+### Milestone F: Runtime ABI and Loadable Apps
+- [ ] Write the first clean-room app ABI note:
+  - [ ] app descriptor/catalog fields
+  - [ ] app entry points (`init`, `event`, `draw`, `command`, `exit`)
+  - [ ] OS service table shape
+  - [ ] fixed memory/resource limits
+  - [ ] failure behavior for load, memory, storage, and draw errors
+- [ ] Decide first app packaging strategy:
+  - [ ] separately linked app module loaded from CD into PRG-RAM or a fixed
+        app slot
+  - [ ] built-in app table with separate descriptors as a temporary rung
+  - [ ] later CD module format after Megadev module/CD-ROM references are
+        fully applied
+- [ ] Add a host-testable app descriptor parser/validator before target load
+      code
+- [ ] Prove `TEXT.APP` or equivalent first app boundary:
+  - [ ] shell discovers/selects the app
+  - [ ] app requests a window through OS services
+  - [ ] app receives one input/event callback
+  - [ ] app draws through OS drawing/text services
+  - [ ] app exits and returns to shell without rebooting
+- [ ] Prove second app launch after first app exit
+- [ ] Bind app document save/load to the storage policy, not raw BRAM or
+      app-specific callbacks
+
+Acceptance: one app is separate enough that it could be replaced without
+editing the desktop shell, receives OS-mediated events/drawing, and exits
+cleanly before a second app launches.
+
+### Milestone G: Storage and OS Features
 - [ ] Add Sub CPU CD-ROM file access plan and API
 - [ ] Add Backup RAM wrappers with a three-tier storage policy:
   - [x] Host-tested save-target policy contract:
@@ -466,7 +504,7 @@ Acceptance: applications can load from CD and save at least one small
 asset/document through the external Backup RAM cartridge path, with internal
 BRAM fallback behavior documented and tested.
 
-### Milestone G: Compatibility and Release Hardening
+### Milestone H: Compatibility and Release Hardening
 - [ ] ares v148+ boot and runtime test
 - [ ] BlastEm boot/debug test if available
 - [ ] Genesis Plus GX / Picodrive sanity check if available
