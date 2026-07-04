@@ -33,6 +33,14 @@ same failures.
   as the shell-side descriptor boundary until a stronger app/module format is
   proven. It is clean-room SegaOS code with pattern-only reference to Megadev's
   MIT MMD/CD-ROM module model.
+- The second app-runtime artifact is the host-tested lifecycle dispatcher in
+  `include/app_runtime.h` and `src/sub/app_runtime.c`. It proves the first
+  `TEXT.APP`-style ABI shape: a catalog-backed app definition starts through
+  `APP_RT_Start()`, requests a window through the OS service table, receives an
+  event, draws text through an OS callback, saves through an OS callback, and
+  exits through `APP_RT_Stop()`. This is still not a CD module loader or visible
+  shell launch. Treat it as the boundary future built-in, separately linked, or
+  CD-loaded apps must satisfy.
 
 ## Reference Code First
 

@@ -118,6 +118,47 @@ The parser intentionally reads explicit big-endian bytes rather than casting C
 structs. That keeps the format stable across host tests, 68000 target builds,
 and later catalog-generation tools.
 
+## First Lifecycle ABI Contract
+
+`include/app_runtime.h` and `src/sub/app_runtime.c` define the first
+host-tested lifecycle dispatcher for catalog-backed GUI apps. This is not a CD
+module loader yet; it is the OS/app call boundary that a built-in rung,
+separately linked app table, or later CD-loaded module should satisfy.
+
+Reference-code-first note:
+
+- Upstream: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+- License: MIT
+- Files inspected: `docs/modules.md`, `lib/main/mmd.macros.s`,
+  `lib/sub/cdrom.h`
+- Reuse mode: pattern-only / clean-room
+
+The runtime ABI itself is SegaOS clean-room code. Megadev informs the resident
+shell/module separation and ISO-style naming discipline. GEOS, GEM/TOS, and
+Contiki remain behavior references for app lifecycle ownership, but no
+GPL-family or unknown-license OS source is copied or closely ported.
+
+Implemented shape:
+
+- One cooperative active app per `AppRuntime`.
+- Versioned `AppRuntimeServices` table owned by SegaOS.
+- Fixed `AppRuntimeLimits` for window count, window size, document bytes, and
+  scratch bytes.
+- OS service callbacks for window request, text drawing, and document save.
+- `AppDefinition` entry points: `init`, `event`, `draw`, `command`, `exit`.
+- `APP_RT_Start()` validates the service table, catalog entry, app definition,
+  app/catalog name match, GUI window capability, minimum window size, and
+  service resource limits before calling app init.
+- Failed init clears the runtime; failed exit keeps the app marked running so
+  the shell can retry or report a trapped app.
+- Event, draw, command, and exit callback failures map to explicit runtime
+  status codes instead of disappearing into shell control flow.
+
+`tests/test_app_runtime.c` proves the first fake `TEXT.APP` lifecycle: the app
+starts from a catalog entry, requests a window through the OS table, receives an
+event, draws text through the OS callback, saves through the OS callback, exits,
+and rejects invalid service/catalog/app boundaries plus overlapping app starts.
+
 ## First Accepted Showpiece
 
 The first GEOS/Contiki-level showpiece should demonstrate:
@@ -160,5 +201,7 @@ The immediate implementation ladder remains:
 1. Stable current-frame Word RAM/VDP policy.
 2. OS-owned window/event/redraw services outside opt-in probes.
 3. A minimal app descriptor/catalog format.
-4. One loadable or separately linked app calling OS services.
-5. Storage service binding for that app.
+4. A first lifecycle dispatcher with app callbacks and an OS service table.
+5. One loadable or separately linked app calling those OS services from the
+   desktop shell.
+6. Storage service binding for that app.

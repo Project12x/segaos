@@ -400,10 +400,13 @@ with in at least one emulator.
 ### Milestone F: Runtime ABI and Loadable Apps
 - [ ] Write the first clean-room app ABI note:
   - [x] app descriptor/catalog fields
-  - [ ] app entry points (`init`, `event`, `draw`, `command`, `exit`)
-  - [ ] OS service table shape
-  - [ ] fixed memory/resource limits
-  - [ ] failure behavior for load, memory, storage, and draw errors
+  - [x] app entry points (`init`, `event`, `draw`, `command`, `exit`)
+  - [x] OS service table shape
+  - [x] fixed memory/resource limits
+  - [x] first lifecycle failure statuses for service validation, resource
+        limits, `init`, `event`, `draw`, `command`, and `exit`
+  - [ ] loader-specific failure behavior for CD load, memory placement,
+        storage read/write, and draw scheduling errors
 - [ ] Decide first app packaging strategy:
   - [ ] separately linked app module loaded from CD into PRG-RAM or a fixed
         app slot
@@ -412,6 +415,7 @@ with in at least one emulator.
         fully applied
 - [x] Add a host-testable app descriptor parser/validator before target load
       code
+- [x] Add a host-testable app lifecycle dispatcher before target load code
 - [ ] Prove `TEXT.APP` or equivalent first app boundary:
   - [ ] shell discovers/selects the app
   - [ ] app requests a window through OS services

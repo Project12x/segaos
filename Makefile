@@ -167,6 +167,7 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/bram_bios.c \
                $(SUB_DIR)/dirty_rect.c \
                $(SUB_DIR)/app_catalog.c \
+               $(SUB_DIR)/app_runtime.c \
                $(SUB_DIR)/external_cart.c \
                $(SUB_DIR)/libc.c \
                $(SUB_DIR)/mem.c \
@@ -278,6 +279,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_wram_bank.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_app_catalog.c src/sub/app_catalog.c -o $(BUILD_DIR)/test_app_catalog.exe
 	$(BUILD_DIR)/test_app_catalog.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_app_runtime.c src/sub/app_runtime.c src/sub/app_catalog.c -o $(BUILD_DIR)/test_app_runtime.exe
+	$(BUILD_DIR)/test_app_runtime.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_blitter_live_sentinel.c src/sub/blitter.c -o $(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_frame_marker.c -o $(BUILD_DIR)/test_boot_frame_marker.exe

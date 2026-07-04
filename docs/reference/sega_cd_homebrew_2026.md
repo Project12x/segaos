@@ -155,6 +155,22 @@ uppercase ISO-style app names, explicit module/resource byte fields, and a
 resident shell/module separation, but no Megadev loader or CD-ROM source is
 copied or closely ported.
 
+2026-07-04 app-runtime update: `include/app_runtime.h` and
+`src/sub/app_runtime.c` add the first host-tested lifecycle ABI for that catalog
+boundary. `AppRuntimeServices` is a versioned SegaOS-owned table with fixed
+resource limits and callbacks for window request, text drawing, and document
+save. `AppDefinition` supplies `init`, `event`, `draw`, `command`, and `exit`
+entry points. The dispatcher validates service shape, catalog id/name/kind,
+module byte requirements, GUI window capability, minimum window size, app/name
+match, and resource limits before starting an app. Host tests exercise a fake
+`TEXT.APP` app through window request, event delivery, OS-mediated text draw,
+OS-mediated save, exit, callback-failure statuses, and overlapping-launch
+rejection. Reference record: same Megadev MIT commit and inspected module/CD-ROM
+files as the app-catalog rung, reuse mode pattern-only / clean-room. GEOS,
+GEM/TOS, and Contiki inform the lifecycle discipline only; no GPL-family or
+unknown-license OS source is copied or closely ported. This is still not a CD
+module loader or visible desktop shell launch.
+
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes
 boot-disc recognition as the first gate and moves the focus to dual-CPU runtime
