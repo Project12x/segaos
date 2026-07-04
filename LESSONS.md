@@ -41,6 +41,13 @@ same failures.
   exits through `APP_RT_Stop()`. This is still not a CD module loader or visible
   shell launch. Treat it as the boundary future built-in, separately linked, or
   CD-loaded apps must satisfy.
+- The third app-runtime artifact is the host-tested built-in app shell rung in
+  `include/app_shell.h`, `src/sub/app_shell.c`, `include/text_app.h`, and
+  `src/sub/text_app.c`. `TEXT.APP` now lives outside `sub.c` and is selected by
+  catalog name through `APP_SHELL_Open()`, then receives event/draw/save/close
+  calls through `AppRuntime`. This is the accepted temporary packaging rung
+  before CD module loading; it is not yet a visible desktop launch or a real
+  document save through storage policy.
 
 ## Reference Code First
 

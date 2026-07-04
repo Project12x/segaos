@@ -410,12 +410,14 @@ with in at least one emulator.
 - [ ] Decide first app packaging strategy:
   - [ ] separately linked app module loaded from CD into PRG-RAM or a fixed
         app slot
-  - [ ] built-in app table with separate descriptors as a temporary rung
+  - [x] built-in app table with separate descriptors as a temporary rung
   - [ ] later CD module format after Megadev module/CD-ROM references are
         fully applied
 - [x] Add a host-testable app descriptor parser/validator before target load
       code
 - [x] Add a host-testable app lifecycle dispatcher before target load code
+- [x] Add a host-testable built-in `TEXT.APP` shell dispatch rung before CD
+      module loading
 - [ ] Prove `TEXT.APP` or equivalent first app boundary:
   - [ ] shell discovers/selects the app
   - [ ] app requests a window through OS services

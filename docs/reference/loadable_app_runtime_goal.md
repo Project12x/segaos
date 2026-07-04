@@ -159,6 +159,31 @@ starts from a catalog entry, requests a window through the OS table, receives an
 event, draws text through the OS callback, saves through the OS callback, exits,
 and rejects invalid service/catalog/app boundaries plus overlapping app starts.
 
+## First Built-in App Shell Rung
+
+`include/app_shell.h`, `src/sub/app_shell.c`, `include/text_app.h`, and
+`src/sub/text_app.c` add the first built-in app table and real `TEXT.APP`
+module shape. This is the temporary rung before CD-loaded modules: the shell
+selects a catalog-backed built-in app by name, starts it through
+`APP_RT_Start()`, forwards events/draw/commands, and closes it through the
+runtime.
+
+Reference-code-first note:
+
+- Upstream: none copied or closely ported for this shell/app code.
+- Reuse mode: clean-room.
+- Behavior references: the local GEOS/GEM/TOS/Contiki notes for shell-owned
+  app lifecycle, and the Megadev-informed catalog/module separation already
+  recorded above.
+
+`TEXT.APP` is now compiled outside `sub.c`. It only talks through the
+`AppRuntimeServices` table: it requests a window, draws text through the OS text
+callback, saves a small document payload through the OS save callback, handles
+events, and exits. `tests/test_app_shell.c` proves catalog lookup, launch,
+event delivery, OS-mediated drawing, OS-mediated save, close, and reopen. It is
+still not a visible desktop launch, CD module load, or storage-policy-backed
+document save.
+
 ## First Accepted Showpiece
 
 The first GEOS/Contiki-level showpiece should demonstrate:
@@ -202,6 +227,7 @@ The immediate implementation ladder remains:
 2. OS-owned window/event/redraw services outside opt-in probes.
 3. A minimal app descriptor/catalog format.
 4. A first lifecycle dispatcher with app callbacks and an OS service table.
-5. One loadable or separately linked app calling those OS services from the
-   desktop shell.
-6. Storage service binding for that app.
+5. A temporary built-in app table with `TEXT.APP` outside `sub.c`.
+6. One loadable or separately linked app calling those OS services from the
+   visible desktop shell.
+7. Storage service binding for that app.

@@ -168,12 +168,14 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/dirty_rect.c \
                $(SUB_DIR)/app_catalog.c \
                $(SUB_DIR)/app_runtime.c \
+               $(SUB_DIR)/app_shell.c \
                $(SUB_DIR)/external_cart.c \
                $(SUB_DIR)/libc.c \
                $(SUB_DIR)/mem.c \
                $(SUB_DIR)/storage.c \
                $(SUB_DIR)/sub.c \
                $(SUB_DIR)/sysfont.c \
+               $(SUB_DIR)/text_app.c \
                $(SUB_DIR)/wm.c
 else
 SUB_ASM_SRCS += $(SUB_DIR)/bram_bios_68k.s
@@ -281,6 +283,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_app_catalog.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_app_runtime.c src/sub/app_runtime.c src/sub/app_catalog.c -o $(BUILD_DIR)/test_app_runtime.exe
 	$(BUILD_DIR)/test_app_runtime.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_app_shell.c src/sub/app_shell.c src/sub/text_app.c src/sub/app_runtime.c src/sub/app_catalog.c -o $(BUILD_DIR)/test_app_shell.exe
+	$(BUILD_DIR)/test_app_shell.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_blitter_live_sentinel.c src/sub/blitter.c -o $(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_frame_marker.c -o $(BUILD_DIR)/test_boot_frame_marker.exe

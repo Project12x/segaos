@@ -171,6 +171,17 @@ GEM/TOS, and Contiki inform the lifecycle discipline only; no GPL-family or
 unknown-license OS source is copied or closely ported. This is still not a CD
 module loader or visible desktop shell launch.
 
+2026-07-04 built-in app shell update: `include/app_shell.h`,
+`src/sub/app_shell.c`, `include/text_app.h`, and `src/sub/text_app.c` add the
+temporary built-in app table rung before CD module loading. The shell can select
+`TEXT.APP` by catalog name, start it through `APP_RT_Start()`, forward events,
+draw through the OS text service callback, save through the OS document-save
+callback, close the app, and reopen it. Reference record: no upstream source is
+copied or closely ported for this shell/app code; reuse mode is clean-room over
+the local runtime contract, with behavior discipline from the GEOS/GEM/TOS/
+Contiki notes and module-separation pressure from the Megadev research above.
+This is still host-tested only, not a visible desktop launch or CD-loaded app.
+
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes
 boot-disc recognition as the first gate and moves the focus to dual-CPU runtime
