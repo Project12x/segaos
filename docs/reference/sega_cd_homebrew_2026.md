@@ -146,6 +146,15 @@ service boundary: app catalog/discovery, app descriptor or module load, event
 delivery, OS-mediated drawing, document save/load, clean app exit, and launch of
 a second app without rebooting.
 
+2026-07-04 app-catalog update: `include/app_catalog.h` and
+`src/sub/app_catalog.c` add the first host-tested clean-room descriptor parser
+for that runtime boundary. The reference-code-first pass inspected Megadev's MIT
+`docs/modules.md`, `lib/main/mmd.macros.s`, and `lib/sub/cdrom.h` at
+`7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`. SegaOS uses pattern-only reuse:
+uppercase ISO-style app names, explicit module/resource byte fields, and a
+resident shell/module separation, but no Megadev loader or CD-ROM source is
+copied or closely ported.
+
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes
 boot-disc recognition as the first gate and moves the focus to dual-CPU runtime

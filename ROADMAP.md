@@ -399,7 +399,7 @@ with in at least one emulator.
 
 ### Milestone F: Runtime ABI and Loadable Apps
 - [ ] Write the first clean-room app ABI note:
-  - [ ] app descriptor/catalog fields
+  - [x] app descriptor/catalog fields
   - [ ] app entry points (`init`, `event`, `draw`, `command`, `exit`)
   - [ ] OS service table shape
   - [ ] fixed memory/resource limits
@@ -410,7 +410,7 @@ with in at least one emulator.
   - [ ] built-in app table with separate descriptors as a temporary rung
   - [ ] later CD module format after Megadev module/CD-ROM references are
         fully applied
-- [ ] Add a host-testable app descriptor parser/validator before target load
+- [x] Add a host-testable app descriptor parser/validator before target load
       code
 - [ ] Prove `TEXT.APP` or equivalent first app boundary:
   - [ ] shell discovers/selects the app

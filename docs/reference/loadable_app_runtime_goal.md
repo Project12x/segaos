@@ -64,6 +64,60 @@ The shell owns these service families:
 - PCM/CD audio commands when used by apps;
 - error dialogs and low-memory/app-load failure reporting.
 
+## First Catalog Contract
+
+`include/app_catalog.h` and `src/sub/app_catalog.c` define the first
+host-tested app catalog parser. This is not a module loader yet; it is the
+stable shell-side descriptor boundary that future CD/module loading should
+consume.
+
+Reference-code-first note:
+
+- Upstream: `drojaazu/megadev@7a7246c14b845ad2f1bd3c7d73afb04cf67d83ef`
+- License: MIT
+- Files inspected: `docs/modules.md`, `lib/main/mmd.macros.s`,
+  `lib/sub/cdrom.h`, plus existing SegaOS notes in
+  `megadev_modules_and_cdrom.md`
+- Reuse mode: pattern-only / clean-room
+
+Relevant lessons applied:
+
+- Keep the resident shell/kernel separate from loaded modules.
+- Treat CD file/resource names as ISO9660-style uppercase 8.3 identifiers.
+- Avoid running critical interrupt/kernel code from transient Word RAM modules.
+- Start with a small descriptor/catalog boundary before loading executable
+  code.
+
+Catalog byte layout, version 1:
+
+```text
+Header, 16 bytes:
+  $00.b[4]  Magic "SAC1"
+  $04.w     Version = 1
+  $06.w     Entry count, max 32
+  $08.w     Entry size = 64
+  $0A.w     Reserved, zero
+  $0C.l     Reserved, zero
+
+Entry, 64 bytes:
+  $00.w     App id, nonzero
+  $02.b[12] App name, uppercase ISO-style 8.3 such as TEXT.APP
+  $0E.b[24] Display title, printable ASCII
+  $26.w     Kind: 1 = built-in rung, 2 = loadable module
+  $28.w     Capability flags
+  $2A.l     Module LBA, future loader input
+  $2E.l     Module byte length; required for loadable modules
+  $32.l     Resource LBA
+  $36.l     Resource byte length
+  $3A.w     Minimum content width
+  $3C.w     Minimum content height
+  $3E.w     Reserved, zero
+```
+
+The parser intentionally reads explicit big-endian bytes rather than casting C
+structs. That keeps the format stable across host tests, 68000 target builds,
+and later catalog-generation tools.
+
 ## First Accepted Showpiece
 
 The first GEOS/Contiki-level showpiece should demonstrate:

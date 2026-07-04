@@ -28,6 +28,11 @@ same failures.
   repeats render/upload/return cycles under GDB and visibly reaches `Frame 4`
   through the bank-0 linear path. Blind bank-1 upload is corrupt, so new UI work
   should stay on the proven bank-0 path until bank-1 transfer format is solved.
+- The first app-runtime artifact is the host-tested app catalog parser in
+  `include/app_catalog.h` and `src/sub/app_catalog.c`. Treat `SAC1` version 1
+  as the shell-side descriptor boundary until a stronger app/module format is
+  proven. It is clean-room SegaOS code with pattern-only reference to Megadev's
+  MIT MMD/CD-ROM module model.
 
 ## Reference Code First
 
