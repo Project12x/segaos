@@ -166,6 +166,7 @@ SUB_C_SRCS   = $(SUB_DIR)/blitter.c \
                $(SUB_DIR)/bram.c \
                $(SUB_DIR)/bram_bios.c \
                $(SUB_DIR)/dirty_rect.c \
+               $(SUB_DIR)/app_desktop_host.c \
                $(SUB_DIR)/app_catalog.c \
                $(SUB_DIR)/app_runtime.c \
                $(SUB_DIR)/app_shell.c \
@@ -285,6 +286,8 @@ host-tests: dirs
 	$(BUILD_DIR)/test_app_runtime.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_app_shell.c src/sub/app_shell.c src/sub/text_app.c src/sub/app_runtime.c src/sub/app_catalog.c -o $(BUILD_DIR)/test_app_shell.exe
 	$(BUILD_DIR)/test_app_shell.exe
+	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_app_desktop_host.c src/sub/app_desktop_host.c src/sub/app_shell.c src/sub/text_app.c src/sub/app_runtime.c src/sub/app_catalog.c -o $(BUILD_DIR)/test_app_desktop_host.exe
+	$(BUILD_DIR)/test_app_desktop_host.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_blitter_live_sentinel.c src/sub/blitter.c -o $(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(BUILD_DIR)/test_blitter_live_sentinel.exe
 	$(HOST_CC) -std=c99 -Wall -Wextra -Iinclude tests/test_boot_frame_marker.c -o $(BUILD_DIR)/test_boot_frame_marker.exe

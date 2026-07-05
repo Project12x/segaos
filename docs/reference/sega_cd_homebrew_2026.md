@@ -182,6 +182,21 @@ the local runtime contract, with behavior discipline from the GEOS/GEM/TOS/
 Contiki notes and module-separation pressure from the Megadev research above.
 This is still host-tested only, not a visible desktop launch or CD-loaded app.
 
+2026-07-05 desktop-host adapter update: `include/app_desktop_host.h` and
+`src/sub/app_desktop_host.c` bind the built-in app shell to desktop-owned
+callbacks for window request, text drawing, and document save. Host tests prove
+`TEXT.APP` can open, receive an event, draw through the desktop text callback,
+save through the desktop save callback, close, and report callback failures
+through runtime status codes. The normal boot-safe starter window now uses this
+adapter for its body content, so `TEXT.APP` is drawn through runtime services
+instead of direct hardcoded body text in `sub.c`. Narrow probe builds keep the
+legacy hardcoded body text because several probes sample exact glyph bytes at
+fixed coordinates. Reuse mode is clean-room over SegaOS' own runtime contract;
+no upstream source is copied or closely ported. Evidence: debugger-backed
+BlastEm internal screenshot
+`C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png` shows the
+visible `TEXT.APP` runtime-service body.
+
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes
 boot-disc recognition as the first gate and moves the focus to dual-CPU runtime

@@ -25,6 +25,9 @@
 #include "basic_bram_smoke.h"
 #include "bram.h"
 #endif
+#ifdef BOOT_SAFE_DESKTOP
+#include "app_desktop_host.h"
+#endif
 #include "blitter.h"
 #ifndef BOOT_SAFE_DESKTOP
 #include "calc.h"
@@ -91,6 +94,12 @@ static BasicBramSmokeResult basicBramProbeResult;
 #if defined(BOOT_SAFE_DESKTOP) &&                                             \
     (defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE))
 static uint16_t bootFrameMarkerIndex;
+#endif
+#ifdef BOOT_SAFE_DESKTOP
+static AppDesktopHost bootAppHost;
+static uint8_t bootAppHostInitialized;
+static uint16_t bootAppWindowId;
+static Rect bootAppContentRect;
 #endif
 #endif
 
@@ -184,13 +193,22 @@ void sub_main(void) {
 
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
+#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE) ||       \
+    defined(DESKTOP_LOOP_PROBE) || defined(DESKTOP_TIMING_PROBE) ||          \
+    defined(DESKTOP_WM_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||       \
+    defined(DESKTOP_SCHEDULER_PROBE) || defined(DESKTOP_PUMP_PROBE) ||       \
+    defined(BOOT_SAFE_LIVE_PROBE)
+#define BOOT_SAFE_LEGACY_WINDOW_BODY 1
+#endif
+
 static void boot_draw_menu_labels(void) {
   BLT_DrawString(8, 4, "File", SysFont_Get(), BLT_BLACK);
   BLT_DrawString(48, 4, "Edit", SysFont_Get(), BLT_BLACK);
   BLT_DrawString(88, 4, "View", SysFont_Get(), BLT_BLACK);
 }
 
-static void boot_draw_window_body(void) {
+#ifdef BOOT_SAFE_LEGACY_WINDOW_BODY
+static void boot_draw_legacy_window_body(void) {
   Rect divider;
 
   divider.left = 52;
@@ -211,6 +229,113 @@ static void boot_draw_window_body(void) {
   }
 #else
   BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
+#endif
+}
+#endif
+
+#ifndef BOOT_SAFE_LEGACY_WINDOW_BODY
+static uint8_t boot_app_request_window(void *user,
+                                       const AppCatalogEntry *catalog,
+                                       uint16_t width, uint16_t height,
+                                       uint16_t *outWindowId) {
+  (void)user;
+  (void)catalog;
+  (void)width;
+  (void)height;
+
+  if (!outWindowId) {
+    return 0;
+  }
+
+  bootAppWindowId = 1;
+  *outWindowId = bootAppWindowId;
+  return 1;
+}
+
+static uint8_t boot_app_draw_text(void *user, uint16_t windowId, uint16_t x,
+                                  uint16_t y, const char *text) {
+  (void)user;
+
+  if (windowId != bootAppWindowId || !text) {
+    return 0;
+  }
+
+  BLT_DrawString((int16_t)(bootAppContentRect.left + x),
+                 (int16_t)(bootAppContentRect.top + y), text, SysFont_Get(),
+                 BLT_BLACK);
+  return 1;
+}
+
+static uint8_t boot_app_save_document(void *user, const uint8_t *data,
+                                      uint16_t bytes) {
+  (void)user;
+  (void)data;
+  (void)bytes;
+  return 1;
+}
+
+static void boot_app_host_open_once(void) {
+  AppDesktopHostOps ops;
+
+  if (bootAppHostInitialized) {
+    return;
+  }
+
+  ops.maxWindows = 1;
+  ops.maxWindowWidth = 320;
+  ops.maxWindowHeight = 224;
+  ops.maxDocumentBytes = TEXT_APP_DOCUMENT_BYTES;
+  ops.scratchBytes = 0;
+  ops.user = (void *)0;
+  ops.requestWindow = boot_app_request_window;
+  ops.drawText = boot_app_draw_text;
+  ops.saveDocument = boot_app_save_document;
+
+  ADH_Init(&bootAppHost, &ops);
+  bootAppHostInitialized =
+      (uint8_t)(ADH_OpenText(&bootAppHost) == APP_RT_OK);
+}
+
+static void boot_draw_app_window_body(void) {
+  Rect divider;
+  AppRuntimeStatus status;
+
+  bootAppContentRect.left = 56;
+  bootAppContentRect.top = 58;
+  bootAppContentRect.right = 246;
+  bootAppContentRect.bottom = 146;
+
+  boot_app_host_open_once();
+  if (ADH_IsRunning(&bootAppHost)) {
+    status = ADH_Draw(&bootAppHost, 0, 0,
+                      (uint16_t)(bootAppContentRect.right -
+                                 bootAppContentRect.left),
+                      (uint16_t)(bootAppContentRect.bottom -
+                                 bootAppContentRect.top));
+    if (status != APP_RT_OK) {
+      BLT_DrawString(56, 68, "TEXT.APP draw error", SysFont_Get(),
+                     BLT_BLACK);
+    }
+  } else {
+    BLT_DrawString(56, 68, "TEXT.APP launch error", SysFont_Get(),
+                   BLT_BLACK);
+  }
+
+  divider.left = 52;
+  divider.top = 103;
+  divider.right = 246;
+  divider.bottom = 104;
+  BLT_FillRect(&divider, BLT_BLACK);
+  BLT_DrawString(56, 112, "AppRuntime services", SysFont_Get(), BLT_BLACK);
+  BLT_DrawString(56, 128, "Boot-safe pre-alpha", SysFont_Get(), BLT_BLACK);
+}
+#endif
+
+static void boot_draw_window_body(void) {
+#ifdef BOOT_SAFE_LEGACY_WINDOW_BODY
+  boot_draw_legacy_window_body();
+#else
+  boot_draw_app_window_body();
 #endif
 }
 
@@ -271,7 +396,11 @@ static void boot_draw_boot_window(void) {
   BLT_FillRect(&titleBar, titleFill);
   BLT_DrawRect(&titleBar, BLT_BLACK);
   BLT_DrawRect(&closeBox, BLT_BLACK);
+#ifdef BOOT_SAFE_LEGACY_WINDOW_BODY
   BLT_DrawString(125, 37, "SegaOS", SysFont_Get(), BLT_BLACK);
+#else
+  BLT_DrawString(116, 37, TEXT_APP_NAME, SysFont_Get(), BLT_BLACK);
+#endif
   BLT_FillRect(&content, BLT_GetWhite());
   boot_draw_window_body();
 }

@@ -184,6 +184,30 @@ event delivery, OS-mediated drawing, OS-mediated save, close, and reopen. It is
 still not a visible desktop launch, CD module load, or storage-policy-backed
 document save.
 
+## First Desktop Host Adapter
+
+`include/app_desktop_host.h` and `src/sub/app_desktop_host.c` bind the built-in
+app shell to caller-supplied desktop callbacks. The adapter owns the
+`AppShell`, `TEXT.APP` state, runtime service table, and fixed runtime limits.
+Its service callbacks call a desktop host for window request, text drawing, and
+document save.
+
+`tests/test_app_desktop_host.c` proves the bridge with fake desktop callbacks:
+open `TEXT.APP`, request a window, deliver an event, draw through the desktop
+text callback, save through the desktop save callback, close, and report
+request/draw/save failures through runtime status codes.
+
+The normal boot-safe starter window now uses this adapter for the window body:
+`TEXT.APP` draws its content through `ADH_Draw()` instead of hardcoded body text
+inside `sub.c`. Existing narrow probe builds keep the legacy hardcoded text so
+their sampled glyph bytes remain stable.
+
+Current visual proof: a debugger-backed BlastEm internal screenshot captured on
+2026-07-05 at
+`C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png` shows the
+visible `TEXT.APP` title and body text, including `OS-owned drawing`,
+`AppRuntime services`, and `Boot-safe pre-alpha`.
+
 ## First Accepted Showpiece
 
 The first GEOS/Contiki-level showpiece should demonstrate:
@@ -228,6 +252,8 @@ The immediate implementation ladder remains:
 3. A minimal app descriptor/catalog format.
 4. A first lifecycle dispatcher with app callbacks and an OS service table.
 5. A temporary built-in app table with `TEXT.APP` outside `sub.c`.
-6. One loadable or separately linked app calling those OS services from the
+6. A desktop-host adapter that lets the visible boot-safe window draw through
+   app runtime services.
+7. One loadable or separately linked app calling those OS services from the
    visible desktop shell.
-7. Storage service binding for that app.
+8. Storage service binding for that app.

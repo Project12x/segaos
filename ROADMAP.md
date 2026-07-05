@@ -418,6 +418,13 @@ with in at least one emulator.
 - [x] Add a host-testable app lifecycle dispatcher before target load code
 - [x] Add a host-testable built-in `TEXT.APP` shell dispatch rung before CD
       module loading
+- [x] Add a host-testable desktop adapter that maps app runtime services to
+      window/text/save callbacks
+- [x] Route the normal boot-safe starter window body through `TEXT.APP` via the
+      desktop adapter, while preserving legacy sampled text for narrow probes
+- [x] Capture debugger-backed BlastEm internal screenshot proof of the visible
+      `TEXT.APP` runtime-service window body
+      (`C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png`)
 - [ ] Prove `TEXT.APP` or equivalent first app boundary:
   - [ ] shell discovers/selects the app
   - [ ] app requests a window through OS services

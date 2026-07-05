@@ -48,6 +48,14 @@ same failures.
   calls through `AppRuntime`. This is the accepted temporary packaging rung
   before CD module loading; it is not yet a visible desktop launch or a real
   document save through storage policy.
+- The fourth app-runtime artifact is `include/app_desktop_host.h` and
+  `src/sub/app_desktop_host.c`: a host-tested bridge from `AppRuntimeServices`
+  to desktop-owned window/text/save callbacks. The normal boot-safe starter
+  window now uses it to draw `TEXT.APP` content through `ADH_Draw()` instead of
+  hardcoding all body text in `sub.c`. Keep legacy hardcoded body text under
+  the narrow probe macros that sample exact glyph bytes until those probes are
+  deliberately updated. Accepted visual proof:
+  `C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png`.
 
 ## Reference Code First
 
