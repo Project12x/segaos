@@ -157,12 +157,12 @@ static void launches_text_app_through_shell_services(void) {
 
   expect_status(APP_SHELL_Draw(&shell, &draw), APP_RT_OK, "draw text app");
   expect_u16(textState.drawCalls, 1, "text draw calls");
-  expect_u16(fixture.drawTextCalls, 2, "draw text service calls");
+  expect_u16(fixture.drawTextCalls, 3, "draw text service calls");
   expect_u16(fixture.lastWindowId, 11, "draw service window id");
   expect_u16(fixture.lastDrawX, TEXT_APP_TEXT_X, "draw service x");
-  expect_u16(fixture.lastDrawY, TEXT_APP_TEXT_Y + TEXT_APP_LINE_STEP,
+  expect_u16(fixture.lastDrawY, TEXT_APP_TEXT_Y + (TEXT_APP_LINE_STEP * 2U),
              "draw service y");
-  expect_text(fixture.lastText, "OS-owned drawing", "last drawn text");
+  expect_text(fixture.lastText, "Event received", "last drawn text");
 
   expect_status(APP_SHELL_Command(&shell, APP_CMD_SAVE), APP_RT_OK,
                 "save text app");

@@ -140,11 +140,12 @@ static void hosts_text_app_with_desktop_callbacks(void) {
   expect_status(ADH_Draw(&host, 3, 5, TEXT_APP_MIN_WIDTH, TEXT_APP_MIN_HEIGHT),
                 APP_RT_OK, "desktop host draw");
   expect_u16(host.textState.drawCalls, 1, "desktop text draw calls");
-  expect_u16(fixture.drawCalls, 2, "desktop draw callbacks");
+  expect_u16(fixture.drawCalls, 3, "desktop draw callbacks");
   expect_u16(fixture.lastDrawX, 3 + TEXT_APP_TEXT_X, "desktop draw x");
-  expect_u16(fixture.lastDrawY, 5 + TEXT_APP_TEXT_Y + TEXT_APP_LINE_STEP,
+  expect_u16(fixture.lastDrawY,
+             5 + TEXT_APP_TEXT_Y + (TEXT_APP_LINE_STEP * 2U),
              "desktop draw y");
-  expect_text(fixture.lastText, "OS-owned drawing", "desktop last text");
+  expect_text(fixture.lastText, "Event received", "desktop last text");
 
   expect_status(ADH_SaveActive(&host), APP_RT_OK, "desktop host save");
   expect_u16(host.textState.saveCalls, 1, "desktop text save calls");
@@ -185,9 +186,38 @@ static void reports_desktop_callback_failures(void) {
   expect_status(ADH_Close(&host), APP_RT_OK, "close after failure checks");
 }
 
+static void redraws_after_event_close_and_reopen(void) {
+  DesktopHostFixture fixture = {0};
+  AppDesktopHost host;
+  AppDesktopHostOps ops = make_ops(&fixture);
+  AppRuntimeEvent event = {APP_EVENT_TIMER, 1, 0, 0};
+
+  ADH_Init(&host, &ops);
+  expect_status(ADH_OpenText(&host), APP_RT_OK, "boundary first open");
+  expect_status(ADH_SendEvent(&host, &event), APP_RT_OK,
+                "boundary first event");
+  expect_status(ADH_Close(&host), APP_RT_OK, "boundary close");
+  expect_false(ADH_IsRunning(&host), "boundary returned to shell");
+  expect_status(ADH_OpenText(&host), APP_RT_OK, "boundary reopen");
+  expect_true(ADH_IsRunning(&host), "boundary running after reopen");
+  expect_status(ADH_Draw(&host, 0, 0, TEXT_APP_MIN_WIDTH,
+                         TEXT_APP_MIN_HEIGHT),
+                APP_RT_OK, "boundary redraw after reopen");
+
+  expect_u16(host.textState.initCalls, 2, "boundary init calls");
+  expect_u16(host.textState.eventCalls, 1, "boundary event calls");
+  expect_u16(host.textState.exitCalls, 1, "boundary exit calls");
+  expect_u16(host.textState.drawCalls, 1, "boundary draw calls");
+  expect_u16(fixture.drawCalls, 3, "boundary draw callbacks");
+  expect_text(fixture.lastText, "Event+close OK", "boundary status text");
+
+  expect_status(ADH_Close(&host), APP_RT_OK, "boundary final close");
+}
+
 int main(void) {
   hosts_text_app_with_desktop_callbacks();
   reports_desktop_callback_failures();
+  redraws_after_event_close_and_reopen();
 
   if (failures) {
     printf("app desktop host tests failed: %d\n", failures);

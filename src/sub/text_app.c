@@ -48,6 +48,16 @@ static TextAppState *text_app_state(AppRuntimeContext *ctx) {
   return (TextAppState *)ctx->appState;
 }
 
+static const char *text_app_status_line(const TextAppState *state) {
+  if (state->eventCalls && state->exitCalls) {
+    return "Event+close OK";
+  }
+  if (state->eventCalls) {
+    return "Event received";
+  }
+  return "Awaiting event";
+}
+
 static uint8_t text_app_init(AppRuntimeContext *ctx) {
   TextAppState *state = text_app_state(ctx);
   uint16_t windowId = 0;
@@ -99,9 +109,15 @@ static uint8_t text_app_draw(AppRuntimeContext *ctx,
     return 0;
   }
 
+  if (!ctx->services->drawText(ctx, ctx->windowId, x,
+                               (uint16_t)(y + TEXT_APP_LINE_STEP),
+                               "OS-owned drawing")) {
+    return 0;
+  }
+
   return ctx->services->drawText(
-      ctx, ctx->windowId, x, (uint16_t)(y + TEXT_APP_LINE_STEP),
-      "OS-owned drawing");
+      ctx, ctx->windowId, x, (uint16_t)(y + (TEXT_APP_LINE_STEP * 2U)),
+      text_app_status_line(state));
 }
 
 static uint8_t text_app_command(AppRuntimeContext *ctx, uint16_t command) {

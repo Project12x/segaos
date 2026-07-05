@@ -95,7 +95,15 @@ static BasicBramSmokeResult basicBramProbeResult;
     (defined(DESKTOP_PUMP_PROBE) || defined(BOOT_SAFE_LIVE_PROBE))
 static uint16_t bootFrameMarkerIndex;
 #endif
-#ifdef BOOT_SAFE_DESKTOP
+#if defined(BOOT_SAFE_DESKTOP) &&                                             \
+    (defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE) ||       \
+     defined(DESKTOP_LOOP_PROBE) || defined(DESKTOP_TIMING_PROBE) ||          \
+     defined(DESKTOP_WM_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||       \
+     defined(DESKTOP_SCHEDULER_PROBE) || defined(DESKTOP_PUMP_PROBE) ||       \
+     defined(BOOT_SAFE_LIVE_PROBE))
+#define BOOT_SAFE_LEGACY_WINDOW_BODY 1
+#endif
+#if defined(BOOT_SAFE_DESKTOP) && !defined(BOOT_SAFE_LEGACY_WINDOW_BODY)
 static AppDesktopHost bootAppHost;
 static uint8_t bootAppHostInitialized;
 static uint16_t bootAppWindowId;
@@ -193,14 +201,6 @@ void sub_main(void) {
 
 #ifndef BOOT_PROBE
 #ifdef BOOT_SAFE_DESKTOP
-#if defined(BOOT_SAFE_TITLE_PROBE) || defined(DESKTOP_REPEAT_PROBE) ||       \
-    defined(DESKTOP_LOOP_PROBE) || defined(DESKTOP_TIMING_PROBE) ||          \
-    defined(DESKTOP_WM_PROBE) || defined(DESKTOP_DIRTY_QUEUE_PROBE) ||       \
-    defined(DESKTOP_SCHEDULER_PROBE) || defined(DESKTOP_PUMP_PROBE) ||       \
-    defined(BOOT_SAFE_LIVE_PROBE)
-#define BOOT_SAFE_LEGACY_WINDOW_BODY 1
-#endif
-
 static void boot_draw_menu_labels(void) {
   BLT_DrawString(8, 4, "File", SysFont_Get(), BLT_BLACK);
   BLT_DrawString(48, 4, "Edit", SysFont_Get(), BLT_BLACK);
@@ -276,6 +276,8 @@ static uint8_t boot_app_save_document(void *user, const uint8_t *data,
 
 static void boot_app_host_open_once(void) {
   AppDesktopHostOps ops;
+  AppRuntimeEvent event;
+  AppRuntimeStatus status;
 
   if (bootAppHostInitialized) {
     return;
@@ -292,8 +294,23 @@ static void boot_app_host_open_once(void) {
   ops.saveDocument = boot_app_save_document;
 
   ADH_Init(&bootAppHost, &ops);
-  bootAppHostInitialized =
-      (uint8_t)(ADH_OpenText(&bootAppHost) == APP_RT_OK);
+  status = ADH_OpenText(&bootAppHost);
+  if (status != APP_RT_OK) {
+    bootAppHostInitialized = 0;
+    return;
+  }
+
+  event.type = APP_EVENT_TIMER;
+  event.param0 = 1;
+  event.param1 = 0;
+  event.param2 = 0;
+
+  if (ADH_SendEvent(&bootAppHost, &event) != APP_RT_OK) {
+    bootAppHostInitialized = 0;
+    return;
+  }
+
+  bootAppHostInitialized = 1;
 }
 
 static void boot_draw_app_window_body(void) {

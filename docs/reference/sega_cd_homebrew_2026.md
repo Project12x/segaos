@@ -197,6 +197,19 @@ BlastEm internal screenshot
 `C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png` shows the
 visible `TEXT.APP` runtime-service body.
 
+2026-07-05 lifecycle-event update: `TEXT.APP` now draws a third status line
+from app state. Host tests were updated red/green so shell and desktop-host
+coverage require three OS text callbacks after event delivery, and a desktop
+host sequence proves open -> event -> close -> shell returned -> reopen ->
+redraw with `Event+close OK`. The normal boot-safe target path primes one timer
+event before visible draw; debugger-backed BlastEm internal screenshot
+`C:\tmp\segaos_screens_internal\segaos_lifecycle_20260705_160407.png` shows
+`Event received` in the app window. A debug attempt to fold close/reopen into
+the boot render path stalled before `segaos_visual_probe_halt` phase `0x76ff`,
+while a legacy-body control and the event-only target path both reached the
+breakpoint. Treat target close/reopen as the next dedicated probe with timeout
+and status evidence, not as hidden boot-render work.
+
 Done locally on 2026-06-19: BlastEm 0.6.3-pre with a USA BIOS and SGDK GDB
 hit `$00FF0000`; `$FF0000` contained the expected US security bytes. That closes
 boot-disc recognition as the first gate and moves the focus to dual-CPU runtime

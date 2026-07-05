@@ -197,16 +197,29 @@ open `TEXT.APP`, request a window, deliver an event, draw through the desktop
 text callback, save through the desktop save callback, close, and report
 request/draw/save failures through runtime status codes.
 
+The lifecycle rung now goes one step further in host tests: `TEXT.APP` can open,
+receive a timer event, close, return control to the shell, reopen, redraw, and
+report `Event+close OK` through the OS text callback. This is clean-room code
+over SegaOS' own runtime contract; no upstream app-runtime source was copied or
+closely ported.
+
 The normal boot-safe starter window now uses this adapter for the window body:
 `TEXT.APP` draws its content through `ADH_Draw()` instead of hardcoded body text
-inside `sub.c`. Existing narrow probe builds keep the legacy hardcoded text so
-their sampled glyph bytes remain stable.
+inside `sub.c`. It also sends one OS event before the visible draw, so the
+target screenshot shows `Event received` from app state rather than static body
+copy. Existing narrow probe builds keep the legacy hardcoded text so their
+sampled glyph bytes remain stable.
 
 Current visual proof: a debugger-backed BlastEm internal screenshot captured on
 2026-07-05 at
-`C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png` shows the
+`C:\tmp\segaos_screens_internal\segaos_lifecycle_20260705_160407.png` shows the
 visible `TEXT.APP` title and body text, including `OS-owned drawing`,
-`AppRuntime services`, and `Boot-safe pre-alpha`.
+`Event received`, `AppRuntime services`, and `Boot-safe pre-alpha`.
+
+Target note: putting close/reopen priming directly inside the boot render path
+stalled before the Main visual breakpoint in BlastEm. Keep target close/reopen
+as a dedicated timed probe with explicit status breadcrumbs before treating it
+as production boot behavior.
 
 ## First Accepted Showpiece
 

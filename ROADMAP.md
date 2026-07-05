@@ -426,11 +426,13 @@ with in at least one emulator.
       `TEXT.APP` runtime-service window body
       (`C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png`)
 - [ ] Prove `TEXT.APP` or equivalent first app boundary:
-  - [ ] shell discovers/selects the app
-  - [ ] app requests a window through OS services
-  - [ ] app receives one input/event callback
-  - [ ] app draws through OS drawing/text services
-  - [ ] app exits and returns to shell without rebooting
+  - [x] shell discovers/selects the app
+  - [x] app requests a window through OS services
+  - [x] app receives one input/event callback
+  - [x] app draws through OS drawing/text services
+  - [x] app exits and returns to shell without rebooting in the host-tested
+        desktop-host lifecycle
+  - [ ] target-side close/reopen probe with timeout/status evidence
 - [ ] Prove second app launch after first app exit
 - [ ] Bind app document save/load to the storage policy, not raw BRAM or
       app-specific callbacks

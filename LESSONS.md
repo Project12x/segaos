@@ -56,6 +56,15 @@ same failures.
   the narrow probe macros that sample exact glyph bytes until those probes are
   deliberately updated. Accepted visual proof:
   `C:\tmp\segaos_screens_internal\segaos_text_app_20260705_154848.png`.
+- The fifth app-runtime artifact is the first lifecycle-visible `TEXT.APP`
+  status line. Host tests now prove open -> event -> close -> shell returned ->
+  reopen -> redraw, with `TEXT.APP` reporting `Event+close OK` through the OS
+  text callback. The target boot-safe path only primes an event before visible
+  draw, with accepted screenshot
+  `C:\tmp\segaos_screens_internal\segaos_lifecycle_20260705_160407.png`
+  showing `Event received`. A close/reopen attempt inside boot rendering
+  stalled before the Main visual breakpoint, so target close/reopen needs a
+  dedicated timed probe with status breadcrumbs.
 
 ## Reference Code First
 
